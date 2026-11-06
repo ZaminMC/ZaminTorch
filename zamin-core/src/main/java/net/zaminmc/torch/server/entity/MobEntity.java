@@ -12125,6 +12125,264 @@ public final class MobEntity implements LivingEntity {
         return restrictDoor;
     }
 
+    // ------------------ the stare + the night village walk (Wave PE-24)
+
+    /**
+     * The villager's close-player stare ({@code GoToEntityGoal} — a
+     * {@code LookAtEntityGoal} subclass the reference constructs with
+     * {@code setControls(3)}: the LOOK family's window laws over the
+     * MOVE mutex too, so a claimed body stands and stares): the window's
+     * clock ({@code lookTime}) and the held player ({@code targetEntity}).
+     */
+    private int lookAtCloseTicksLeft;
+    private PlayerView lookAtClosePlayer;
+
+    /**
+     * The night village walk ({@code WanderThroughVillageAtNightGoal}):
+     * the DOOR MEMORY ({@code doors}, the stop()'s write — a door the
+     * body reached or completed is refused until the list's 15-row cap
+     * rolls it out) and the walk's own door ({@code villageDoor}).
+     */
+    private final java.util.List<net.zaminmc.torch.server.village.VillageDoor> nightWalkDoors =
+            new java.util.ArrayList<>();
+    private net.zaminmc.torch.server.village.VillageDoor nightWalkDoor;
+    private boolean nightWalkActive;
+
+    /**
+     * GoToEntityGoal over LookAtEntityGoal (the subclass's whole law —
+     * the ctor alone, {@code setControls(3)}, everything else inherited
+     * 1:1; the villager's own registration, VillagerEntity line 318:
+     * {@code (this, PlayerEntity.class, 3.0F, 1.0F)}): the CHANCE-1.0
+     * roll (the reference's own {@code nextFloat() >= chance} consult
+     * — the roll always passes but pays its stream read), the nearest
+     * player within 3, and the {@code 40 + nextInt(40)} window. The
+     * MOVE mutex the subclass adds: a claimed body stands and stares —
+     * the stroll never claims a villager with a player at hand.
+     */
+    boolean goalLookAtCloseCanUse() {
+        if (type != MobType.VILLAGER) {
+            return false; // the villager's own registration (band 9)
+        }
+        if (lookAtCloseTicksLeft > 0) {
+            // shouldContinue (LookAtEntityGoal lines 51-53): the target
+            // alive, inside the window's reach, the clock above zero.
+            if (lookAtClosePlayer == null || lookAtClosePlayer.spectator()) {
+                lookAtCloseTicksLeft = 0;
+                lookAtClosePlayer = null;
+                return false;
+            }
+            Position at = lookAtClosePlayer.position();
+            double dx = at.x() - position.x();
+            double dy = at.y() - position.y();
+            double dz = at.z() - position.z();
+            if (dx * dx + dy * dy + dz * dz > 9.0) {
+                lookAtCloseTicksLeft = 0; // stop(): the player left the reach
+                lookAtClosePlayer = null;
+                return false;
+            }
+            return true;
+        }
+        random.nextFloat(); // the chance-1.0 roll — consumed 1:1
+        PlayerView player = world.nearestPlayerView(
+                position.x(), position.y(), position.z(), 3.0);
+        if (player == null) {
+            return false;
+        }
+        lookAtClosePlayer = player;
+        lookAtCloseTicksLeft = 40 + random.nextInt(40); // start()'s window
+        return true;
+    }
+
+    /**
+     * The stare's tick (LookAtEntityGoal.tick lines 66-71 inherited): the
+     * head holds the player's eyes, the clock pays its tick.
+     */
+    void goalLookAtCloseTick() {
+        PlayerView player = lookAtClosePlayer;
+        if (player == null) {
+            return;
+        }
+        Position at = player.position();
+        headYaw = angleTo(at.x() - position.x(), at.z() - position.z());
+        lookAtCloseTicksLeft--;
+    }
+
+    /** @return the stare window's live clock (the test read). */
+    int lookAtCloseTicksLeftForTest() {
+        return lookAtCloseTicksLeft;
+    }
+
+    /**
+     * WanderThroughVillageAtNightGoal.canStart + shouldContinue (lines
+     * 36-73 + 76-83 1:1): the door-memory clamp (the 15-row cap), the
+     * FRIENDLY gate (the iron golem's registration refuses the sunny
+     * sky; the zombie's raids whatever the clock reads), the nearest
+     * village at range ZERO (the village the body stands in — the
+     * center inside the village's own radius band), the findDoor walk
+     * (the nearest door NOT in the memory), the reference's own FLAG
+     * DANCE around the path consult ({@code canPassThroughDoors} read,
+     * {@code setCanOpenDoors(false)} written — the read/write asymmetry
+     * the reference carries), and the AWAY fallback ({@code
+     * getTargetAwayFromPosition} at 10/7 over the door's integer cell —
+     * the toward-the-door half-plane). shouldContinue: the path runs
+     * and the body stands beyond the {@code (width + 4)}² band of the
+     * door.
+     */
+    boolean goalNightVillageCanUse() {
+        boolean friendly = type == MobType.IRON_GOLEM;
+        if (type != MobType.ZOMBIE && type != MobType.IRON_GOLEM) {
+            return false; // the zombie's band 6 + the golem's band 3 alone
+        }
+        if (nightWalkActive) {
+            if (navigation.isDone()) {
+                stopNightWalk();
+                return false;
+            }
+            double dx = position.x() - nightWalkDoor.x();
+            double dy = position.y() - nightWalkDoor.y();
+            double dz = position.z() - nightWalkDoor.z();
+            double band = (double) type.width + 4.0;
+            if (dx * dx + dy * dy + dz * dz <= band * band) {
+                stopNightWalk();
+                return false;
+            }
+            return true;
+        }
+        // clampDoorsListSize (lines 122-129): the 15-row cap.
+        if (nightWalkDoors.size() > 15) {
+            nightWalkDoors.remove(0);
+        }
+        if (friendly && world.isSunny()) {
+            return false; // the golem's sunny gate (line 39)
+        }
+        int bx = (int) Math.floor(position.x());
+        int by = (int) Math.floor(position.y());
+        int bz = (int) Math.floor(position.z());
+        net.zaminmc.torch.server.village.Village village =
+                world.nearestVillageAt(bx, by, bz, 0);
+        if (village == null) {
+            return false;
+        }
+        net.zaminmc.torch.server.village.VillageDoor door = findNightWalkDoor(village);
+        if (door == null) {
+            return false;
+        }
+        // The reference's own flag dance (lines 53-57): the pass-through
+        // read, the open-flag write around the path consult.
+        boolean flag = navigation.canPassThroughDoors();
+        navigation.setCanOpenDoors(false);
+        net.zaminmc.torch.server.entity.ai.pathing.Path path =
+                navigation.findPath(door.x(), door.y(), door.z());
+        if (path == null) {
+            // The away fallback (lines 62-72): the door's integer cell —
+            // the toward-the-door half-plane at 10/7.
+            Position away = targetFinderPickAway(10, 7,
+                    door.x() - position.x(), door.z() - position.z());
+            if (away == null) {
+                navigation.setCanOpenDoors(flag);
+                return false;
+            }
+            path = navigation.findPath(away.x(), away.y(), away.z());
+        }
+        navigation.setCanOpenDoors(flag);
+        if (path == null) {
+            return false;
+        }
+        // start(): the pre-computed path rides the navigation.
+        nightWalkDoor = door;
+        nightWalkActive = true;
+        navigation.moveAlong(path, friendly ? 0.6 : 1.0);
+        mode = Mode.WANDER;
+        modeTicks = 0;
+        return true;
+    }
+
+    /**
+     * findDoor (lines 97-110 1:1): the nearest village door NOT in the
+     * memory — the squared distance to the body's FLOORED cell.
+     */
+    private net.zaminmc.torch.server.village.VillageDoor findNightWalkDoor(
+            net.zaminmc.torch.server.village.Village village) {
+        net.zaminmc.torch.server.village.VillageDoor best = null;
+        int bestDistance = Integer.MAX_VALUE;
+        int bx = (int) Math.floor(position.x());
+        int by = (int) Math.floor(position.y());
+        int bz = (int) Math.floor(position.z());
+        for (net.zaminmc.torch.server.village.VillageDoor door : village.doors()) {
+            boolean inMemory = false;
+            for (net.zaminmc.torch.server.village.VillageDoor remembered : nightWalkDoors) {
+                if (door.x() == remembered.x() && door.y() == remembered.y()
+                        && door.z() == remembered.z()) {
+                    inMemory = true;
+                    break;
+                }
+            }
+            if (inMemory) {
+                continue;
+            }
+            int distance = door.squaredDistanceTo(bx, by, bz);
+            if (distance < bestDistance) {
+                best = door;
+                bestDistance = distance;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * The walk's own drive (the navigation owns the feet — the
+     * pre-computed path walks on, the heading the navigation's own
+     * waypoint reports).
+     */
+    void goalNightVillageTick() {
+        if (nightWalkDoor == null) {
+            return;
+        }
+        goalWalkSpeed = type == MobType.IRON_GOLEM ? 0.6 : 1.0;
+        mode = Mode.WANDER;
+        modeTicks = 0;
+        navigation.tick();
+        if (navigation.hasTarget) {
+            yaw = angleTo(navigation.currentTargetX - position.x(),
+                    navigation.currentTargetZ - position.z());
+            pathYaw = yaw;
+            pathYawValid = true;
+        } else {
+            pathYawValid = false;
+        }
+        if (navigation.isDone()) {
+            stopNightWalk();
+        }
+    }
+
+    /**
+     * stop() (lines 91-95 1:1): the door enters the memory when the walk
+     * completed or the body reached within squared-16 of its cell — the
+     * refusal list the next findDoor consults.
+     */
+    private void stopNightWalk() {
+        if (nightWalkDoor != null) {
+            double dx = position.x() - nightWalkDoor.x();
+            double dy = position.y() - nightWalkDoor.y();
+            double dz = position.z() - nightWalkDoor.z();
+            if (navigation.isDone() || dx * dx + dy * dy + dz * dz < 16.0) {
+                nightWalkDoors.add(nightWalkDoor);
+            }
+        }
+        nightWalkDoor = null;
+        nightWalkActive = false;
+    }
+
+    /** @return the night walk's door (the test read). */
+    net.zaminmc.torch.server.village.VillageDoor nightWalkDoorForTest() {
+        return nightWalkDoor;
+    }
+
+    /** @return the door memory's size (the test read). */
+    int nightWalkMemorySizeForTest() {
+        return nightWalkDoors.size();
+    }
+
     /** @return the navigation's open-door permission (the test read). */
     boolean navigationCanOpenDoors() {
         return navigation.canOpenDoors();

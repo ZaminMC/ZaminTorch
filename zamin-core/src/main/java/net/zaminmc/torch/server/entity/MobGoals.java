@@ -475,6 +475,52 @@ final class MobGoals {
     };
 
     /**
+     * Priority 4, exclusive, LATE in the walk band (the reference's
+     * own village-family order — the zombie's night-raid walk at band
+     * 6 beside the plain wander's 7, the golem's at band 3 above its
+     * own wander — Wave PE-24): the night village walk
+     * (WanderThroughVillageAtNightGoal 1:1). The zombie raids any
+     * clock (the friendly gate false); the golem refuses the sunny
+     * sky. The door-memory list (the 15-row cap) spreads the walk
+     * across the village's doors, the pre-computed path walks on
+     * under the navigation's own drive, and the (width+4)² continue
+     * band + the stop's memory write own the window.
+     */
+    static final MobGoal NIGHT_VILLAGE = new MobGoal() {
+        @Override public String goalId() { return "night_village"; }
+        @Override public int priority() { return 4; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalNightVillageCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalNightVillageTick();
+        }
+    };
+
+    /**
+     * Priority 4, exclusive, after the caravan (the reference's own
+     * band 9 — beside the plain wander, after the golem walk's 7 and
+     * the caravan's 8 — Wave PE-24): the villager's close-player stare
+     * (GoToEntityGoal over LookAtEntityGoal — the LOOK family's window
+     * laws with the MOVE mutex the subclass adds). A player within 3
+     * blocks of an idle villager holds the body: the chance-1.0 roll,
+     * the nearest player consult, the 40+nextInt(40) window with the
+     * head on the player's eyes — the famous stand-and-stare.
+     */
+    static final MobGoal LOOK_AT_CLOSE = new MobGoal() {
+        @Override public String goalId() { return "look_at_close"; }
+        @Override public int priority() { return 4; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalLookAtCloseCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalLookAtCloseTick();
+        }
+    };
+
+    /**
      * Priority 3, additive (LOOK control only — LookAtEntityGoal's own
      * shape, Wave PE-23, {@code setControls(2)}): the universal
      * look-at. Every strolling kind's own registration — the 2% dice,
@@ -651,8 +697,8 @@ final class MobGoals {
                 VILLAGER_FLEE, STAY_INDOORS, BREED,
                 BEG, GOLEM_LOOK, LOOK_AT, RESTRICT_DOOR, TEMPT, ESCAPE_SUNLIGHT, FLEE_PLAYER,
                 OPEN_DOOR, FOLLOW_OWNER, SIT_ON_BLOCK, FOLLOW_PARENT,
-                RABBIT_RAID_FARM, VILLAGE_RETURN, VILLAGER_FARM, FOLLOW_GOLEM,
-                FORM_CARAVAN, EAT_GRASS,
+                RABBIT_RAID_FARM, VILLAGE_RETURN, NIGHT_VILLAGE, VILLAGER_FARM,
+                FOLLOW_GOLEM, FORM_CARAVAN, LOOK_AT_CLOSE, EAT_GRASS,
                 RANDOM_STROLL, LOOK_AROUND));
     }
 }

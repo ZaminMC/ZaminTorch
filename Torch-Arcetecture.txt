@@ -8655,15 +8655,120 @@ observable difference is bounded (the interrupted graze resumes
 where it froze rather than re-rolling the dice) and the adaptation
 stays the selector's documented law until a wave retires it whole.
 
-NEXT WORK (re-pinned, in order): the idle-life family's OWN
-standing tails (the reference's remaining unowned goals — the
-LookAtEntity/LookAround head-yaw family over the wire's Entity
-Head Look packet, the StayIndoors/RestrictOpenDoor village-door
-pair, the villager's FARM walk (VillagerFarmGoal over GoToBlockGoal
-— the harvest/replant pair needs the villager's 8-slot inventory
-first, hasPlantableItems/hasRoomForHarvest), FormCaravanGoal for
-the llama, FollowGolemGoal's flower-offer client render riding the
-offer clock); the CI census watches (the environmental class —
+WAVE PE-23 LANDED (2026-11-06, commit cd09f67d — THE IDLE-LIFE
+FAMILY'S STANDING TAILS, the pinned ledger whole): (1) THE HEAD-YAW
+LOOK FAMILY (LookAtEntityGoal + LookAroundGoal — the reference's
+universal idle pair, twenty-four per-kind registrations): the 2%
+dice, the per-kind range table (6 the animal family + the golems, 8
+the monster family + the wolf, 10 the rabbit/ocelot), the villager's
+own MobEntity.class row at 8 (the nearestLivingMobInBox census
+consult), the guardian's SECOND registration at 12/0.01 (the
+player arm first), the 40+nextInt(40) window with the head on the
+target's eyes riding the wire's Entity Head Look packet; the
+look-around's cos/sin angle + 20+nextInt(20) window with the
+reference's own >= 0 off-by-one (the zero tick holds the head one
+last time — the MIN_VALUE spent marker), placed AFTER the stroll in
+the selector (the reference's own per-kind ladders: the walks
+outrank it, it fills the idle gaps, the mutex law carried by the
+goalHasTarget hunt gate); the stroll's historical glance RETIRED
+(the modeTicks%30 roll); the registrants' own set kept whole — the
+villager/rabbit/ocelot carry no look-around, the ghast its own
+whole-body family. (2) THE VILLAGE-DOOR PAIR (StayIndoorsGoal +
+RestrictOpenDoorGoal): the weather gate (!isSunny ||
+isRaining && !biome.isRainy — the WorldQuery consults isRaining/
+biomeRainyAt landed for it), the 1-in-50 dice, the recent-cell
+squared-4 refusal, the TICKING-DOOR pick (getNearestTickingDoor
+1:1 — the 256-band *1000 penalty, the restrictedTicks compare), the
+near arm's walk to the indoors center + the far arm's away pick at
+14/3 (getTargetAwayFromPosition's OWN sign — startOffset = start −
+mob, the OPPOSITE of the flee's away-from-ENTITY form, the
+half-plane TOWARD the shelter); the restrict goal's zero-controls
+ADDITIVE registration, the squared-2.25 indoors band, the start/stop
+navigation door-permission pair (setCanOpenDoors/
+setCanPassThroughDoors on MobNavigation + WalkNodeEvaluator — the
+villager's own ctor arming 1:1, VillagerEntity lines 306-307), and
+the restrictOpening tick. (3) THE VILLAGER'S FARM WALK
+(VillagerFarmGoal over GoToBlockGoal — the 8-slot inventory's own
+consults hasPlantableItems/hasRoomForHarvest landed first): the
+wrapper's OWN gate order (the mobGriefing rule read INSIDE the
+cooldown-zero arm — a no-grief world re-checks every consult, the
+cooldown never arms), the ±16 spiral, the two isValidTarget arms
+(the age-7 wheat harvest at delay 0 + the room gate, the
+empty-above-cell plant at delay 1 + the seed gate), the 0.6 walk
+with the 40-tick re-path, and the work tick — the harvest breaks
+the wheat WITH its drops (the manager's intent → the same
+DropService crop table the player's dig reads, the drops as ITEM
+entities the villager's own loot pickup gathers), the plant consumes
+the seed and places the crop at age 0, the 10-tick cooldown; the
+registration gates — the profession-0 ADULT (the reference's
+registerAgeDependentGoals/onGrowUp pair folded to the canUse gate).
+(4) THE BABY'S CARAVAN (FormCaravanGoal — the reference's
+villager-child registration at band 8): the baby gate, the 1-in-400
+dice, the census over the grown-6/3/6 box (the
+nearestBabyVillagerNotInCaravanInBox consult), the wander-alone arm
+(the plain (16,3) pick must answer), the 1000-tick window, the
+caravan flag, the 0.32 walk beyond the squared-4 band. (5) THE
+GOLEM'S OFFER SYNC (setLookingAtVillager line 188): the Entity
+Status 11 fired on BOTH arms (the pending flag the manager drains —
+the wire's sync nudge; the client's own flower render reads the
+offer clock directly). SEATS: IdleLifeStandingTailsParityDiscovery-
+Test 10/0 (RED pre-fix: the farm's griefing-gate order, the
+look-around's fresh-field-0 live-window bug, the NoAI pickup gate —
+all three found by the seats); the roster seat repaired to the
+26-goal catalog. RIG REPAIRS (the established stream-shift class —
+the look family's dice moved the shared rolls): the witch's three
+ScriptedRandom ladders gained the look-at's 0.5 first roll; the
+in-wall suffocation BandWorld pins the sun DOWN (the daylight
+ignite's 1-in-25 roll was the mystery wound); the skeleton-flee seat
+drives the reference's own shouldContinue law. LANES: the entity
+package 646/0 whole, the village + pathing lanes green.
+
+WAVE PE-24 LANDED (2026-11-06, the second commit — THE VILLAGE
+NIGHT WALK + THE VILLAGER'S STARE): (1) THE NIGHT VILLAGE WALK
+(WanderThroughVillageAtNightGoal 1:1 — the zombie's band-6 raid +
+the iron golem's band-3 stroll): the friendly gate (the golem
+refuses the sunny sky, the zombie raids whatever the clock reads),
+the nearest village at range ZERO (the live consult — the body's
+own village band), the findDoor walk over the DOOR MEMORY (the
+nearest door not in the 15-row-capped list), the reference's own
+FLAG DANCE around the path consult (canPassThroughDoors read,
+setCanOpenDoors(false) written — the read/write asymmetry kept
+verbatim), the away fallback at 10/7 over the door's integer cell
+(toward-the-door half-plane), the (width+4)² continue band, and the
+stop's memory write (isDone || within squared-16 — the reached door
+refused until the cap rolls it out). (2) THE VILLAGER'S STARE
+(GoToEntityGoal over LookAtEntityGoal — the subclass's whole law is
+the ctor alone: setControls(3), the LOOK family's window laws over
+the MOVE mutex; the villager's registration (PlayerEntity, 3.0F,
+1.0F)): the CHANCE-1.0 roll consumed 1:1 (the reference's
+nextFloat() >= chance consult always passes but pays its stream
+read), the nearest player within 3, the 40+nextInt(40) window, the
+head on the player's eyes — the famous stand-and-stare (a claimed
+villager never strolls while a player stands at hand). SEATS:
+VillageNightStareParityDiscoveryTest 2/0 (the nearest-unremembered-
+door claim with the memory's refusal + the golem's sunny gate; the
+chance-1.0 claim with the window + the head hold + the out-of-reach
+stop + the kinds gate); the roster seat at the 28-goal catalog.
+LANES: the entity package whole (647/0), the village lanes green.
+THE GOLEM/ZOMBIE VILLAGE-WALK NOTE: the reference's plain
+WanderThroughVillageGoal rows on the golem (band 4) and the
+guardian (band 5) are NOT-REACHABLE in vanilla itself — no body
+ever writes their village caches (the villager's scan alone owns
+the write), the same class the blaze's band-5 row already carried;
+the golem's NIGHT walk (band 3) is the live one and it landed here
+over the LIVE village consult, never the cache.
+
+NEXT WORK (re-pinned, in order): the HORSE-BOND REPAIR (the
+reference's HorseBondWithPlayerGoal — the taming dice ride the
+RIDING window, a 1-in-50 per-tick roll while an UNTAMED horse
+carries its rider: the temper dice nextInt(maxTemper) < temper tames
+(the hearts Entity Status 7), else +5 temper + the BUCK (the
+dismount, the angry sound, the Entity Status 6) — the engine's
+current MountAttempt rolls at MOUNT time instead, the pre-existing
+stand-in this wave's census found and the next wave should retire);
+the villager's NBT Inventory row (writeCustomNbt's 8-slot stock
+persistence — the mating lane's in-memory stock survives restarts
+in the reference); the CI census watches (the environmental class —
 SleepAcceptance/PistonEntityPush on clean develop, the rotating
 loaded-runner one-offs, each green isolated); the verifier's
 non-1:1 documentation and PRs the standing input for every lane
