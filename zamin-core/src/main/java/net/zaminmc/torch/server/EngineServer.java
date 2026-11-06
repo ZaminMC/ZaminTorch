@@ -19050,6 +19050,14 @@ public final class EngineServer implements Server, EngineBridge {
         if (horizontal > MELEE_REACH + villager.type().width * 0.5 || dy < -2.0 || dy > 4.0) {
             return; // out of reach: the server-side refusal
         }
+        // Wave PE-26 — interactMob's own gates (lines 399-401): a
+        // customer-holding villager never opens a second window, and a
+        // baby never trades (the reference's own pair; the offers gate —
+        // an empty offers list refusing the window — rides the stock
+        // consult the trade table owns).
+        if (villager.hasCustomer() || villager.isBaby()) {
+            return;
+        }
         // The talked-to row (the stats family audit — VillagerEntity
         // .interactMob line 405: the trade-window interact arm pays
         // TALKED_TO_VILLAGER — the row rides the accepted interact,
@@ -19061,6 +19069,24 @@ public final class EngineServer implements Server, EngineBridge {
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
         player.openVillagerWindow(windowId, villager.entityId());
+        // Wave PE-26 — the CUSTOMER reference (interactMob lines 399-407:
+        // setCustomer at the open): the trade window's own row, the
+        // haggle sound's gate, and the customer triad's whole law read
+        // it. The live-state consult resolves the session by the engine
+        // id (null when the player left — the engine's session model
+        // has no dangling entities); the menu-closed gate is the
+        // reference's own {@code menu instanceof InventoryMenu} (the
+        // player's container back to NONE — the window closed).
+        final int customerId = player.engineEntityId();
+        villager.setVillagerCustomer(customerId);
+        villager.setVillagerCustomerState(() -> {
+            PlayerSession customer = sessionByEngineId(customerId);
+            if (customer == null) {
+                return null;
+            }
+            return new MobEntity.VillagerCustomerState(customer.position(),
+                    customer.openContainerKind() == PlayerSession.ContainerKind.NONE);
+        });
         // The adapter must send Open Window then the MC|TrList plugin message
         // (the crafting-table order rule; the 1.8 client renders the offers).
         for (MobManager.Listener listener : mobListeners) {
@@ -25587,6 +25613,29 @@ public final class EngineServer implements Server, EngineBridge {
                 itemEntities.spawnDropAtBlock(center, drop,
                         net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS,
                         villager.dimension());
+            }
+        }
+
+        /**
+         * The villager's food-share throw (Wave PE-26 —
+         * TradeWithVillagerGoal.tick lines 34-79): the donation's item
+         * entity spawns at the walker's eye band with the head-facing
+         * velocity (the body computed the exact triple at the share
+         * tick) and the default 10-tick pickup delay — the found
+         * villager's own loot pickup gathers the throw.
+         */
+        @Override
+        public void onVillagerShareFood(net.zaminmc.torch.server.entity.MobEntity villager,
+                net.zaminmc.torch.server.entity.MobEntity.VillagerShare share) {
+            for (MobManager.Listener listener : mobListeners) {
+                listener.onVillagerShareFood(villager, share);
+            }
+            net.zaminmc.torch.server.entity.ItemEntity thrown = itemEntities.spawnThrown(
+                    share.origin(), share.stack(), villager.dimension());
+            if (thrown != null) {
+                thrown.setVelocity(share.vx(), share.vy(), share.vz());
+                thrown.setPickupDelayTicks(
+                        net.zaminmc.torch.server.entity.ItemEntity.PICKUP_DELAY_DROP_TICKS);
             }
         }
 

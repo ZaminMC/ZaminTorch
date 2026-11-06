@@ -6972,6 +6972,11 @@ public final class MobEntity implements LivingEntity {
      * water prefix.
      */
     public String effectiveIdleSound() {
+        if (type == MobType.VILLAGER) {
+            // getAmbientSound (VillagerEntity line 475, Wave PE-26): the
+            // customer gate — a trading body haggles, an idle one hums.
+            return hasCustomer() ? "mob.villager.haggle" : "mob.villager.idle";
+        }
         if (type == MobType.GUARDIAN) {
             return guardianSoundKind() + "idle";
         }
@@ -8581,6 +8586,324 @@ public final class MobEntity implements LivingEntity {
         return villagerHasFoodPoints(1);
     }
 
+    /** wantsMoreFood (lines 842-844): the 2-unit band — the share walk's
+     *  own gate (a body with two breeding units has one to spare). */
+    public boolean villagerWantsMoreFood() {
+        return villagerHasFoodPoints(2);
+    }
+
+    // ------------------------------------- the customer model (Wave PE-26, VIII10's tail)
+
+    /**
+     * The customer's live state — the wired consult's answer (the
+     * EngineServer resolves the session by the seat's engine id):
+     * null when the customer left the world (the engine's session model
+     * has no dangling entities — the reference's own leak the goal's
+     * stale-distance consult carries, diverged deliberately).
+     */
+    public record VillagerCustomerState(Position position, boolean menuClosed) {
+    }
+
+    /** The trading customer's engine id (-1 when none stands). */
+    private int villagerCustomerEngineId = -1;
+    /** The customer's live-state consult (the wiring the trade open sets). */
+    private java.util.function.Supplier<VillagerCustomerState> villagerCustomerState;
+
+    /** The customer look's window clock (LookAtEntityGoal's lookTime). */
+    private int lookCustomerTicksLeft;
+    /** The customer stand's live claim (StopFollowingCustomerGoal's run). */
+    private boolean stopCustomerClaimed;
+    /** The share walk's found villager (TradeWithVillagerGoal's targetEntity). */
+    private MobEntity tradeShareTarget;
+    /** The share walk's stare clock (the inherited lookTime). */
+    private int tradeShareTicksLeft;
+    /** The share arm's cooldown (start()'s 10, else 0). */
+    private int tradeShareCooldown;
+    /** The pending donation (the manager's drain). */
+    private VillagerShare pendingTradeShare;
+
+    /** The donation the share walk throws (the manager's intent body). */
+    public record VillagerShare(net.zaminmc.torch.item.ItemStack stack,
+                                Position origin, double vx, double vy, double vz) {
+    }
+
+    /**
+     * setCustomer (VillagerEntity line 553): the interact's open arms the
+     * reference — the trade window's own row, the haggle sound's gate,
+     * and the triad's whole law read it.
+     */
+    public void setVillagerCustomer(int engineId) {
+        this.villagerCustomerEngineId = engineId;
+    }
+
+    /**
+     * Wires the customer's live-state consult (the EngineServer's own
+     * closure — the session's position and its open-container state).
+     */
+    public void setVillagerCustomerState(
+            java.util.function.Supplier<VillagerCustomerState> state) {
+        this.villagerCustomerState = state;
+    }
+
+    /** hasCustomer (line 562): the reference gate the triad reads. */
+    public boolean hasCustomer() {
+        return villagerCustomerEngineId >= 0;
+    }
+
+    /** @return the customer's engine id, or -1 when none stands. */
+    public int villagerCustomerEngineId() {
+        return villagerCustomerEngineId;
+    }
+
+    /** @return the customer's live state, or null when the consult is
+     *  unwired or the customer left the world. */
+    private VillagerCustomerState customerState() {
+        return villagerCustomerState == null ? null : villagerCustomerState.get();
+    }
+
+    /**
+     * LookAtCustomerGoal.canStart + the inherited window laws (lines
+     * 10-23 over LookAtEntityGoal): NO chance dice — a standing customer
+     * always claims the head; the 40+nextInt(40) window, the head on the
+     * customer's eyes, and shouldContinue's end (the customer gone or
+     * beyond the ctor's 8).
+     */
+    boolean goalLookCustomerCanUse() {
+        if (type != MobType.VILLAGER) {
+            return false; // the villager's own band-1 registration
+        }
+        if (lookCustomerTicksLeft > 0) {
+            VillagerCustomerState state = customerState();
+            if (state == null) {
+                lookCustomerTicksLeft = 0; // the customer left the world
+                return false;
+            }
+            double dx = state.position().x() - position.x();
+            double dy = state.position().y() - position.y();
+            double dz = state.position().z() - position.z();
+            if (dx * dx + dy * dy + dz * dz > 64.0) {
+                lookCustomerTicksLeft = 0; // stop(): beyond the ctor's 8
+                return false;
+            }
+            return true;
+        }
+        if (!hasCustomer()) {
+            return false; // canStart's whole gate (line 16)
+        }
+        if (customerState() == null) {
+            return false; // the customer left the world
+        }
+        lookCustomerTicksLeft = 40 + random.nextInt(40); // start()'s window
+        return true;
+    }
+
+    /**
+     * The customer look's tick (the inherited LookAtEntityGoal.tick lines
+     * 66-71): the head holds the customer's eyes, the clock pays its
+     * tick.
+     */
+    void goalLookCustomerTick() {
+        VillagerCustomerState state = customerState();
+        if (state == null) {
+            lookCustomerTicksLeft = 0;
+            return;
+        }
+        Position at = state.position();
+        headYaw = angleTo(at.x() - position.x(), at.z() - position.z());
+        lookCustomerTicksLeft--;
+    }
+
+    /**
+     * StopFollowingCustomerGoal.canStart + shouldContinue + stop (lines
+     * 14-47): the villager STANDS while its customer stands within 4
+     * blocks with the trade window CLOSED (the player's own inventory
+     * open — the reference's {@code menu instanceof InventoryMenu});
+     * start() stops the navigation; when the claim ends (the player
+     * leaves the band, the window reopens, the body takes damage or
+     * leaves the ground) stop() CLEARS THE CUSTOMER — the reference's
+     * own lifetime manager (nothing else ever clears it).
+     */
+    boolean goalStopCustomerCanUse() {
+        if (type != MobType.VILLAGER) {
+            return false; // the villager's own band-1 registration
+        }
+        if (stopCustomerClaimed) {
+            if (!stopCustomerGates()) {
+                stopCustomerClaimed = false;
+                villagerCustomerEngineId = -1; // stop(): setCustomer(null)
+                return false;
+            }
+            return true; // shouldContinue: the default canStart re-run
+        }
+        if (stopCustomerGates()) {
+            stopCustomerClaimed = true;
+            stopNavigation(); // start() line 38: the plain stop
+            return true;
+        }
+        return false;
+    }
+
+    /** The six gates (canStart lines 26-49). */
+    private boolean stopCustomerGates() {
+        if (goalInFluid() || !onGround() || hurtTime() > 0) {
+            return false; // in water, airborne, or damaged
+        }
+        VillagerCustomerState state = customerState();
+        if (state == null) {
+            return false; // the customer left the world
+        }
+        if (!state.menuClosed()) {
+            return false; // the trade window still stands open
+        }
+        double dx = state.position().x() - position.x();
+        double dy = state.position().y() - position.y();
+        double dz = state.position().z() - position.z();
+        return dx * dx + dy * dy + dz * dz <= 16.0; // squaredDistanceTo <= 16
+    }
+
+    /**
+     * The stand's tick: the controls own the body (the reference's
+     * setControls(5) — MOVE and JUMP held, the head left free for the
+     * customer look that runs beside it).
+     */
+    void goalStopCustomerTick() {
+        // no body law — the claim itself is the stand
+    }
+
+    /**
+     * TradeWithVillagerGoal.canStart + shouldContinue over GoToEntityGoal
+     * (lines 21-31 + the inherited LookAtEntityGoal laws): the 2% dice,
+     * the nearest VILLAGER within the body's own shape grown (3, 3, 3)
+     * — the stand-and-stare the subclass's MOVE mutex carries — and
+     * start()'s share arm: a walker with two breeding units to spare
+     * walking to a villager with room arms the 10-tick cooldown that
+     * pays the donation.
+     */
+    boolean goalTradeShareCanUse() {
+        if (type != MobType.VILLAGER) {
+            return false; // the villager's own band-9 registration
+        }
+        if (tradeShareTicksLeft > 0) {
+            if (tradeShareTarget == null || tradeShareTarget.dead()) {
+                tradeShareTicksLeft = 0; // shouldContinue: the target's death
+                tradeShareTarget = null;
+                return false;
+            }
+            double dx = tradeShareTarget.position().x() - position.x();
+            double dy = tradeShareTarget.position().y() - position.y();
+            double dz = tradeShareTarget.position().z() - position.z();
+            if (dx * dx + dy * dy + dz * dz > 9.0) {
+                tradeShareTicksLeft = 0; // beyond the ctor's 3
+                tradeShareTarget = null;
+                return false;
+            }
+            return true;
+        }
+        if (random.nextFloat() >= 0.02F) {
+            return false; // the 2% dice (the ctor's chance)
+        }
+        double half = type.width / 2.0;
+        MobEntity found = world.nearestMobOfKindInBox(
+                position.x() - half - 3.0, position.y() - 3.0,
+                position.z() - half - 3.0,
+                position.x() + half + 3.0, position.y() + type.height + 3.0,
+                position.z() + half + 3.0,
+                MobType.VILLAGER, entityId(),
+                position.x(), position.y(), position.z());
+        if (found == null) {
+            return false;
+        }
+        tradeShareTarget = found;
+        tradeShareTicksLeft = 40 + random.nextInt(40); // the inherited window
+        // start()'s share arm (lines 23-29): the walker's surplus and the
+        // found villager's room arm the cooldown.
+        tradeShareCooldown = villagerWantsMoreFood() && found.villagerHasRoomForHarvest()
+                ? 10 : 0;
+        return true;
+    }
+
+    /**
+     * The share walk's tick: the inherited stare (the head on the found
+     * villager's eyes, the clock) plus the donation arm (lines 34-79) —
+     * at the cooldown's zero the FIRST donatable slot pays half its
+     * stack out as a thrown item: bread/potato/carrot beyond 3 donate
+     * count/2 of the same kind, wheat beyond 5 donates its half rounded
+     * down to loaves of 3 as BREAD — the item thrown from the walker's
+     * eyes along its own head facing at 0.3 speed with the +0.1 lift
+     * and the default 10-tick pickup delay.
+     */
+    void goalTradeShareTick() {
+        MobEntity found = tradeShareTarget;
+        if (found == null) {
+            return;
+        }
+        Position at = found.position();
+        headYaw = angleTo(at.x() - position.x(), at.z() - position.z());
+        tradeShareTicksLeft--;
+        if (tradeShareCooldown > 0) {
+            tradeShareCooldown--;
+            if (tradeShareCooldown == 0) {
+                runTradeShare();
+            }
+        }
+    }
+
+    /** The donation walk (tick lines 37-79): the first donatable slot alone. */
+    private void runTradeShare() {
+        for (int i = 0; i < villagerFood.length; i++) {
+            net.zaminmc.torch.item.ItemStack stack = villagerFood[i];
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            String value = stack.type().identifier().value();
+            net.zaminmc.torch.item.ItemStack donate = null;
+            if ((value.equals("bread") || value.equals("potato") || value.equals("carrot"))
+                    && stack.count() > 3) {
+                int l = stack.count() / 2;
+                int left = stack.count() - l;
+                villagerFood[i] = left > 0 ? stack.withCount(left) : null;
+                donate = stack.withCount(l);
+            } else if (value.equals("wheat") && stack.count() > 5) {
+                int j = stack.count() / 2 / 3 * 3;
+                int k = j / 3;
+                int left = stack.count() - j;
+                villagerFood[i] = left > 0 ? stack.withCount(left) : null;
+                donate = net.zaminmc.torch.item.ItemStack.of(
+                        net.zaminmc.torch.server.item.BuiltinItems.BREAD, k);
+            }
+            if (donate != null) {
+                // The throw (lines 62-71): from the walker's eye band
+                // along its own head facing.
+                double eyeY = position.y() - 0.3 + eyeHeight();
+                double yawRad = Math.toRadians(headYaw);
+                double pitchRad = Math.toRadians(pitch);
+                pendingTradeShare = new VillagerShare(donate,
+                        new Position(position.x(), eyeY, position.z()),
+                        -Math.sin(yawRad) * Math.cos(pitchRad) * 0.3,
+                        -Math.sin(pitchRad) * 0.3 + 0.1,
+                        Math.cos(yawRad) * Math.cos(pitchRad) * 0.3);
+                break; // the first donatable slot alone (line 78)
+            }
+        }
+    }
+
+    /** @return and clears the pending donation (the manager's drain). */
+    public VillagerShare consumeTradeShare() {
+        VillagerShare value = pendingTradeShare;
+        pendingTradeShare = null;
+        return value;
+    }
+
+    /** @return the customer look's live clock (the test read). */
+    int lookCustomerTicksLeftForTest() {
+        return lookCustomerTicksLeft;
+    }
+
+    /** @return the share walk's live target (the test read). */
+    MobEntity tradeShareTargetForTest() {
+        return tradeShareTarget;
+    }
+
     /**
      * The pickup's villager arm (updateInventory lines 821-832): the food
      * family lands in the food slots — a matching stack grows first
@@ -8615,6 +8938,43 @@ public final class MobEntity implements LivingEntity {
             }
         }
         return stack; // no room: the item stays
+    }
+
+    /**
+     * The stock's own ADD-ITEM verb, ungated (readCustomNbt lines
+     * 455-462 — the load trusts the saved list: the reference's
+     * {@code this.inventory.addItem(itemstack)} has NO isFood gate, a
+     * foreign row stocks whatever it carries): a same-kind stack with
+     * room merges first, else the first empty slot takes the stack
+     * whole, and an overflow row is silently dropped (the reference
+     * ignores addItem's remainder at the load site).
+     */
+    public void villagerStockItem(net.zaminmc.torch.item.ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        for (int i = 0; i < villagerFood.length; i++) {
+            net.zaminmc.torch.item.ItemStack slot = villagerFood[i];
+            if (slot != null && !slot.isEmpty()
+                    && slot.type().equals(stack.type())
+                    && slot.count() < 64) {
+                int room = 64 - slot.count();
+                int move = Math.min(room, stack.count());
+                villagerFood[i] = slot.withCount(slot.count() + move);
+                int left = stack.count() - move;
+                if (left <= 0) {
+                    return;
+                }
+                stack = stack.withCount(left);
+            }
+        }
+        for (int i = 0; i < villagerFood.length; i++) {
+            if (villagerFood[i] == null || villagerFood[i].isEmpty()) {
+                villagerFood[i] = stack;
+                return;
+            }
+        }
+        // No room: the row drops (addItem's ignored remainder).
     }
 
     /**

@@ -204,7 +204,10 @@ class AmbientSoundCadenceTest {
         assertEquals("mob.chicken.say", spawn(MobType.CHICKEN, 3L).effectiveIdleSound());
         assertEquals("mob.sheep.say", spawn(MobType.SHEEP, 3L).effectiveIdleSound());
         assertEquals("mob.rabbit.idle", spawn(MobType.RABBIT, 3L).effectiveIdleSound());
-        assertEquals("mob.villager.haggle", spawn(MobType.VILLAGER, 3L).effectiveIdleSound());
+        // The villager's own row (Wave PE-26 — getAmbientSound line 475's
+        // customer gate): an idle body hums; the haggle is the
+        // customer-holding arm (the CustomerTriad seat pins that arm).
+        assertEquals("mob.villager.idle", spawn(MobType.VILLAGER, 3L).effectiveIdleSound());
         assertEquals("mob.bat.idle", spawn(MobType.BAT, 3L).effectiveIdleSound());
         assertEquals("mob.ghast.moan", spawn(MobType.GHAST, 3L).effectiveIdleSound());
         assertEquals("mob.blaze.breathe", spawn(MobType.BLAZE, 3L).effectiveIdleSound());

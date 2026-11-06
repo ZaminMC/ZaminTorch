@@ -461,6 +461,16 @@ public final class MobManager {
                                   float volume, float pitch) {
         }
 
+        /**
+         * The villager's food-share throw (Wave PE-26 —
+         * TradeWithVillagerGoal.tick lines 34-79): the donation's item
+         * entity spawns at the walker's eye band with the head-facing
+         * velocity and the default 10-tick pickup delay — the found
+         * villager's own loot pickup gathers the throw.
+         */
+        default void onVillagerShareFood(MobEntity villager, MobEntity.VillagerShare share) {
+        }
+
         /** The wolf's tamed/sitting/angry/collar state moved (the metadata update). */
         default void onWolfStateChanged(MobEntity mob) {
         }
@@ -2512,6 +2522,18 @@ public final class MobManager {
                             mob.ambientSoundVolume(), mob.ambientSoundPitch());
                     listener.onHorseFlagsChanged(mob); // the angry bit went up
                     listener.onMobStatusEvent(mob, 6); // doEntityEvent(6) — the smoke
+                }
+            }
+            // The villager's food-share throw (Wave PE-26 —
+            // TradeWithVillagerGoal.tick lines 34-79): the donation's
+            // item entity at the walker's eye band with the head-facing
+            // velocity, the default 10-tick pickup delay — the found
+            // villager's own loot pickup gathers the throw (the natural
+            // loop the village food-sharing rides).
+            MobEntity.VillagerShare share = mob.consumeTradeShare();
+            if (share != null) {
+                for (Listener listener : listeners) {
+                    listener.onVillagerShareFood(mob, share);
                 }
             }
             // The villager's farm writes (Wave PE-23 — VillagerFarmGoal

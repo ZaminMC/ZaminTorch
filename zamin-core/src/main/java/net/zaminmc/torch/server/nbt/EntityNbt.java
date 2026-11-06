@@ -440,24 +440,27 @@ public final class EntityNbt {
             case VILLAGER -> {
                 mob.setVillagerProfession(NbtOps.getInt(nbt, "Profession"));
                 // VIII10 — readCustomNbt lines 449 + 455-462: the willing
-                // flag + the food inventory land exactly as saved; the
-                // reference's own belt-and-suspenders setCanPickupLoot arm
-                // rides the spawn walk.
+                // flag + the food inventory through the reference's OWN
+                // addItem law (PE-25's repair: the load MERGES a same-kind
+                // row into the standing stack before the first empty slot —
+                // a foreign save's split rows compact exactly as the
+                // reference's, never the sequential placement the old
+                // read carried); the reference's own belt-and-suspenders
+                // setCanPickupLoot arm rides the spawn walk.
                 mob.setVillagerWilling(NbtOps.getBoolean(nbt, "Willing"));
                 for (int i = 0; i < 8; i++) {
                     mob.villagerFoodSlots()[i] = null;
                 }
                 List<Snbt.Tag> foodRows = NbtOps.getList(nbt, "Inventory",
                         Snbt.Tag.Type.COMPOUND);
-                int slot = 0;
-                for (Snbt.Tag row : foodRows) {
-                    if (slot >= 8) {
-                        break;
-                    }
+                for (int i = 0; i < foodRows.size(); i++) {
                     net.zaminmc.torch.item.ItemStack stack =
-                            ItemNbt.read(NbtOps.listCompound(foodRows, slot));
-                    mob.villagerFoodSlots()[slot] = stack;
-                    slot++;
+                            ItemNbt.read(NbtOps.listCompound(foodRows, i));
+                    // addItem (lines 460): a null row is skipped, an
+                    // overflow row's remainder silently ignored.
+                    if (stack != null) {
+                        mob.villagerStockItem(stack);
+                    }
                 }
             }
             case WOLF -> {

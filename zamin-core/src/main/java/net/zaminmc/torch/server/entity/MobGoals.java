@@ -130,6 +130,54 @@ final class MobGoals {
     };
 
     /**
+     * Priority 1, additive, after the villager's flee (the reference's
+     * own band-1 order — the flee, the customer look, the customer
+     * stand; Wave PE-26): the customer LOOK (LookAtCustomerGoal over
+     * LookAtEntityGoal 1:1): canStart's whole law is hasCustomer — NO
+     * chance dice, a standing customer always claims the head. The
+     * inherited window laws: the 40+nextInt(40) hold with the head on
+     * the customer's eyes, the end at the customer's departure beyond
+     * the ctor's 8. ADDITIVE (LOOK control only — setControls(2)) so it
+     * runs BESIDE the stand goal's exclusive claim, the reference's
+     * own mutex law (the stand holds MOVE+JUMP, the look holds LOOK).
+     */
+    static final MobGoal LOOK_CUSTOMER = new MobGoal() {
+        @Override public String goalId() { return "look_customer"; }
+        @Override public int priority() { return 1; }
+        @Override public boolean exclusive() { return false; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalLookCustomerCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalLookCustomerTick();
+        }
+    };
+
+    /**
+     * Priority 1, exclusive, after the customer look (the reference's
+     * own band-1 order; Wave PE-26): the customer STAND
+     * (StopFollowingCustomerGoal 1:1): the villager stands still while
+     * its customer stands within 4 blocks with the trade window CLOSED
+     * — and the claim's end CLEARS THE CUSTOMER (stop():
+     * setCustomer(null)), the reference's own lifetime manager. The
+     * gates: not in water, on the ground, not damaged, the window
+     * closed, the customer within squared-16. start() stops the
+     * navigation; the claim itself is the stand (setControls(5) — MOVE
+     * and JUMP held, the head left free for the look).
+     */
+    static final MobGoal STOP_CUSTOMER = new MobGoal() {
+        @Override public String goalId() { return "stop_customer"; }
+        @Override public int priority() { return 1; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalStopCustomerCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalStopCustomerTick();
+        }
+    };
+
+    /**
      * Priority 2, exclusive: the breeding drive (the vanilla AnimalBreedGoal).
      * A loved body scans for the nearest legal partner, walks to it, and
      * after 60 ticks inside the 3-block band the breed lands through the
@@ -551,6 +599,33 @@ final class MobGoals {
     };
 
     /**
+     * Priority 4, exclusive, after the close stare (the reference's own
+     * band-9 order — the stare, the share walk, the wander; Wave PE-26):
+     * the villager's FOOD SHARE (TradeWithVillagerGoal over
+     * GoToEntityGoal 1:1): the 2% dice, the nearest villager within the
+     * body's own shape grown (3, 3, 3) — the stand-and-stare the
+     * subclass's MOVE mutex carries — and the donation arm: a walker
+     * with two breeding units to spare staring at a villager with room
+     * throws half its first donatable stack out at the 10-tick cooldown
+     * (bread/potato/carrot beyond 3 donate count/2 of the same kind,
+     * wheat beyond 5 donates its half rounded to loaves of 3 as BREAD,
+     * the item thrown from the eyes along the head facing at 0.3
+     * speed). The village food-sharing loop — the farmer feeds the
+     * pack, and the found villager's own loot pickup gathers the throw.
+     */
+    static final MobGoal TRADE_SHARE = new MobGoal() {
+        @Override public String goalId() { return "trade_share"; }
+        @Override public int priority() { return 4; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalTradeShareCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalTradeShareTick();
+        }
+    };
+
+    /**
      * Priority 3, additive (LOOK control only — LookAtEntityGoal's own
      * shape, Wave PE-23, {@code setControls(2)}): the universal
      * look-at. Every strolling kind's own registration — the 2% dice,
@@ -724,11 +799,11 @@ final class MobGoals {
      */
     static GoalSelector standard() {
         return new GoalSelector(List.of(FLOAT, AVOID_SUNLIGHT, PANIC, BREAK_DOOR,
-                HORSE_BOND, VILLAGER_FLEE, STAY_INDOORS, BREED,
+                HORSE_BOND, VILLAGER_FLEE, LOOK_CUSTOMER, STOP_CUSTOMER, STAY_INDOORS, BREED,
                 BEG, GOLEM_LOOK, LOOK_AT, RESTRICT_DOOR, TEMPT, ESCAPE_SUNLIGHT, FLEE_PLAYER,
                 OPEN_DOOR, FOLLOW_OWNER, SIT_ON_BLOCK, FOLLOW_PARENT,
                 RABBIT_RAID_FARM, VILLAGE_RETURN, NIGHT_VILLAGE, VILLAGER_FARM,
-                FOLLOW_GOLEM, FORM_CARAVAN, LOOK_AT_CLOSE, EAT_GRASS,
+                FOLLOW_GOLEM, FORM_CARAVAN, LOOK_AT_CLOSE, TRADE_SHARE, EAT_GRASS,
                 RANDOM_STROLL, LOOK_AROUND));
     }
 }

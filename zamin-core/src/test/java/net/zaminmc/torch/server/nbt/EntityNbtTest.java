@@ -563,4 +563,76 @@ class EntityNbtTest {
         assertEquals(0, loadedCat.catVariant(),
                 "an absent CatType row resets the coat (the reference's ungated read)");
     }
+
+    /**
+     * THE VILLAGER'S INVENTORY READ (Wave PE-25's repair of the VIII10
+     * row): readCustomNbt lines 455-462 stocks the saved list through
+     * the SimpleInventory's OWN addItem law — a same-kind row MERGES
+     * into the standing stack before any empty slot takes a stack (a
+     * foreign save's split rows compact exactly as the reference's,
+     * never the sequential placement the old read carried), the load
+     * carries NO isFood gate (a non-food row stocks whatever it
+     * carries), and an overflow row's remainder is silently ignored
+     * (the load site never reads addItem's return).
+     */
+    @Test
+    void theVillagerInventoryReadCompactsThroughAddItem() {
+        PotionSystem potions = potions();
+        MobEntity villager = new MobEntity(40, MobType.VILLAGER,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        Map<String, Snbt.Tag> rows = Snbt.parseCompound(
+                "{Inventory:[{id:\"minecraft:bread\",Count:3b},"
+                        + "{id:\"minecraft:bread\",Count:2b},"
+                        + "{id:\"minecraft:potato\",Count:12b},"
+                        + "{id:\"minecraft:stick\",Count:7b}]}");
+        EntityNbt.readNbt(villager, rows, potions, null);
+        net.zaminmc.torch.item.ItemStack[] slots = villager.villagerFoodSlots();
+        assertNotNull(slots[0], "the first bread row landed");
+        assertEquals("minecraft:bread", slots[0].type().identifier().toString());
+        assertEquals(5, slots[0].count(),
+                "the SPLIT bread rows merged (addItem's merge-first law, line 460)");
+        assertNotNull(slots[1], "the potato row landed");
+        assertEquals("minecraft:potato", slots[1].type().identifier().toString());
+        assertEquals(12, slots[1].count(), "the potato took the NEXT empty slot");
+        assertNotNull(slots[2], "the ungated non-food row stocked (no isFood at the load)");
+        assertEquals("minecraft:stick", slots[2].type().identifier().toString());
+        assertEquals(7, slots[2].count());
+        assertNull(slots[3], "the compacted stock leaves the tail empty");
+
+        // The write's own law (writeCustomNbt lines 430-439): the
+        // non-empty stacks in slot order, each its own compound — the
+        // round-trip compacts to the merged form.
+        Map<String, Snbt.Tag> written = new java.util.LinkedHashMap<>();
+        EntityNbt.writeNbtWithoutId(villager, written, potions);
+        List<Snbt.Tag> inventory = NbtOps.getList(written, "Inventory",
+                Snbt.Tag.Type.COMPOUND);
+        assertEquals(3, inventory.size(), "three non-empty stacks ride the list");
+        assertEquals("minecraft:bread",
+                NbtOps.getString(NbtOps.listCompound(inventory, 0), "id"));
+        assertEquals(5, NbtOps.getByte(NbtOps.listCompound(inventory, 0), "Count"));
+        assertEquals("minecraft:stick",
+                NbtOps.getString(NbtOps.listCompound(inventory, 2), "id"));
+
+        // The overflow: nine distinct kinds — the ninth row's remainder
+        // drops silently (the load never reads addItem's return).
+        MobEntity stuffed = new MobEntity(41, MobType.VILLAGER,
+                new Position(0.5, 64.0, 0.5), new Random(3), new StubWorld());
+        StringBuilder nine = new StringBuilder("{Inventory:[");
+        for (int i = 0; i < 9; i++) {
+            if (i > 0) {
+                nine.append(',');
+            }
+            nine.append("{id:\"minecraft:potato\",Count:64b}");
+        }
+        nine.append("]}");
+        EntityNbt.readNbt(stuffed, Snbt.parseCompound(nine.toString()), potions, null);
+        int stocked = 0;
+        for (net.zaminmc.torch.item.ItemStack slot : stuffed.villagerFoodSlots()) {
+            if (slot != null && !slot.isEmpty()) {
+                stocked++;
+            }
+        }
+        assertEquals(8, stocked,
+                "the eight 64-stacks fill the slots; the ninth row drops (addItem's ignored remainder)");
+    }
 }
