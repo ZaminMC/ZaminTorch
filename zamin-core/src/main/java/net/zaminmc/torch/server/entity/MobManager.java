@@ -84,6 +84,19 @@ public final class MobManager {
         /** The death animation starts (status 3 + death sound; loot follows removal). */
         void onMobDied(MobEntity mob);
 
+        /**
+         * Wave PP — the death with its VOICE verdict (LivingEntity
+         * .takeDamage lines 717-723: {@code if (flag && s != null)}): a
+         * kill landed through the hurt frame's EXCESS arm dies SILENT —
+         * the death sound never plays, the death animation (die()'s own
+         * doEntityEvent((byte)3), line 772) running regardless. The
+         * default keeps the legacy voiceful shape for every listener
+         * that never asked.
+         */
+        default void onMobDied(MobEntity mob, boolean voiceless) {
+            onMobDied(mob);
+        }
+
         void onMobRemoved(MobEntity mob, String reason);
 
         /** The living-flags burn bit changed (the fire metadata to observers). */
@@ -1826,6 +1839,13 @@ public final class MobManager {
             if (mob.dying()) {
                 world.setActiveDimension(mob.dimension()); // the body's own world (25d)
                 mob.tick(night);
+                // Wave PP — the push walk carries NO isDead gate in the
+                // reference (LivingEntity.mobTick's "push" block, lines
+                // 1467-1476, runs from tick() unconditionally — the isDead
+                // arm at line 1434 zeroes the INPUTS alone): a dying body
+                // still pushes its neighbours apart through the whole
+                // death animation, exactly as vanilla.
+                tickPushCollisions(mob);
                 continue;
             }
 
@@ -1956,6 +1976,11 @@ public final class MobManager {
             // reference's ai-section order): a pickup-armed, non-pinned,
             // living body scans the item entities in its grown box.
             tickLootPickup(mob);
+            // Wave PP — THE ENTITY-COLLISION PUSH WALK (LivingEntity
+            // .mobTick's "push" block, the LAST section of the reference's
+            // own order — ai, jump, travel, PUSH): every body separates
+            // from its crowding neighbours after its own movement lands.
+            tickPushCollisions(mob);
             if (wasPriming != mob.fuseActive()) {
                 for (Listener listener : listeners) {
                     listener.onMobFuseChanged(mob, mob.fuseActive());
@@ -3798,7 +3823,11 @@ public final class MobManager {
                 golemDeathHook(mob, attackingPlayer);
             }
             for (Listener listener : listeners) {
-                listener.onMobDied(mob);
+                // Wave PP — the excess kill dies SILENT (takeDamage lines
+                // 717-723: the death voice rides the flag gate alone; the
+                // animation below runs regardless — die()'s own
+                // doEntityEvent((byte)3), line 772).
+                listener.onMobDied(mob, excessArm);
             }
         }
         // VIII9 — ZombieEntity.takeDamage lines 191-233: the landed wound's
@@ -4080,7 +4109,9 @@ public final class MobManager {
         }
         if (mob.health() <= 0) {
             for (Listener listener : listeners) {
-                listener.onMobDied(mob);
+                // Wave PP — the excess kill dies SILENT here too (the
+                // magic family rides the same flag gate, lines 717-723).
+                listener.onMobDied(mob, excessArm);
             }
         }
         return true;
@@ -4988,6 +5019,155 @@ public final class MobManager {
     }
 
     // ------------------------------------------------ the loot pickup (Slice 92)
+
+    /**
+     * Wave PP — THE ENTITY-COLLISION PUSH WALK (LivingEntity.mobTick's
+     * "push" block lines 1467-1476 + pushAwayCollidingEntities lines
+     * 1478-1492 + Entity.push lines 969-1005): the mob-mob collision
+     * separation the engine never carried — the crowding law (two bodies
+     * in one cell drift apart), the ridden-body protections, and THE
+     * GOLEM'S OWN CARRIER (IronGolemEntity.pushAway lines 94-100: a
+     * pushed Monster, never a creeper, on a 1-in-20 dice, becomes the
+     * golem's target — the famous village-defender reflex, unreachable
+     * until this walk existed).
+     *
+     * <p>THE WALK'S OWN CARRIERS the reference names: the walk runs at
+     * the END of every living body's mobTick — the BAT's override is
+     * EMPTY (BatEntity lines 63-65 — bats never push, never separate)
+     * and the DRAGON's mobTick (EnderDragonEntity line 93) never calls
+     * super — its wing-fling and part walks own the body whole. Every
+     * other family — the squid and the slime call super.mobTick() at
+     * their own lines 93-94 — rides the shared walk. NoAI pins the mind
+     * and the movement ALONE (isLocallyControlled gates serverTickAi,
+     * never the push block): a pinned body still separates.</p>
+     *
+     * <p>THE GATHER (pushAwayCollidingEntities' own shape): the pusher's
+     * own shape grown (0.2, 0.0, 0.2) — the horizontal cushion alone,
+     * the vertical band never grown — and each candidate's OWN box
+     * intersecting STRICT both sides, exactly touching never counting.
+     * This world's bodies alone (the reference's chunk entity lists —
+     * the engine's dimension-gated mob list is the same membership).
+     * The filter pair: NOT_SPECTATOR (every mob passes — no mob
+     * spectates) and isPushable.</p>
+     */
+    private void tickPushCollisions(MobEntity pusher) {
+        if (pusher.type() == MobType.BAT
+                || pusher.type() == MobType.ENDER_DRAGON) {
+            return; // the two empty-carrier families
+        }
+        // The gather box: the pusher's own shape grown (0.2, 0.0, 0.2).
+        double half = pusher.type().width / 2.0;
+        Position at = pusher.position();
+        double minX = at.x() - half - 0.2;
+        double maxX = at.x() + half + 0.2;
+        double minY = at.y(); // grown 0.0 vertical: the feet-anchored own band
+        double maxY = at.y() + pusher.type().height;
+        double minZ = at.z() - half - 0.2;
+        double maxZ = at.z() + half + 0.2;
+        for (MobEntity other : mobs) {
+            if (other == pusher || other.dimension() != pusher.dimension()) {
+                continue; // the gather excludes the pusher and other worlds
+            }
+            if (!isPushable(other)) {
+                continue; // the gather's isPushable filter
+            }
+            // The candidate's OWN box against the grown box, STRICT both
+            // sides (Box.intersects — exactly touching never intersecting).
+            double oHalf = other.type().width / 2.0;
+            Position b = other.position();
+            if (!(b.x() + oHalf > minX && b.x() - oHalf < maxX
+                    && b.y() + other.type().height > minY && b.y() < maxY
+                    && b.z() + oHalf > minZ && b.z() - oHalf < maxZ)) {
+                continue;
+            }
+            pushBody(pusher, other);
+        }
+    }
+
+    /**
+     * The gather's isPushable filter (the reference's overrides, the
+     * whole census): {@code LivingEntity.isPushable} answers
+     * {@code !removed} for every living body — the engine's list
+     * membership IS the !removed law, dying bodies included (a corpse
+     * in its death animation is not yet removed; it still separates).
+     * The BAT answers false (BatEntity line 54 — the flying body never
+     * joins the separation), and the HORSE family answers
+     * {@code rider == null} (HorseBaseEntity line 329 — a ridden horse
+     * is never pushed out from under its rider, however crowded). Every
+     * other ridden body (the pig with its baby zombie) keeps the living
+     * answer — it gathers, and Entity.push's own rider gates freeze its
+     * velocity alone.
+     */
+    private boolean isPushable(MobEntity mob) {
+        if (mob.type() == MobType.BAT) {
+            return false;
+        }
+        if (mob.type() == MobType.HORSE && mob.hasRider()) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * THE PUSH ITSELF (Entity.push lines 969-1005, with this = the
+     * pushed body and the parameter = the pusher — pushAway's own call
+     * shape {@code entity.push(this)}, LivingEntity line 1494), prefaced
+     * by THE GOLEM'S OWN pushAway OVERRIDE (IronGolemEntity lines
+     * 94-100): a Monster — never a creeper — that crowds the golem
+     * rolls the 1-in-20 dice, and the winner becomes the golem's target
+     * (the engine's mob-target seat the defense consult writes — the
+     * golem's mind chases whichever stands, PE-27's own wiring).
+     */
+    private void pushBody(MobEntity pusher, MobEntity pushed) {
+        // IronGolemEntity.pushAway lines 94-99 — the target consult sits
+        // BEFORE super.pushAway (the push lands either way).
+        if (pusher.type() == MobType.IRON_GOLEM
+                && pushed.type().hostile // the Monster family (the dragon included)
+                && pushed.type() != MobType.CREEPER
+                && random.nextInt(20) == 0) {
+            pusher.setMobAttackTarget(pushed);
+        }
+        // Entity.push line 971 — the riding pair: neither body pushes the
+        // one it rides nor its own mount.
+        if (pusher.riderId() == pushed.entityId()
+                || pushed.riderId() == pusher.entityId()) {
+            return;
+        }
+        // Entity.push lines 972-1002: d0/d1 the pusher-to-pushed axis
+        // (entity.x - this.x with this = pushed), d2 the ABSOLUTE MAX of
+        // the horizontal pair (MathHelper.absMax — the larger magnitude,
+        // not the euclidean length), the 0.01 floor, the sqrt
+        // re-normalization, the 1/d2 speed cap at 1.0, the 0.05 scale,
+        // and the pushSpeedReduction multiplier — 0.0 for every living
+        // body (the field the minecart family alone sets), a no-op kept
+        // out of the engine's form.
+        double d0 = pusher.position().x() - pushed.position().x();
+        double d1 = pusher.position().z() - pushed.position().z();
+        double d2 = Math.abs(d0) > Math.abs(d1) ? Math.abs(d0) : Math.abs(d1);
+        if (d2 < 0.01) {
+            return;
+        }
+        d2 = Math.sqrt(d2);
+        d0 /= d2;
+        d1 /= d2;
+        double d3 = 1.0 / d2;
+        if (d3 > 1.0) {
+            d3 = 1.0;
+        }
+        d0 *= d3;
+        d1 *= d3;
+        d0 *= 0.05;
+        d1 *= 0.05;
+        // The mutual separation — each side's velocity add gated on its
+        // own rider seat (lines 995-1001): a ridden body never moves out
+        // from under its rider, however crowded.
+        if (!pushed.hasRider()) {
+            pushed.addVelocity(-d0, 0.0, -d1);
+        }
+        if (!pusher.hasRider()) {
+            pusher.addVelocity(d0, 0.0, d1);
+        }
+    }
 
     /**
      * The loot-pickup scan (MobEntity.mobTick lines 339-347): a

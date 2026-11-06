@@ -559,6 +559,26 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
 
             @Override
+            public void onMobDied(net.zaminmc.torch.server.entity.MobEntity mob, boolean voiceless) {
+                if (voiceless) {
+                    // Wave PP — the excess kill dies SILENT (takeDamage
+                    // lines 717-723: {@code if (flag && s != null)} — the
+                    // death voice rides the flag gate alone): no sound
+                    // consult, no name draw, nothing but the animation —
+                    // die()'s own doEntityEvent((byte)3) at line 772 runs
+                    // regardless of the flag.
+                    for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
+                        if (connection.dimensionOfSession() != mob.dimension()) {
+                            continue;
+                        }
+                        connection.sendMobStatus(mob, net.zaminmc.torch.protocol.v1_8.Protocol18.ENTITY_STATUS_DEAD);
+                    }
+                    return;
+                }
+                onMobDied(mob);
+            }
+
+            @Override
             public void onMobSoundAt(net.zaminmc.torch.server.entity.MobEntity mob,
                                      String soundName, float volume, float pitch) {
                 for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
