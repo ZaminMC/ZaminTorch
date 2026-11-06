@@ -15,9 +15,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * (line 1278), the MOVEMENT_SPEED roll (line 1281 — {@code (0.45 + 3x
  * nextDouble()*0.3) * 0.25} on the reference's 0.225 registered base,
  * landed on the engine's own base by the ratio) with the donkey/mule flat
- * (line 1283) read against the LIVE subtype, the current-health law (the
- * reference never re-fills — the ctor's value stands until the first
- * damage/heal clamp), and the Attributes NBT row's precedence.
+ * (line 1283) read against the LIVE subtype, the JUMP_STRENGTH roll
+ * (Wave PE-30 — initialize lines 1298-1303 over getChildJumpStrength
+ * Bonus line 1389: {@code 0.4 + 3x nextDouble()*0.2} on the 0.7
+ * registered base, the donkey/mule 0.5 flat), the current-health law
+ * (Wave PE-30's repair — initialize line 1306's own tail re-fill: the
+ * spawn sets the CURRENT health to the rolled ceiling, the pre-fix
+ * engine's no-refill reading retired), and the Attributes NBT row's
+ * precedence.
  */
 class HorseSpawnAttributeRollTest {
 
@@ -130,10 +135,12 @@ class HorseSpawnAttributeRollTest {
     void theSpawnedHorseCarriesTheRolledAttributes() {
         // The spawn-site landing (spawnAt's horse arm — every construction
         // path rides it): the ceiling and the speed both carry their bands,
-        // while the CURRENT health keeps the constructor's full-of-registered
-        // -base value (the reference's initialize never re-fills — the
-        // LivingEntity ctor line 136's setHealth(getMaxHealth()) is the last
-        // write).
+        // and the CURRENT health reads the ROLLED CEILING (Wave PE-30's
+        // repair — initialize line 1306's own tail re-fill,
+        // {@code setHealth(getMaxHealth())}: a freshly spawned horse
+        // stands at its own full rolled health, exactly as the reference
+        // spawns it — the pre-fix engine left the ctor's kind-row value
+        // standing above or below the ceiling).
         MobManager manager = manager(20261024L);
         int above = 0;
         int below = 0;
@@ -144,6 +151,8 @@ class HorseSpawnAttributeRollTest {
             double speed = horse.walkSpeed();
             assertTrue(ceiling >= 15.0f && ceiling <= 30.0f,
                     "the spawned ceiling: " + ceiling);
+            assertEquals(ceiling, horse.health(), 1e-6f,
+                    "the current health reads the rolled ceiling (initialize line 1306)");
             if (horse.horseSubtype() == MobEntity.HORSE_SUBTYPE_DONKEY) {
                 // The ctor's 1-in-10 (initialize line 1270) landed a donkey:
                 // the flat (line 1283) — itself inside the horse band, but
@@ -154,8 +163,6 @@ class HorseSpawnAttributeRollTest {
                 assertTrue(speed >= 0.0225 - 1e-12 && speed <= 0.0675 + 1e-12,
                         "the spawned horse's speed: " + speed);
             }
-            assertEquals(22.0f, horse.health(), 1e-6f,
-                    "the current health keeps the ctor value (no re-fill)");
             if (ceiling > 22.0f) {
                 above++;
             } else if (ceiling < 22.0f) {
@@ -168,8 +175,8 @@ class HorseSpawnAttributeRollTest {
                     "the heal fills to the rolled ceiling");
             manager.remove(horse, "test");
         }
-        assertTrue(above > 5, "ceilings above the ctor value are live: " + above);
-        assertTrue(below > 5, "ceilings below the ctor value are live: " + below);
+        assertTrue(above > 5, "ceilings above the kind row are live: " + above);
+        assertTrue(below > 5, "ceilings below the kind row are live: " + below);
         assertTrue(donkeys > 0, "the ctor's 1-in-10 donkey is live: " + donkeys);
     }
 
@@ -188,6 +195,57 @@ class HorseSpawnAttributeRollTest {
     }
 
     @Test
+    void theJumpRollCarriesTheReferenceBand() {
+        // getChildJumpStrengthBonus line 1389: 0.4 + 3x nextDouble()*0.2 —
+        // the band [0.4, 1.0], mean exactly the 0.7 registered base (the
+        // reference's own registered default, initAttributes line 49).
+        MobEntity body = new MobEntity(5, MobType.HORSE,
+                new Position(0.5, 4.0, 0.5), new Random(7), flatWorld());
+        body.setHorseSubtype(MobEntity.HORSE_SUBTYPE_HORSE);
+        Random dice = new Random(20261027L);
+        double min = Double.MAX_VALUE;
+        double max = Double.MIN_VALUE;
+        double sum = 0.0;
+        for (int i = 0; i < 10_000; i++) {
+            MobManager.rollHorseSpawnAttributes(body, dice);
+            double jump = body.customJumpStrength();
+            assertTrue(jump >= 0.4 - 1e-12 && jump <= 1.0 + 1e-12,
+                    "the jump stays in the band: " + jump);
+            min = Math.min(min, jump);
+            max = Math.max(max, jump);
+            sum += jump;
+        }
+        assertEquals(0.7, sum / 10_000, 0.005, "the band's mean is the registered base");
+        assertTrue(min < 0.5, "the band's low end is live: " + min);
+        assertTrue(max > 0.9, "the band's high end is live: " + max);
+        // The donkey/mule flat (initialize line 1303): 0.5 read against
+        // the LIVE subtype — the same convention the speed consult
+        // carries, the retained roll answering the band again the moment
+        // the subtype returns.
+        body.setHorseSubtype(MobEntity.HORSE_SUBTYPE_DONKEY);
+        assertEquals(0.5, body.customJumpStrength(), 1e-9, "the donkey's flat");
+        body.setHorseSubtype(MobEntity.HORSE_SUBTYPE_MULE);
+        assertEquals(0.5, body.customJumpStrength(), 1e-9, "the mule's flat");
+        body.setHorseSubtype(MobEntity.HORSE_SUBTYPE_HORSE);
+        assertTrue(body.customJumpStrength() >= 0.4 - 1e-12,
+                "the retained roll answers the horse band again");
+        // The UNROLLED consult answers the registered base (an imported
+        // horse with no Attributes row keeps the 0.7 the ctor registered).
+        MobEntity fresh = new MobEntity(6, MobType.HORSE,
+                new Position(0.5, 4.0, 0.5), new Random(7), flatWorld());
+        assertEquals(MobEntity.HORSE_JUMP_ATTRIBUTE_BASE, fresh.customJumpStrength(),
+                1e-12, "the unrolled consult answers the registered base");
+        // The Attributes row's precedence + the ranged band's own clamp
+        // (the 0.0-2.0 RangedEntityAttribute, line 49).
+        fresh.setHorseJumpOverride(5.0);
+        assertEquals(2.0, fresh.customJumpStrength(), 1e-9,
+                "the ranged clamp's ceiling");
+        fresh.setHorseJumpOverride(1.3);
+        assertEquals(1.3, fresh.customJumpStrength(), 1e-9,
+                "the in-band row lands whole");
+    }
+
+    @Test
     void theRollIsRefusedOutsideTheHorseFamily() {
         // The family guards (the zombie leader's own shape): the rolls land
         // on no other kind.
@@ -197,6 +255,7 @@ class HorseSpawnAttributeRollTest {
         double beforeSpeed = cow.walkSpeed();
         cow.applyHorseSpawnHealth(15.0f);
         cow.rollHorseSpawnSpeed(new Random(20261026L));
+        cow.rollHorseSpawnJump(new Random(20261028L));
         assertEquals(beforeCeiling, cow.maxHealth(), 1e-6f,
                 "the cow's ceiling is untouched");
         assertEquals(beforeSpeed, cow.walkSpeed(), 1e-12,

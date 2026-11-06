@@ -1177,14 +1177,28 @@ public final class MobEntity implements LivingEntity {
     public static final float RIDDEN_TURN_RATE = 3.5f;
     /** Controlled horse forward speed in blocks/tick (the canter). */
     public static final double HORSE_RIDE_SPEED = 0.115;
-    /** Controlled pig forward speed in blocks/tick (slower than the horse). */
+    /** The pig's forward speed (the carrot-driven trot). */
     public static final double PIG_RIDE_SPEED = 0.07;
-    /** Jump impulse of a ridden horse (the ~2-block hop). */
-    public static final double HORSE_JUMP_IMPULSE = 0.48;
     /** Jump impulse of a ridden pig (the small hop). */
     public static final double PIG_JUMP_IMPULSE = 0.30;
-    /** Ticks between jumps of a ridden mount (the historical cooldown). */
+    /** Ticks between hops of a ridden pig (the historical cooldown). */
     public static final int RIDE_JUMP_COOLDOWN = 10;
+    /** THE SADDLE-JUMP BAND (Wave PE-30 — setJumpStrength lines 1332-1335:
+     * strength >= 90 charges 1.0, else {@code 0.4F + 0.4F * strength /
+     * 90.0F} — the charge the steer walk spends as the impulse's own
+     * multiplier, never a flat stand-in). */
+    public static final int HORSE_JUMP_CHARGE_MAX = 90;
+    public static final float HORSE_JUMP_BAND_FLOOR = 0.4f;
+    public static final float HORSE_JUMP_BAND_SCALE = 0.4f;
+    /** The jump attribute's own base (initAttributes line 49: the
+     * {@code horse.jumpStrength} RangedEntityAttribute, default 0.7 —
+     * the consult an unrolled, unoverridden horse answers). */
+    public static final double HORSE_JUMP_ATTRIBUTE_BASE = 0.7;
+    /** The jump attribute's ranged band (line 49's own 0.0-2.0 clamp). */
+    public static final double HORSE_JUMP_ATTRIBUTE_MIN = 0.0;
+    public static final double HORSE_JUMP_ATTRIBUTE_MAX = 2.0;
+    /** The donkey/mule spawn flat (initialize line 1303). */
+    public static final double HORSE_DONKEY_SPAWN_JUMP = 0.5;
     /** Rider seat height above the mount's feet (the saddle top). */
     public static final double HORSE_SEAT_HEIGHT = 1.12;
     public static final double PIG_SEAT_HEIGHT = 0.55;
@@ -1212,6 +1226,45 @@ public final class MobEntity implements LivingEntity {
     private float steerSideways;
     private float steerForward;
     private boolean steerJump;
+    /** THE STEER JUMP CHARGE (Wave PE-30 — HorseBaseEntity.jumpStrength,
+     * line 87: the banded multiplier {@link #setJumpStrength} arms from
+     * the wire's RIDING_JUMP consult and the steer walk spends at the
+     * {@code jumpStrength > 0 && !isInAir() && onGround} gate, lines
+     * 1046-1063 — the impulse is the JUMP ATTRIBUTE * the band, the
+     * charge clears at the spend and on every grounded tick). */
+    private float horseJumpCharge;
+    /** The rear-jump arm's own flag (setJumpStrength line 1327:
+     * {@code this.jumping = true} — the rearing horse's steering
+     * carve-out, moveRelative line 1041's {@code !this.jumping} consult;
+     * cleared at the anger's own end, the animation walk's else branch
+     * lines 930-931). */
+    private boolean horseRearJumping;
+    /** The horse's own in-air flag (isInAir line 213 — the jump spend's
+     * {@code !isInAir()} gate and the grounded tail's clear, lines
+     * 1052/1073-1074). */
+    private boolean horseInAir;
+    /** THE GALLOP LADDER (soundTicks, line 95 — the step family's own
+     * counter: the first five step crossings pay the wood sound, then
+     * every third the gallop (+ the plain horse's 1-in-10 breathe),
+     * reset by the steer walk's reverse-drag arm, moveRelative line
+     * 1036). */
+    private int horseSoundTicks;
+    /** The spawn-time jump roll (initialize lines 1298-1303: the plain
+     * horse's {@code 0.4 + r*0.2 * 3} band or the donkey/mule 0.5 flat,
+     * consulted against the LIVE subtype — {@link #customJumpStrength()}
+     * reads it under the walkSpeed consult's own convention). */
+    private double horseJumpRoll = Double.NaN;
+    /** The {@code horse.jumpStrength} Attributes-row override (NaN = no
+     * row — the reference's readNbt Base replace, clamped to the ranged
+     * band at the landing). */
+    private double horseJumpOverride = Double.NaN;
+    /** THE WALK-ANIMATION PAIR (the steer walk's own compute, lines
+     * 1075-1086 — {@code f2 = sqrt(dx^2+dz^2) * 4} clamped to 1.0, the
+     * 0.4 blend, the progress accumulate; the client renders its own
+     * pair, the server-side state kept for the stream's parity). */
+    private float walkAnimationSpeed;
+    private float walkAnimationProgress;
+    private float lastWalkAnimationSpeed;
     private boolean pigSaddled;
     private int jumpCooldown;
     /** THE HORSE-BOND WINDOW (Wave PE-25 — HorseBondWithPlayerGoal, the
@@ -2505,6 +2558,11 @@ public final class MobEntity implements LivingEntity {
             if (horseAngryTicks > 0 && ++horseAngryTicks > HORSE_ANGRY_TICKS) {
                 horseAngryTicks = 0;
                 horseFlags &= ~HORSE_FLAG_REARING; // setAngry(false): flag 64 down
+                // The rear-jump flag's own clear (the animation walk's
+                // else branch, lines 930-931 — the first !isAngry() tick
+                // IS the decay's own): the saddle jump's steering
+                // carve-out ends with the anger it armed.
+                horseRearJumping = false;
             }
             if (horseMouthTicks > 0 && ++horseMouthTicks > HORSE_MOUTH_WINDOW_TICKS) {
                 horseMouthTicks = 0;
@@ -6953,6 +7011,15 @@ public final class MobEntity implements LivingEntity {
     /** The queued swim splash (the step-sound walk's crossing over water). */
     private StagedSound pendingSwimSound;
 
+    /** The queued saddle-jump sound (the steer walk's spend — the lunge
+     * arm alone carries it, "mob.horse.jump" at 0.4F/1.0F). */
+    private StagedSound pendingHorseJumpSound;
+
+    /** The queued gallop-overload breathe (the step ladder's plain-horse
+     * 1-in-10 — the SECOND sound the crossing carries beside the
+     * gallop, the reference's own pair). */
+    private StagedSound pendingBreatheSound;
+
     /** @return and clears the queued jump sound (null when none). */
     public StagedSound consumeSlimeSound() {
         StagedSound sound = pendingSlimeSound;
@@ -6978,6 +7045,20 @@ public final class MobEntity implements LivingEntity {
     public StagedSound consumeSwimSound() {
         StagedSound sound = pendingSwimSound;
         pendingSwimSound = null;
+        return sound;
+    }
+
+    /** @return and clears the queued saddle-jump sound (null when none). */
+    public StagedSound consumeHorseJumpSound() {
+        StagedSound sound = pendingHorseJumpSound;
+        pendingHorseJumpSound = null;
+        return sound;
+    }
+
+    /** @return and clears the queued breathe (null when none). */
+    public StagedSound consumeBreatheSound() {
+        StagedSound sound = pendingBreatheSound;
+        pendingBreatheSound = null;
         return sound;
     }
 
@@ -8036,7 +8117,12 @@ public final class MobEntity implements LivingEntity {
                     || hasRider() || other.hasRider()) {
                 return false;
             }
-            if (health < type.maxHealth || other.health < other.type.maxHealth) {
+            // canBreed line 968: {@code this.getHealth() >= this
+            // .getMaxHealth()} — the LIVE ceiling consult (the rolled
+            // attribute), never the kind row (Wave PE-30's repair: a
+            // 15-ceiling horse at its own full 15 breeds exactly as
+            // the reference allows).
+            if (health < maxHealth() || other.health < other.maxHealth()) {
                 return false;
             }
         }
@@ -8089,18 +8175,21 @@ public final class MobEntity implements LivingEntity {
 
     /**
      * Lands the rolled MAX_HEALTH ceiling (the spawn-site arm,
-     * MobManager.spawnAt's horse roll). The reference sets the
-     * attribute's BASE and never touches the current health (the
-     * LivingEntity ctor line 136's setHealth(getMaxHealth()) is the last
-     * write — a freshly spawned body carries the ctor's full-of-registered
-     * -base value above or below the rolled ceiling until the first
-     * damage/heal clamps it); the engine keeps the same law.
+     * MobManager.spawnAt's horse roll) WITH initialize's own tail
+     * re-fill (line 1306: {@code this.setHealth(this.getMaxHealth())}
+     * — the spawn-time init's LAST line; the pre-fix engine misread
+     * this as a no-refill and left the ctor's kind-row value standing,
+     * so a ceiling rolled below it carried an over-ceiling body until
+     * the first heal clamped it DOWN — the breeding seat's full-health
+     * gate caught the divergence when the jump roll's stream shift
+     * moved the regen dice, Wave PE-30's repair).
      */
     public void applyHorseSpawnHealth(float ceiling) {
         if (type != MobType.HORSE) {
             return;
         }
         this.horseSpawnMaxHealth = ceiling;
+        this.health = Math.max(1.0f, ceiling);
     }
 
     /**
@@ -8281,6 +8370,111 @@ public final class MobEntity implements LivingEntity {
         this.steerSideways = sideways;
         this.steerForward = forward;
         this.steerJump = jump;
+    }
+
+    /**
+     * THE SADDLE-JUMP CHARGE ({@code setJumpStrength}, lines 1322-1338,
+     * Wave PE-30 — the wire's RIDING_JUMP consult lands here whole):
+     * gated on the SADDLE (an unsaddled seat charges nothing — the
+     * reference's own {@code isSaddled()} head gate); a negative
+     * strength clamps to zero with NO rear; a strength >= 0 pays the
+     * REAR-JUMP ARM — {@code this.jumping = true} (the steering
+     * carve-out the rearing consult reads) and {@code updateAnger()}
+     * (flag 64 up, the 20-tick decay clock armed, the graze stands
+     * down — the saddle jump rears, the reference's own law); then the
+     * band: strength >= 90 charges 1.0, else
+     * {@code 0.4F + 0.4F * strength / 90.0F}.
+     */
+    public void setJumpStrength(int strength) {
+        if (type != MobType.HORSE || !saddled()) {
+            return;
+        }
+        if (strength < 0) {
+            strength = 0;
+        } else {
+            horseRearJumping = true;
+            armHorseAnger(); // updateAnger (lines 1327-1328)
+        }
+        if (strength >= HORSE_JUMP_CHARGE_MAX) {
+            horseJumpCharge = 1.0f;
+        } else {
+            horseJumpCharge = HORSE_JUMP_BAND_FLOOR
+                    + HORSE_JUMP_BAND_SCALE * strength / (float) HORSE_JUMP_CHARGE_MAX;
+        }
+    }
+
+    /** @return the live saddle-jump charge (the band setJumpStrength armed). */
+    public float horseJumpCharge() {
+        return horseJumpCharge;
+    }
+
+    /** @return the rear-jump arm's flag (the rearing steering carve-out). */
+    public boolean horseRearJumping() {
+        return horseRearJumping;
+    }
+
+    /**
+     * THE JUMP ATTRIBUTE CONSULT ({@code getCustomJumpStrength}, line
+     * 448 — the {@code horse.jumpStrength} RangedEntityAttribute the
+     * steer walk's spend multiplies by the band): the Attributes-row
+     * override first (the reference's readNbt Base replace), then the
+     * spawn roll against the LIVE subtype (the plain horse's rolled
+     * band or the donkey/mule 0.5 flat — the walkSpeed consult's own
+     * convention), then the registered base 0.7 (initAttributes line
+     * 49 — the consult an unrolled, unoverridden horse answers).
+     */
+    public double customJumpStrength() {
+        if (!Double.isNaN(horseJumpOverride)) {
+            return horseJumpOverride;
+        }
+        if (!Double.isNaN(horseJumpRoll)) {
+            return horseSubtype == HORSE_SUBTYPE_DONKEY
+                    || horseSubtype == HORSE_SUBTYPE_MULE
+                    ? HORSE_DONKEY_SPAWN_JUMP : horseJumpRoll;
+        }
+        return HORSE_JUMP_ATTRIBUTE_BASE;
+    }
+
+    /**
+     * The {@code horse.jumpStrength} Attributes row's landing (the
+     * ranged attribute's own 0.0-2.0 clamp at the set).
+     */
+    public void setHorseJumpOverride(double jump) {
+        this.horseJumpOverride = Math.max(HORSE_JUMP_ATTRIBUTE_MIN,
+                Math.min(HORSE_JUMP_ATTRIBUTE_MAX, jump));
+    }
+
+    /** @return whether the Attributes row overrode the jump attribute. */
+    public boolean hasHorseJumpOverride() {
+        return !Double.isNaN(horseJumpOverride);
+    }
+
+    /** @return the raw Attributes-row jump override, or NaN when unset. */
+    public double horseJumpOverride() {
+        return horseJumpOverride;
+    }
+
+    /**
+     * Lands the rolled jump (the spawn-site arm, initialize lines
+     * 1298-1303 — the LAST of the three spawn rolls, after the health
+     * and the speed the reference's own order carries).
+     */
+    public void rollHorseSpawnJump(java.util.Random roll) {
+        if (type != MobType.HORSE) {
+            return;
+        }
+        this.horseJumpRoll = 0.4 + roll.nextDouble() * 0.2
+                + roll.nextDouble() * 0.2 + roll.nextDouble() * 0.2;
+    }
+
+    /** @return the walk-animation speed (the steer walk's own compute). */
+    public float walkAnimationSpeed() {
+        return walkAnimationSpeed;
+    }
+
+    /** @return the walk-animation progress (the accumulated leg swing). */
+    public float walkAnimationProgress() {
+        return walkAnimationProgress;
     }
 
     /** @return the seat height above the mount's feet (the rider's body anchor). */
@@ -9816,8 +10010,38 @@ public final class MobEntity implements LivingEntity {
         // and the height the walk's accumulation reads, captured before
         // the seat's own physics).
         boolean wasGroundedBefore = onGround;
+        // THE RIDDEN WALK'S OWN PRE-MOVE ANCHOR (the walk-animation
+        // pair's dx/dz read and the step walk's own anchor — moveRelative
+        // lines 1078-1079 read the body's own last-x/last-z deltas).
+        double preRideX = position.x();
         double preRideY = position.y();
-        float turn = steerSideways * RIDDEN_TURN_RATE;
+        double preRideZ = position.z();
+
+        // THE REVERSE DRAG + THE LADDER'S RESET (Wave PE-30 —
+        // moveRelative lines 1033-1036): a non-positive forward input
+        // pays the 0.25 scale (a horse walking backwards drags at a
+        // quarter) and resets the gallop ladder — the reference's own
+        // {@code this.soundTicks = 0} beside the drag.
+        float forwardInput = steerForward;
+        if (type == MobType.HORSE && forwardInput <= 0.0f) {
+            forwardInput *= 0.25f;
+            horseSoundTicks = 0;
+        }
+        // THE ANGRY REFUSAL (moveRelative lines 1041-1044): a REARING
+        // horse on the ground with no charge and no rear-jump flag
+        // refuses the reins — both movement inputs zero (the engine's
+        // A/D turn stands in for the reference's strafe arm, zeroed
+        // with it). The saddle jump's own rear arms horseRearJumping,
+        // so the press itself steers through — the reference's own
+        // carve-out.
+        float sidewaysInput = steerSideways;
+        if (type == MobType.HORSE && onGround && horseJumpCharge == 0.0f
+                && rearing() && !horseRearJumping) {
+            sidewaysInput = 0.0f;
+            forwardInput = 0.0f;
+        }
+
+        float turn = sidewaysInput * RIDDEN_TURN_RATE;
         if (turn != 0.0f) {
             yaw += turn;
             headYaw = yaw;
@@ -9831,13 +10055,44 @@ public final class MobEntity implements LivingEntity {
 
         // Drive: the manager feeds zero forward for an uncontrolled seat
         // (an unsaddled horse or a pig without the carrot on a stick).
-        double walk = Math.abs(steerForward) > 0.01
-                ? Math.signum(steerForward) * rideSpeed() : 0.0;
+        // The input SCALES the drive (the reference's updateVelocity
+        // shape — the analog 0x0C float multiplies the speed; the
+        // reverse-dragged 0.25 quarter rides the same scale).
+        double walk = Math.abs(forwardInput) > 0.01
+                ? forwardInput * rideSpeed() : 0.0;
         if (inFluid) {
             walk *= 0.5; // swimming drag
         }
-        if (steerJump && onGround && jumpCooldown == 0) {
-            velocityY = type == MobType.PIG ? PIG_JUMP_IMPULSE : HORSE_JUMP_IMPULSE;
+        // THE SADDLE JUMP'S SPEND (moveRelative lines 1046-1063): the
+        // banded charge the wire's RIDING_JUMP consult armed — the
+        // impulse is the JUMP ATTRIBUTE * the band (the 1:1 consult,
+        // never the flat stand-in), the JUMP_BOOST amplifier adds its
+        // 0.1 units, the forward lunge rides the charge's own scale,
+        // the "mob.horse.jump" sound at 0.4F/1.0F rides the lunge arm
+        // alone, and the charge clears at the spend. The engine's
+        // pig hop keeps the boolean + cooldown shape.
+        if (type == MobType.HORSE) {
+            if (horseJumpCharge > 0.0f && !horseInAir && onGround) {
+                velocityY = customJumpStrength() * horseJumpCharge;
+                float jumpBoost = effectAmplifierPlusOne(
+                        net.zaminmc.torch.server.potion.StatusEffects.JUMP_BOOST);
+                if (jumpBoost > 0.0f) {
+                    velocityY += jumpBoost * 0.1;
+                }
+                horseInAir = true;
+                if (forwardInput > 0.0f) {
+                    double sinYaw = Math.sin(Math.toRadians(yaw));
+                    double cosYaw = Math.cos(Math.toRadians(yaw));
+                    velocityX += -0.4 * sinYaw * horseJumpCharge;
+                    velocityZ += 0.4 * cosYaw * horseJumpCharge;
+                    pendingHorseJumpSound = new StagedSound(
+                            "mob.horse.jump", 0.4f, 1.0f);
+                }
+                horseJumpCharge = 0.0f;
+                onGround = false;
+            }
+        } else if (steerJump && onGround && jumpCooldown == 0) {
+            velocityY = PIG_JUMP_IMPULSE;
             jumpCooldown = RIDE_JUMP_COOLDOWN;
             onGround = false;
         }
@@ -9865,9 +10120,14 @@ public final class MobEntity implements LivingEntity {
         // fix as the walker's own line: the ridden body's drag — the
         // reference's PlayerControlGoal lines 79-84 reads the support
         // cell's slipperiness * 0.91 on the ground, the air band the
-        // 0.91 base; the pre-fix engine carried the flat 0.6/0.98).
+        // 0.91 base; the pre-fix engine carried the flat 0.6/0.98). THE
+        // PRE-MOVE GROUND READ (Wave PE-30 — the reference's travel
+        // computes the friction factor BEFORE the move applies, so a
+        // jump tick's lunge drags at the GROUND band it stood on, never
+        // the air band the spend just armed — the captured pre-spend
+        // state, wasGroundedBefore, carries the reference's own read).
         double damping = inLava ? 0.5 : inFluid ? 0.8
-                : (onGround
+                : (wasGroundedBefore
                         ? world.slipperinessBelow(position.x(), position.y(), position.z()) * 0.91
                         : 0.91);
         velocityX *= damping;
@@ -9889,6 +10149,7 @@ public final class MobEntity implements LivingEntity {
             // arm): the reference runs the SAME checkFallDamage for the
             // ridden body; the pre-fix walk swallowed the fall whole.
             rideFallWalk(inLava, inFluid, wasGroundedBefore, swept.dy());
+            riddenSteerTail(preRideX, preRideY, preRideZ);
             return;
         }
 
@@ -9925,6 +10186,40 @@ public final class MobEntity implements LivingEntity {
         // THE RIDDEN FALL WALK (F-RIDER-SPARE — the point path's arm,
         // the same walk the solver path carries).
         rideFallWalk(inLava, inFluid, wasGroundedBefore, position.y() - preRideY);
+        riddenSteerTail(preRideX, preRideY, preRideZ);
+    }
+
+    /**
+     * THE STEER WALK'S TAIL (Wave PE-30 — moveRelative lines 1073-1086
+     * over Entity.move's own closing arm, both solver paths' shared
+     * end): THE STEP-SOUND WALK (the reference's Entity.move runs the
+     * step arm over EVERY applied move — the ridden body included; the
+     * horse's gallop ladder rides it — the pre-fix engine's ridden walk
+     * swallowed the step whole, the discovery seat caught it), the
+     * GROUNDED CLEAR (a grounded body spends any standing charge and
+     * lands its in-air flag — the reference's own
+     * {@code if (this.onGround) { jumpStrength = 0; setInAir(false); }})
+     * and THE WALK-ANIMATION PAIR (the steer walk's own compute over
+     * the applied move's dx/dz: {@code f2 = sqrt(dx^2+dz^2) * 4}
+     * clamped to 1.0, the 0.4 blend into the speed, the progress
+     * accumulate — the client renders its own pair, the server-side
+     * state kept for the stream's parity).
+     */
+    private void riddenSteerTail(double preRideX, double preRideY, double preRideZ) {
+        stepSoundWalk(preRideX, preRideY, preRideZ);
+        if (type == MobType.HORSE && onGround) {
+            horseJumpCharge = 0.0f;
+            horseInAir = false;
+        }
+        lastWalkAnimationSpeed = walkAnimationSpeed;
+        double dx = position.x() - preRideX;
+        double dz = position.z() - preRideZ;
+        float f2 = (float) Math.sqrt(dx * dx + dz * dz) * 4.0f;
+        if (f2 > 1.0f) {
+            f2 = 1.0f;
+        }
+        walkAnimationSpeed = walkAnimationSpeed + (f2 - walkAnimationSpeed) * 0.4f;
+        walkAnimationProgress = walkAnimationProgress + walkAnimationSpeed;
     }
 
     /**
@@ -14917,8 +15212,20 @@ public final class MobEntity implements LivingEntity {
             // the SNOW family, the liquid cell refuses (a body swimming
             // over open water never steps — the splash above already
             // answered), everything else plays its family at
-            // volume * 0.15.
-            if (isSnowLayer(world.blockIdAt(feetX, feetY + 1, feetZ))) {
+            // volume * 0.15. THE HORSE'S OWN OVERRIDE (Wave PE-30 —
+            // HorseBaseEntity.playStepSound lines 528-548) replaces the
+            // family consult whole: the ridden plain-horse gallop
+            // ladder, the unridden (and donkey/mule) wood-or-soft pair.
+            if (type == MobType.HORSE) {
+                if (isSnowLayer(world.blockIdAt(feetX, feetY + 1, feetZ))) {
+                    horseStepSound(
+                            net.zaminmc.torch.server.fx.BlockSoundMap.SoundFamily.SNOW);
+                } else if (net.zaminmc.torch.server.block.FluidBlocks.kindOf(ground) == null) {
+                    horseStepSound(net.zaminmc.torch.server.fx.BlockSoundMap
+                            .familyOf(ground)
+                            .orElse(net.zaminmc.torch.server.fx.BlockSoundMap.SoundFamily.STONE));
+                }
+            } else if (isSnowLayer(world.blockIdAt(feetX, feetY + 1, feetZ))) {
                 pendingStepSound = new StagedSound(
                         net.zaminmc.torch.server.fx.BlockSoundMap.SoundFamily.SNOW.stepping(),
                         net.zaminmc.torch.server.fx.BlockSoundMap.SoundFamily.SNOW.volume() * 0.15f,
@@ -14930,6 +15237,49 @@ public final class MobEntity implements LivingEntity {
                 pendingStepSound = new StagedSound(family.stepping(),
                         family.volume() * 0.15f, family.pitch());
             }
+        }
+    }
+
+    /**
+     * THE HORSE'S STEP OVERRIDE ({@code playStepSound}, lines 528-548,
+     * Wave PE-30): the crossed family's volume/pitch read at the
+     * horse's own names — THE RIDDEN LADDER (a seated rider over a
+     * plain horse — the donkey and the mule refuse the ladder, riding
+     * the plain pair): {@code soundTicks++}, the first FIVE crossings
+     * the "mob.horse.wood" wood sound at {@code volume * 0.15}, every
+     * third crossing past five the "mob.horse.gallop" gallop at
+     * {@code volume * 0.15} (+ the plain horse's 1-in-10
+     * "mob.horse.breathe" at {@code volume * 0.6} — TWO sounds the
+     * crossing carries), the in-between crossings NOTHING; THE PLAIN
+     * PAIR (unridden, or a donkey/mule): the family's WOOD the
+     * "mob.horse.wood" name, every other family the "mob.horse.soft"
+     * — both at {@code volume * 0.15}. The ladder resets only at the
+     * steer walk's reverse-drag arm.
+     */
+    private void horseStepSound(
+            net.zaminmc.torch.server.fx.BlockSoundMap.SoundFamily family) {
+        float volume = family.volume();
+        float pitch = family.pitch();
+        if (hasRider() && horseSubtype != HORSE_SUBTYPE_DONKEY
+                && horseSubtype != HORSE_SUBTYPE_MULE) {
+            horseSoundTicks++;
+            if (horseSoundTicks > 5 && horseSoundTicks % 3 == 0) {
+                pendingStepSound = new StagedSound("mob.horse.gallop",
+                        volume * 0.15f, pitch);
+                if (horseSubtype == HORSE_SUBTYPE_HORSE && random.nextInt(10) == 0) {
+                    pendingBreatheSound = new StagedSound("mob.horse.breathe",
+                            volume * 0.6f, pitch);
+                }
+            } else if (horseSoundTicks <= 5) {
+                pendingStepSound = new StagedSound("mob.horse.wood",
+                        volume * 0.15f, pitch);
+            }
+        } else if (family == net.zaminmc.torch.server.fx.BlockSoundMap.SoundFamily.WOOD) {
+            pendingStepSound = new StagedSound("mob.horse.wood",
+                    volume * 0.15f, pitch);
+        } else {
+            pendingStepSound = new StagedSound("mob.horse.soft",
+                    volume * 0.15f, pitch);
         }
     }
 

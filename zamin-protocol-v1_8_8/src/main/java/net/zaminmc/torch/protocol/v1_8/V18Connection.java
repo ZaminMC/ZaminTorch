@@ -805,12 +805,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 // Sneak/sprint/leave-bed/jump: entity id, action, jump boost.
                 ByteBufOps.readVarInt(packet);
                 int action = ByteBufOps.readVarInt(packet);
-                ByteBufOps.readVarInt(packet);
+                int data = ByteBufOps.readVarInt(packet);
                 // Posture rides to the engine (the flags metadata + sprint
                 // hunger gate); the client animates its own body meanwhile.
+                // The third varint rides too (Wave PE-30 — the reference's
+                // PlayerMovementActionC2SPacket.data: the RIDING_JUMP arm's
+                // charged strength the horse's setJumpStrength bands).
                 PlayerSession current = session;
                 if (current != null && adapter.engine() != null) {
-                    adapter.engine().entityAction(current, action);
+                    adapter.engine().entityAction(current, action, data);
                 }
             }
             case Protocol18.C2S_STEER_VEHICLE -> {

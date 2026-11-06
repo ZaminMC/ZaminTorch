@@ -200,6 +200,10 @@ public final class EntityNbt {
             attributes.add(attributeRows("generic.attackDamage",
                     mob.attackDamageOverride()));
         }
+        if (mob.hasHorseJumpOverride()) {
+            attributes.add(attributeRows("horse.jumpStrength",
+                    mob.horseJumpOverride()));
+        }
         if (!attributes.isEmpty()) {
             NbtOps.putList(nbt, "Attributes", attributes);
         }
@@ -620,6 +624,11 @@ public final class EntityNbt {
                 trackableBaseLanded = true;
             } else if ("generic.attackDamage".equals(name)) {
                 mob.setAttackDamageOverride((float) base);
+            } else if ("horse.jumpStrength".equals(name)) {
+                // Wave PE-30 — the horse's own jump attribute row
+                // (HorseBaseEntity line 49's name): the Base replace
+                // clamped to the ranged band at the landing.
+                mob.setHorseJumpOverride(base);
             }
         }
         if (trackableBaseLanded && attributesChanged != null) {

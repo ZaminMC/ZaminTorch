@@ -198,23 +198,46 @@ class HorseMountTest {
             mount.tick();
         }
         assertTrue(mount.onGround(), "settled before the jump");
-        mount.steer(0.0f, 0.0f, true);
+        // THE CHARGED SADDLE JUMP (Wave PE-30 — the wire's RIDING_JUMP
+        // consult lands setJumpStrength whole): strength >= 90 charges
+        // the full 1.0 band, the press rears (updateAnger rides the
+        // >= 0 arm — flag 64 + the rear-jump carve-out), and the steer
+        // walk spends the charge as the JUMP ATTRIBUTE * the band (the
+        // unrolled horse's 0.7 base — the flat stand-in retired).
+        mount.setJumpStrength(100);
+        assertEquals(1.0f, mount.horseJumpCharge(), 0.0001f,
+                "strength >= 90 charges the full band");
+        assertTrue(mount.rearing(), "the press rears (the anger arm)");
+        assertTrue(mount.horseRearJumping(), "the rear-jump flag rides the press");
+        mount.steer(0.0f, 0.0f, false);
         mount.tick();
-        assertTrue(mount.velocityY() > 0.3, "the jump impulse lifts the body");
+        assertTrue(mount.velocityY() > 0.3, "the charged jump lifts the body: "
+                + mount.velocityY());
         assertFalse(mount.onGround(), "airborne after the jump");
-        // The cooldown blocks an immediate second jump: while airborne the
-        // velocity decays monotonically — a re-jump would bump it back up.
+        assertEquals(0.0f, mount.horseJumpCharge(), 0.0001f,
+                "the spend clears the charge");
+        // A MID-AIR RE-ARM NEVER SPENDS (the inAir gate + the landing
+        // tick's ground consult — the reference's own pair): the charge
+        // armed while airborne dies at the landing, never fires.
         boolean secondJump = false;
         double previous = mount.velocityY();
-        for (int i = 0; i < 5; i++) {
-            mount.steer(0.0f, 0.0f, true);
+        for (int i = 0; i < 12 && !mount.onGround(); i++) {
+            mount.setJumpStrength(100);
             mount.tick();
-            if (mount.velocityY() > previous + 0.05) {
+            if (!mount.onGround() && mount.velocityY() > previous + 0.05) {
                 secondJump = true;
             }
             previous = mount.velocityY();
         }
-        assertFalse(secondJump, "the jump cooldown gates rapid re-jumps");
+        assertFalse(secondJump, "a mid-air re-arm never spends");
+        // The steer bit alone no longer lifts the horse (the reference's
+        // jump rides the RIDING_JUMP charge, never the steer packet's
+        // boolean — the seated rider's jumping flag is read by nobody).
+        mount.steer(0.0f, 0.0f, true);
+        double settleY = mount.velocityY();
+        mount.tick();
+        assertTrue(mount.velocityY() <= Math.max(settleY, 0.0) + 0.05,
+                "the steer bit never jumps the horse");
     }
 
     @Test

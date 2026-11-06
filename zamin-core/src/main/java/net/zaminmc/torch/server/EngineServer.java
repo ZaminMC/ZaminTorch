@@ -10657,6 +10657,21 @@ public final class EngineServer implements Server, EngineBridge {
      * riding pair, posture-neutral here). Safe from any thread.
      */
     public void entityAction(PlayerSession session, int action) {
+        entityAction(session, action, 0);
+    }
+
+    /**
+     * The entity-action walk's data-carrying form (Wave PE-30 — the
+     * reference's handlePlayerMovementAction whole, the third varint the
+     * packet carries): the RIDING_JUMP arm (ordinal 5) lands the rider's
+     * charged jump on the ridden horse — {@code setJumpStrength(data)}
+     * (ServerPlayNetworkHandler line 691's own cast-gated consult: a
+     * non-horse seat refuses the arm) — and the OPEN_HORSE_INVENTORY
+     * arm (ordinal 6) opens the mount's window (the reference's own
+     * neighbor arm, line 695). The posture arms ignore the data.
+     * Safe from any thread; the application runs on the tick thread.
+     */
+    public void entityAction(PlayerSession session, int action, int data) {
         Objects.requireNonNull(session, "session");
         ticker.submit(() -> {
             switch (action) {
@@ -10670,6 +10685,30 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                 }
                 case 4 -> session.setSprinting(false);
+                case 5 -> {
+                    // RIDING_JUMP: the charged saddle jump (the data the
+                    // reference's packet carries — the strength
+                    // setJumpStrength bands).
+                    if (mobManager != null) {
+                        MobEntity mount = mobManager.byId(session.ridingMobId());
+                        if (mount != null && mount.type() == MobType.HORSE) {
+                            mount.setJumpStrength(data);
+                            publishHorseFlags(mount);
+                        }
+                    }
+                    return;
+                }
+                case 6 -> {
+                    // OPEN_HORSE_INVENTORY: the mount's window (the E-key
+                    // seat consult — the reference's line 695).
+                    if (mobManager != null) {
+                        MobEntity mount = mobManager.byId(session.ridingMobId());
+                        if (mount != null && mount.type() == MobType.HORSE) {
+                            openHorseInventoryOnTick(session, mount);
+                        }
+                    }
+                    return;
+                }
                 default -> {
                     return;
                 }

@@ -1568,6 +1568,10 @@ public final class MobManager {
     static void rollHorseSpawnAttributes(MobEntity mob, java.util.Random random) {
         mob.applyHorseSpawnHealth(15 + random.nextInt(8) + random.nextInt(9));
         mob.rollHorseSpawnSpeed(random);
+        // The spawn walk's LAST roll (initialize lines 1298-1303 — the
+        // order the reference's own stream carries: health, speed,
+        // jump): the jump attribute's rolled band.
+        mob.rollHorseSpawnJump(random);
     }
 
     /**
@@ -2581,6 +2585,24 @@ public final class MobManager {
                 for (Listener listener : listeners) {
                     listener.onMobSoundAt(mob, stepSound.name(),
                             stepSound.volume(), stepSound.pitch());
+                }
+            }
+            // The horse's step family's own pair (Wave PE-30 — the
+            // gallop crossing's breathe beside the gallop, the
+            // reference's own two-sound crossing) and the saddle
+            // jump's own sound (the steer walk's lunge arm alone).
+            MobEntity.StagedSound breatheSound = mob.consumeBreatheSound();
+            if (breatheSound != null) {
+                for (Listener listener : listeners) {
+                    listener.onMobSoundAt(mob, breatheSound.name(),
+                            breatheSound.volume(), breatheSound.pitch());
+                }
+            }
+            MobEntity.StagedSound horseJumpSound = mob.consumeHorseJumpSound();
+            if (horseJumpSound != null) {
+                for (Listener listener : listeners) {
+                    listener.onMobSoundAt(mob, horseJumpSound.name(),
+                            horseJumpSound.volume(), horseJumpSound.pitch());
                 }
             }
             // The zombie villager's cure countdown completed its walk
