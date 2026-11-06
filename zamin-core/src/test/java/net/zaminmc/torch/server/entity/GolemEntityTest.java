@@ -7,6 +7,7 @@ import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -98,22 +99,35 @@ class GolemEntityTest {
     }
 
     @Test
-    void theIronGolemHuntsTheHostileKinds() {
+    void theIronGolemNeverHuntsOnSightButChasesTheDefenseTarget() {
         ScriptedWorld world = new ScriptedWorld();
         MobEntity golem = golemIn(world, MobType.IRON_GOLEM, 3L);
         // No hostile: the plain stroll (no chase mode held).
         golem.tick(true);
         assertEquals(MobEntity.Mode.IDLE, golem.mode());
 
-        // A zombie within the 32-block hunt range: the chase owns the walk.
+        // A zombie well inside the old 32-block census band: the 1.8.8
+        // golem NEVER hunts on sight (TrackIronGolemTargetGoal alone owns
+        // the target — the village's defense consult, IronGolemEntity line
+        // 54; the on-sight census the engine formerly carried is the 1.14
+        // village-siege law, retired Wave PE-27).
         MobEntity zombie = new MobEntity(999, MobType.ZOMBIE,
                 new Position(6.0, 8.0, 0.5), new Random(4L), world);
         world.hostile = zombie;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 20; i++) {
             golem.tick(true);
         }
-        assertEquals(zombie, golem.golemTarget());
-        assertEquals(MobEntity.Mode.CHASE, golem.mode(), "beyond the melee band");
+        assertNull(golem.golemTarget(), "no census runs — the zombie is never hunted on sight");
+        assertEquals(MobEntity.Mode.IDLE, golem.mode(), "the stroll cycle holds");
+
+        // The defense arm's write (the manager's defense consult — the
+        // zombie that hurt a villager): the mob target owns the walk, the
+        // chase the census-starved mind never ran.
+        golem.setMobAttackTarget(zombie);
+        golem.tick(true);
+        assertEquals(MobEntity.Mode.CHASE, golem.mode(),
+                "the defense target's chase owns the walk (beyond the melee band)");
+        golem.setMobAttackTarget(null);
     }
 
     @Test

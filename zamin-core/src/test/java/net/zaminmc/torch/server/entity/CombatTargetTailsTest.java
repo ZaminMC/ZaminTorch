@@ -223,24 +223,30 @@ class CombatTargetTailsTest {
     // ------------------------------------------------------------------
 
     @Test
-    void theGolemSkipsCreepersAndWalksDownTheNextMonster() {
+    void theGolemTurnsOnlyOnTheVillageDefenseNeverOnSight() {
         TargetWorld world = new TargetWorld();
         MobEntity golem = spawn(world, 900, MobType.IRON_GOLEM, new Position(0.5, 8.0, 0.5), 71L);
-        // The creeper is the NEARER hostile; the zombie stands behind it.
+        // The creeper is the NEARER hostile; the zombie stands behind it —
+        // neither is hunted: the 1.8.8 golem carries NO on-sight census
+        // (TrackIronGolemTargetGoal alone, IronGolemEntity line 54 — the
+        // village's defense consult; the 32-block census the engine
+        // formerly carried is the 1.14 law, retired Wave PE-27).
         MobEntity creeper = spawn(world, 901, MobType.CREEPER, new Position(3.5, 8.0, 0.5), 72L);
         MobEntity zombie = spawn(world, 902, MobType.ZOMBIE, new Position(6.5, 8.0, 0.5), 73L);
 
         golem.tick(true);
-        assertSame(zombie, golem.golemTarget(),
-                "the golem's own predicate excludes the creeper (lines 256-258) — the zombie behind it wins");
-        assertEquals(MobEntity.Mode.CHASE, golem.mode(), "the golem walks its monster down");
+        assertNull(golem.golemTarget(),
+                "no census runs — neither the creeper nor the zombie behind it is hunted");
+        assertEquals(MobEntity.Mode.IDLE, golem.mode(), "the stroll cycle holds");
 
-        // The same-team refusal rides the same consult: a teamed golem
-        // never hunts its kin.
-        world.teams.put(golem.getUuid().toString(), "red");
-        world.teams.put(zombie.getUuid().toString(), "red");
+        // The defense arm's write (the manager's defense consult — the
+        // creeper exclusion and the attacker registry live in the village):
+        // the mob target's chase owns the walk (the census-starved mind
+        // never ran it).
+        golem.setMobAttackTarget(zombie);
         golem.tick(true);
-        assertNull(golem.golemTarget(), "a same-team hostile is refused (isTarget lines 102-106)");
+        assertEquals(MobEntity.Mode.CHASE, golem.mode(),
+                "the defense target's chase owns the walk");
         golem.setMobAttackTarget(null);
     }
 

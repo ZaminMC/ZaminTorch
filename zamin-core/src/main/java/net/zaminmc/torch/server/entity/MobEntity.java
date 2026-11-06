@@ -3949,28 +3949,25 @@ public final class MobEntity implements LivingEntity {
      * walls).</p>
      */
     private void tickIronGolemMind(boolean night) {
-        double golemHalf = type.width / 2.0;
-        golemTarget = world.nearestHostileMobInBox(
-                position.x() - golemHalf - GOLEM_HUNT_RANGE, position.y() - 4.0,
-                position.z() - golemHalf - GOLEM_HUNT_RANGE,
-                position.x() + golemHalf + GOLEM_HUNT_RANGE,
-                position.y() + type.height + 4.0,
-                position.z() + golemHalf + GOLEM_HUNT_RANGE,
-                MobType.CREEPER, teamName());
-        if (golemTarget != null && golemTarget.dead()) {
-            golemTarget = null;
-        }
-        // VIII10 — the village-defense target (TrackIronGolemTargetGoal
-        // over the manager's consult): a FORCED player target owns the
-        // walk wherever it stands (the mob arm rode setMobAttackTarget
-        // — the mob-vs-mob chase reads it through the standing walk
-        // below); a gone body clears the arm.
+        // Wave PE-27 — THE GOLEM'S TARGET LAW (TrackIronGolemTargetGoal
+        // 1:1, the 1.8.8 golem's ONLY target registration, IronGolemEntity
+        // line 54): the village's defense consult ALONE owns the target —
+        // the manager's wiring (the wound hook's attacker registry, the
+        // defense consult with the creeper exclusion, the 1-in-20
+        // bad-reputation fallback) sets the MOB target or the FORCED
+        // player hunt, and this mind chases whichever stands. The 32-block
+        // hostile census the engine formerly carried is the 1.14
+        // village-siege law — RETIRED (the 1.8.8 golem never hunts on
+        // sight; it turns only on the village's own wounded).
         Position forced = forcedHuntPosition();
         Position chaseTarget;
         if (forced != null) {
             chaseTarget = forced;
-        } else if (golemTarget != null) {
-            chaseTarget = golemTarget.position();
+        } else if (mobAttackTarget != null && !mobAttackTarget.dead()) {
+            // The defense arm's mob target (the zombie that hurt a
+            // villager): the chase the engine's old census-starved mind
+            // never ran — setMobAttackTarget's write now owns the walk.
+            chaseTarget = mobAttackTarget.position();
         } else {
             return; // the stroll cycle (the goal layer's default)
         }

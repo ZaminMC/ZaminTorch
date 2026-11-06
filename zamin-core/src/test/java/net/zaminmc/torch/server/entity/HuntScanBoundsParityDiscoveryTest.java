@@ -479,18 +479,18 @@ class HuntScanBoundsParityDiscoveryTest {
     }
 
     // ------------------------------------------------------------------
-    // Seat 8 — THE IRON GOLEM'S GROWN BOX (RED pre-fix)
+    // Seat 8 — THE IRON GOLEM'S TARGET LAW (rewritten Wave PE-27)
     // ------------------------------------------------------------------
 
     /**
-     * A zombie whose own box straddles the iron golem's grown face: the
-     * golem's own 1.4-wide shape grown 32 puts the east face at 53.2;
-     * the zombie's center at 53.0 (32.5 out — past the pre-fix center
-     * scan's 32) with its own box's near face at 52.7 grazing 0.5
-     * inside. Vanilla finds; the pre-fix center scan refused whole.
+     * The 1.8.8 iron golem NEVER hunts on sight (TrackIronGolemTarget
+     * Goal alone owns the target, IronGolemEntity line 54 — the village's
+     * defense consult): a zombie straddling the old census's very face
+     * is never locked; the 32-block hostile census the engine formerly
+     * carried is the 1.14 village-siege law, retired.
      */
     @Test
-    void theStraddlingZombieLocksTheIronGolem() throws Exception {
+    void theStraddlingZombieNeverLocksTheIronGolem() throws Exception {
         buildPlatform();
         MobEntity golem = spawnPinned(MobType.IRON_GOLEM, HUNTER_X, HUNTER_Z);
         MobEntity straddler = spawnStatic(MobType.ZOMBIE, HUNTER_X + 32.5,
@@ -500,25 +500,23 @@ class HuntScanBoundsParityDiscoveryTest {
                 new Position(HUNTER_X + 32.5 + 0.5, 40.0, HUNTER_Z + 0.5)));
         EngineAwaits.awaitTicks(server.world(), 2, "the straddle placement");
 
-        EngineAwaits.awaitCondition(server.world(),
-                () -> golem.golemTarget() == straddler, 200,
-                "the straddling zombie (its own box 0.5 inside the grown face,"
-                        + " its center 32.5 past the center scan) locks the golem");
-        assertSame(straddler, golem.golemTarget(),
-                "the iron golem's census reads the box law, never the center");
+        EngineAwaits.awaitTicks(server.world(), 20, "the never-hunt window");
+        assertNull(golem.golemTarget(),
+                "no census runs — the straddling zombie is never locked (the"
+                        + " 1.8.8 golem turns only on the village's defense consult)");
     }
 
     // ------------------------------------------------------------------
-    // Seat 9 — THE CREEPER EXCLUSION (green by design — the standing law)
+    // Seat 9 — THE CREEPER EXCLUSION (rewritten Wave PE-27: the defense
+    // consult's own exclusion, never a census)
     // ------------------------------------------------------------------
 
     /**
-     * A creeper 6 east and a zombie 10 east of the iron golem: the
-     * creeper is EXCLUDED whole (IronGolemEntity lines 256-258's own
-     * predicate + canAttack line 137) — the golem's target is the
-     * farther zombie. Green on both engines (the exclusion rode the
-     * pre-fix consult too): the wave's own control that the box
-     * migration kept the law.
+     * A creeper 6 east and a zombie 10 east of the iron golem: NEITHER
+     * is hunted — no census runs at all (the 1.8.8 golem turns only on
+     * the village's defense consult). The creeper exclusion itself now
+     * lives in the village's defense consult (the attacker registry's
+     * own gate); the seat pins the never-on-sight law beside it.
      */
     @Test
     void theCreeperNeverLocksTheIronGolem() throws Exception {
@@ -529,11 +527,17 @@ class HuntScanBoundsParityDiscoveryTest {
         MobEntity zombie = spawnStatic(MobType.ZOMBIE, HUNTER_X + 10.5,
                 HUNTER_Z + 0.5, true);
 
+        EngineAwaits.awaitTicks(server.world(), 20, "the never-hunt window");
+        assertNull(golem.golemTarget(),
+                "no census runs — neither the creeper nor the zombie behind it"
+                        + " is hunted (the defense consult alone owns the target)");
+        // The defense arm's write: the mob target's chase owns the walk.
+        server.ticker().submit(() -> golem.setMobAttackTarget(zombie));
         EngineAwaits.awaitCondition(server.world(),
-                () -> golem.golemTarget() == zombie, 200,
-                "the zombie (not the nearer creeper) locks the golem");
+                () -> golem.mode() == MobEntity.Mode.CHASE, 100,
+                "the defense target's chase owns the walk");
         assertTrue(golem.golemTarget() != creeper,
-                "the creeper never locks the iron golem's census");
+                "the creeper never rides the golem's target row");
     }
 
     // ------------------------------------------------------------------

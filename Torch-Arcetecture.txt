@@ -8758,22 +8758,130 @@ the write), the same class the blaze's band-5 row already carried;
 the golem's NIGHT walk (band 3) is the live one and it landed here
 over the LIVE village consult, never the cache.
 
-NEXT WORK (re-pinned, in order): the HORSE-BOND REPAIR (the
-reference's HorseBondWithPlayerGoal — the taming dice ride the
-RIDING window, a 1-in-50 per-tick roll while an UNTAMED horse
-carries its rider: the temper dice nextInt(maxTemper) < temper tames
-(the hearts Entity Status 7), else +5 temper + the BUCK (the
-dismount, the angry sound, the Entity Status 6) — the engine's
-current MountAttempt rolls at MOUNT time instead, the pre-existing
-stand-in this wave's census found and the next wave should retire);
-the villager's NBT Inventory row (writeCustomNbt's 8-slot stock
-persistence — the mating lane's in-memory stock survives restarts
-in the reference); the CI census watches (the environmental class —
-SleepAcceptance/PistonEntityPush on clean develop, the rotating
-loaded-runner one-offs, each green isolated); the verifier's
-non-1:1 documentation and PRs the standing input for every lane
-(none open at this session's close); the vanilla-grade census's
-next family pick when the verifier's rows land.
+NEXT WORK (re-pinned, in order): the verifier's non-1:1
+documentation and PRs the standing input for every lane (none open
+at this session's close — the two PRE-EXISTING failures on clean
+develop this session root-caused and left for the verifier's rows:
+RangedCombatAcceptanceTest's snowball shatter never rides the FX
+bus, DonkeyChestIntegrationTest's open-window packet 45 times out —
+both reproduced on stashed clean HEAD); the horse's EATING-WINDOW
+flag family (the reference's flag-32 eatingHay vs flag-128 graze
+window — setEating's eatingTicks=1 + flag 128 at every sound
+consult, the ++eatingTicks > 30 decay, the engine carries only flag
+32 with a down-count — the census row this wave's angry-decay work
+found beside it); the defense consult's TEAM gate (TrackTargetGoal
+.isTarget's same-team refusal — the village's defenseAttackerId has
+no team consult, a teamed golem could turn on its kin through the
+wound registry); the golem's own-wound revenge row (the engine's
+hurtByMob gives the golem a revenge arm the 1.8.8 reference carries
+only for wolves/zombies — CombatTargetTailsTest's seat documents
+it); the CI census watches (the environmental class — the
+BedPairFacingResolutionParityTest flake watched, it passed isolated
+both probes this session); the vanilla-grade census's next family
+pick when the verifier's rows land.
+
+WAVES PE-25 + PE-26 + PE-27 LANDED (2026-11-06, commits d88822d9 +
+58ee9735 + the golem repair — three waves, each law read from the
+reference's own source 1:1):
+
+PE-25 — THE HORSE-BOND REPAIR (the pin's head row whole): the
+taming dice ride the RIDING window, a 1-in-50 per-tick roll while
+an UNTAMED horse carries its rider (HorseBondWithPlayerGoal.tick
+lines 49-68); the engine's MountAttempt stand-in rolled the same
+temper flow at MOUNT time — RETIRED whole (the enum, the mount-time
+dice, the BUCK_THROW_TICKS rear-throw clock, the consumeBuckThrow
+drain). The goal (MobGoals' band-1 THIRD seat, the reference's own
+registration order — HorseBaseEntity lines 107-108): the rider
+gate, the (5,4) TargetFinder pick, the 1.2-speed wander while the
+seat is held, the shouldContinue window. The dice: the player arm
+(the seat's stored LIVE identity — the reference's instanceof
+PlayerEntity), the temper dice nextInt(100) < temper TAMES
+(bondWithPlayer at the dice itself, the hearts Entity Status 7 on
+the manager's drain, the RETURN — no buck on the taming tick), the
+miss pays addTemper(5) clamped [0,100], then THE BUCK (the thrown
+dismount + the angry sound + the smoke Entity Status 6 through the
+manager's drain, the angry flag 64 + its 20-tick decay the body's
+own updateAnger). THE UNTAMED SEAT'S MIND: the reference's
+serverTickAi carries NO rider gate (MobEntity line 441) and
+moveRelative's rider arm requires isSaddled() — the engine's
+ridden-body mind-park now carves the UNTAMED horse out (the mind
+KEEPS RUNNING while the rider sits; a tamed/saddled seat parks as
+before). The angry/eating clock pair landed in the shared
+body-clock spot (the eating decay formerly lived in the rider
+branch alone — an unridden fed horse pinned the flag forever). The
+seat identity: the mount consult and the re-login re-seat store;
+the anvil mob-rider arm stores none (the reference's non-player
+rider refuses the temper arm, every dice a plain buck). SEATS:
+HorseBondParityDiscoveryTest 4/0; HorseMountTest 11/0 rewritten.
+
+PE-26 — THE CUSTOMER TRIAD + THE INVENTORY READ LAW: the villager's
+trading-window family whole. THE CUSTOMER REFERENCE (setCustomer,
+lines 399-407/553-563): the interact's open arms it, the wired
+live-state consult resolves the session by engine id (null when the
+player left — the reference's own stale-distance leak diverged
+deliberately), and the interactMob gates landed (a customer-holding
+villager never opens a second window, a baby never trades). THE
+CUSTOMER LOOK (LookAtCustomerGoal, band 1): canStart's whole law
+is hasCustomer — NO chance dice; the inherited 40+nextInt(40)
+window with the head on the customer's eyes; ADDITIVE (LOOK-only)
+so it runs BESIDE the stand's exclusive claim (the reference's own
+mutex law — the stand holds MOVE+JUMP, the look holds LOOK). THE
+CLOSED-WINDOW STAND (StopFollowingCustomerGoal, band 1 exclusive):
+the six gates (not in water, on the ground, not damaged, the
+customer stands, within squared-16, the window CLOSED — the
+ContainerKind.NONE consult), start()'s navigation stop, and the
+claim's end CLEARS THE CUSTOMER (stop(): setCustomer(null)) — the
+reference's own lifetime manager. THE FOOD SHARE (TradeWithVillager
+Goal over GoToEntityGoal, the reference's band-9 order — the
+stare, the share, the wander): the 2% dice, the nearest villager in
+the body's own shape grown (3,3,3) — the stand-and-stare the
+subclass's MOVE mutex carries (GoToEntity NEVER WALKS — the ctor
+alone sets controls 3, the stare claims MOVE so no walk steals the
+body) — and start()'s share arm (the walker's wantsMoreFood 2-unit
+band + the found villager's hasRoomForHarvest → the 10-tick
+cooldown); the donation: the FIRST donatable slot alone —
+bread/potato/carrot beyond 3 donate count/2 of the same kind, wheat
+beyond 5 donates its half rounded to loaves of 3 AS BREAD — thrown
+from the walker's eye band (y-0.3+eyeHeight) along its own head
+facing at 0.3 speed with the +0.1 lift, the default 10-tick pickup
+delay, the manager's drain spawning the item entity (the found
+villager's own loot pickup gathers the throw — the village
+food-sharing loop). THE HAGGLE GATE (getAmbientSound line 475): a
+customer-holding body haggles, an idle one hums — the engine's
+unconditional-haggle stand-in retired. THE VILLAGER'S NBT INVENTORY
+READ LAW (readCustomNbt lines 455-462, the VIII10 row's repair):
+the load stocks through the reference's OWN addItem law — a
+same-kind row MERGES into the standing stack before any empty slot
+takes a stack (a foreign save's split rows compact exactly as the
+reference's, never the sequential placement the old read carried),
+the load carries NO isFood gate, an overflow row's remainder
+silently dropped. SEATS: CustomerTriadParityDiscoveryTest 5/0;
+EntityNbtTest's Inventory-read seat; the roster at the
+THIRTY-TWO-goal catalog.
+
+PE-27 — THE GOLEM'S TARGET LAW (TrackIronGolemTargetGoal 1:1, the
+1.8.8 golem's ONLY target registration, IronGolemEntity line 54):
+the village's defense consult ALONE owns the target — the manager's
+wiring (the wound hook's attacker registry + the defense consult
+with the creeper exclusion + the 1-in-20 bad-reputation fallback)
+sets the MOB target or the FORCED player hunt, and the golem's mind
+chases whichever stands. The 32-block hostile census the engine
+formerly carried is the 1.14 village-siege law — RETIRED (the 1.8.8
+golem never hunts on sight; it turns only on the village's own
+wounded). The repair also fixed the census-starved MOB arm:
+setMobAttackTarget's write (the zombie that hurt a villager) never
+reached the chase before — the golem's mind now reads it beside the
+forced player hunt. SEATS: the three golem hunt seats rewritten to
+the never-on-sight law + the defense-target chase
+(GolemEntityTest, CombatTargetTailsTest, HuntScanBoundsParity
+DiscoveryTest's seats 8+9 — the straddling zombie and the creeper
+exclusion are now defense-consult laws, never census laws).
+
+LANES across all three waves: the entity package whole (659/0),
+the village/vehicle/nbt/goal-api/mount-seats/anvil/ai lanes green,
+the bukkit module compiles, the protocol module carries only its
+pre-existing DonkeyChest row (root-caused on clean HEAD, left for
+the verifier).
 
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
