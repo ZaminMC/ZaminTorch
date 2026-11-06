@@ -9310,6 +9310,110 @@ acceptance lanes green whole, the protocol module compiles
 (the bukkit module's spigot-api snapshot unresolvable in this
 sandbox — an environment limit, no API surface touched).
 
+WAVES PP + TS2 LANDED (2026-11-07, the push-family session — the
+re-pin's two head rows whole plus the TS honest tail, each law read
+from the reference's own source 1:1):
+
+PP — THE MOB-MOB COLLISION PUSH FAMILY (LivingEntity.mobTick's
+"push" block lines 1467-1476 + pushAwayCollidingEntities 1478-1492
++ Entity.push 969-1005): the entity-collision separation the engine
+carried NO walk for at all — crowded bodies never drifted apart, and
+the golem's pushAway carrier had nothing to ride. THE WALK: every
+body's own tick closes with the gather over its shape grown
+(0.2, 0.0, 0.2) — the horizontal cushion alone — each candidate's
+OWN box intersecting STRICT both sides, this world's bodies alone
+(the dimension-gated list, the reference's chunk-entity membership),
+filtered by THE ISPUSHABLE CENSUS (LivingEntity's !removed — the
+list membership, dying bodies included: the walk carries NO isDead
+gate, the reference's mobTick running from tick() unconditionally —
+a dying body separates through its whole death animation; the BAT's
+false, BatEntity line 54; the ridden HORSE family's rider==null,
+HorseBaseEntity line 329 — a ridden horse never pushed out from
+under its rider; every other ridden body keeps the living answer,
+Entity.push's own rider gates freezing its velocity alone); then
+THE PUSH: the absMax-normalized dominant axis (MathHelper.absMax —
+the larger magnitude, not the euclidean length), the sqrt
+re-normalization, the 1/d2 cap at 1.0, the 0.05 scale, the
+pushSpeedReduction no-op (0.0 for every living body — the field the
+minecart family alone sets), the MUTUAL separation with each side's
+own rider gate, and the riding-pair refusal (neither body pushes
+the one it rides nor its mount). THE GOLEM'S pushAway CARRIER
+(IronGolemEntity lines 94-100, the row this architecture held
+NOT-REACHABLE until this walk existed — now retired): a pushed
+Monster — never a creeper — rolls the 1-in-20 dice, and the winner
+becomes the golem's target on the mob-target seat the defense
+consult owns (PE-27's wiring — the mind chases whichever stands).
+THE EXCESS-KILL'S SILENT DEATH VOICE (the HF honest tail,
+takeDamage lines 717-723's if (flag && s != null)): the death voice
+rides the flag gate alone — a kill through the hurt frame's excess
+arm dies SILENT, the death animation (die()'s doEntityEvent((byte)3),
+line 772) running regardless; the listener's voiceless verdict rides
+both wound walks (the melee and the magic family), the wire skipping
+the sound consult alone. SEATS: MobPushCollisionParityDiscoveryTest
+6/0 — RED 3/3 on the pre-fix engine (the crowding separation, the
+grown-0.2 cushion band, the golem carrier), the bat's empty carrier
+and the creeper exclusion the green-by-design controls.
+
+TS2 — THE SIT POSTURE/VERB SPLIT (the TS honest tail closed): the
+engine's single sit bit carried BOTH the owner's command and the
+goals' write. THE VERB (SitGoal.enabledWithOwner, a distinct field):
+armed at the TAME, read from the NBT's Sitting row beside the
+posture (TameableEntity lines 58-59 read BOTH), stood down by ANY
+WOUND ATTEMPT (both tameables' takeDamage overrides — WolfEntity
+line 265 / OcelotEntity line 154, BEFORE the i-frame consult: even
+a frame-refused hit stands a sitting pet's command down — the hit
+pet rises and never re-sits on its own; the pre-fix engine kept a
+hit sitting pet SEATED whole), stood down by the BLOCK-SIT (the
+perch walk's start + every-tick writes — the sit goal never claims
+against the perch), and flipped by the owner's empty-hand verb to
+the POSTURE'S OWN OPPOSITE (line 328's setEnabledWithOwner(!
+isSitting()) — THE CHEST-QUIRK: a perched cat — posture up, verb
+already down — computes !true = false, NOTHING changes; the pre-fix
+engine's XOR STOOD the perched cat down). THE POSTURE (the wire's
+index-16 bit) follows the verb through THE SIT GOAL'S CLAIM/STOP
+TRANSITIONS (the clock walk's new consult over Goal.shouldContinue's
+every-tick default): start()'s setSitting(true) +
+getNavigation().stop(), stop()'s setSitting(false) — one pass behind
+the verb, the reference's own shape; sitGoalHolds answers the LIVE
+claim. THE OWNERLESS QUIRK kept verbatim (SitGoal line 30's ||/&&
+precedence: the ownerless arm returns true WITHOUT consulting the
+verb). The tame's stand-down body landed too (the navigation stop +
+the target clear). SEATS: SitVerbPostureSplitParityDiscoveryTest
+3/0 NEW — the wounded sitting pet stands and never re-sits (RED
+pre-fix: it stayed seated); the REAL perch flow (a chest in the
+stub world, the cat walking to it, perching, the owner's click never
+standing it down — RED pre-fix: the XOR stood it down); the tame's
+one-pass follow. The re-pinned seats driven settle-first (the tame
+on a grounded body — the reference's own selector order: the sit
+goal's band 2 claims before the block-sit's band 6 ever polls; the
+artifact of taming an unsettled fresh spawn exposed the race the
+band order exists to prevent).
+
+NEXT WORK (re-pinned after PP + TS2, in order): the push family's
+ADJACENT CARRIERS the mob-mob scope names — the PLAYER as a pushable
+body (the mobs' gather includes the players in the reference — the
+mutual mob-player separation needs the session's velocity wire, the
+knockback packet form) and the CARTS/BOATS as pushed bodies (the
+gather's isPushable true — the stand's own cart push precedent, the
+vehicle system's addVelocity); the golem's GoToEntityTargetGoal
+flank walk (IronGolemEntity line 47, band 2, speed 0.9, range 32 —
+when NO path to the target exists, the golem walks to a position
+AWAY from the target picked by TargetFinder.getTargetAwayFrom
+Position(entity, 16, 7, targetPos); the engine's chase beelines and
+stands when the path fails); the environmental kills' death
+publication (the body-level hurtThroughFrame paths — the fire, the
+drown, the lava, the void — never fire onMobDied: no death voice,
+no status 3, the kill credit absent — the find this session's PP
+scoping surfaced); the fire-resistant sitting pet's verb corner (the
+engine's fire clock consults the resistance BEFORE the wound walk,
+so a resistant pet in fire never stands the verb down — the
+reference's takeDamage clears it before the resistance consult);
+the verifier's PRs when they open (none at this session's close);
+the CI census watches (the PanicFlee wounded-cow flake re-verified
+pre-existing on clean develop 6e623153 by a clean-checkout probe
+this session — still the verifier's row); the vanilla-grade
+census's next family pick when the verifier's rows land.
+
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
 full-power row walk the ACTING world's players (the un-dimensioned
