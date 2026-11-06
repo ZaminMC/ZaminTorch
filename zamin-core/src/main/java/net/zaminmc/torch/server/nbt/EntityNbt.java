@@ -487,6 +487,9 @@ public final class EntityNbt {
                     mob.setTamedFlag(NbtOps.getBoolean(nbt, "Tame"));
                 }
                 mob.setWolfSitting(NbtOps.getBoolean(nbt, "Sitting"));
+                // Wave TS2 — TameableEntity lines 58-59 read BOTH the verb
+                // and the posture from the one Sitting row.
+                mob.setSitVerb(NbtOps.getBoolean(nbt, "Sitting"));
                 mob.setWolfAngry(NbtOps.getBoolean(nbt, "Angry"));
                 mob.setWolfCollarColor(NbtOps.getByte(nbt, "CollarColor"));
             }
@@ -543,6 +546,9 @@ public final class EntityNbt {
                     mob.setTamedFlag(true);
                 }
                 mob.setWolfSitting(NbtOps.getBoolean(nbt, "Sitting"));
+                // Wave TS2 — TameableEntity lines 58-59 read BOTH the verb
+                // and the posture from the one Sitting row.
+                mob.setSitVerb(NbtOps.getBoolean(nbt, "Sitting"));
                 mob.setCatVariant(NbtOps.getInt(nbt, "CatType"));
             }
             default -> { }

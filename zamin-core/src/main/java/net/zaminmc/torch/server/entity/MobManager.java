@@ -3764,6 +3764,14 @@ public final class MobManager {
             }
             mob.armWitherSweep();
         }
+        // THE WOUND'S VERB STAND-DOWN (Wave TS2 — both tameables' takeDamage
+        // overrides, WolfEntity line 265 / OcelotEntity line 154: the verb
+        // clears BEFORE the i-frame consult — even a frame-refused hit stands
+        // a sitting pet's command down; the pet rises at the goal's next
+        // pass and never re-sits until the owner commands it again).
+        if (mob.isTameableKind() && mob.sitVerb()) {
+            mob.setSitVerb(false);
+        }
         // THE HURT FRAME (LivingEntity.takeDamage lines 652-669 — the mob
         // i-frame family): inside the window's first half a hit at or under
         // the frame's standing damage is refused WHOLE (lines 657-659 — no
@@ -4086,6 +4094,11 @@ public final class MobManager {
         // away 9 times in 10.
         if (mob.type() == MobType.ENDERMAN && random.nextInt(10) != 0) {
             mob.teleportRandomly();
+        }
+        // The wound's verb stand-down (Wave TS2 — the same law the melee
+        // walk carries: the verb clears before the frame consult).
+        if (mob.isTameableKind() && mob.sitVerb()) {
+            mob.setSitVerb(false);
         }
         // The hurt frame (the shared takeDamage consult — lines 652-669):
         // the magic family rides the same window the melee does; the

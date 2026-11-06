@@ -1423,8 +1423,12 @@ public final class MobEntity implements LivingEntity {
         return type.hostile;
     }
 
-    /** @return whether the kind carries TameableEntity's state family (the wolf and the ocelot). */
-    private boolean isTameableKind() {
+    /**
+     * @return whether the kind carries TameableEntity's state family (the
+     * wolf and the ocelot) — the wound walks' verb stand-down consult
+     * (Wave TS2) reads it beside the despawn census.
+     */
+    boolean isTameableKind() {
         return type == MobType.WOLF || type == MobType.OCELOT;
     }
 
@@ -2421,6 +2425,14 @@ public final class MobEntity implements LivingEntity {
      * window deep.
      */
     public void hurtThroughFrame(float amount, boolean bypassesArmor) {
+        // THE WOUND'S VERB STAND-DOWN (Wave TS2 — both tameables' takeDamage
+        // overrides, WolfEntity line 265 / OcelotEntity line 154: the verb
+        // clears BEFORE the super's i-frame consult, so even a frame-refused
+        // contact wound stands a sitting pet's command down — the hit pet
+        // rises at the goal's next pass and never re-sits on its own).
+        if (isTameableKind() && sitVerb) {
+            sitVerb = false;
+        }
         float verdict = consultHurtFrame(amount);
         if (verdict == 0.0f) {
             hurt(amount, bypassesArmor, true);
@@ -3391,9 +3403,40 @@ public final class MobEntity implements LivingEntity {
         return (wolfFlags & WOLF_FLAG_TAMED) != 0;
     }
 
-    /** @return whether the wolf sits (the owner's empty-hand toggle). */
+    /** @return whether the wolf sits (the POSTURE — the wire's index-16 bit). */
     public boolean wolfSitting() {
         return (wolfFlags & WOLF_FLAG_SITTING) != 0;
+    }
+
+    /**
+     * THE SIT VERB (SitGoal.enabledWithOwner, Wave TS2 — the TS honest
+     * tail closed): the owner's own "sit" command, DISTINCT from the
+     * POSTURE the goals write. The verb stands → the sit goal claims
+     * (the posture follows through the claim/stop transitions); the
+     * verb down → the goal stops (the posture drops). The tame arms it
+     * (the freshly tamed pet sits), the NBT's Sitting row reads it
+     * (TameableEntity lines 58-59 read BOTH the verb and the posture
+     * from the one row), ANY wound attempt stands it down (both
+     * tameables' takeDamage overrides — WolfEntity line 265 /
+     * OcelotEntity line 154, BEFORE the i-frame consult: even a
+     * frame-refused hit stands the pet's verb down), and the owner's
+     * empty-hand verb flips it to the POSTURE'S OWN OPPOSITE (line
+     * 328's {@code setEnabledWithOwner(!isSitting())} — the famous
+     * chest-quirk: a cat perched on a chest already carries the verb
+     * down, and the click computes !true = false — NOTHING changes,
+     * the cat stays perched; the owner can never right-click a
+     * perched cat off its perch).
+     */
+    private boolean sitVerb;
+
+    /** @return the sit verb's stand (the owner's command). */
+    public boolean sitVerb() {
+        return sitVerb;
+    }
+
+    /** The verb's write (the reference's {@code setEnabledWithOwner}). */
+    public void setSitVerb(boolean stands) {
+        this.sitVerb = stands;
     }
 
     /** @return whether the wolf is angry (the untamed hostile posture). */
@@ -3410,9 +3453,23 @@ public final class MobEntity implements LivingEntity {
         }
     }
 
-    /** Toggles the sitting posture (the owner's empty-hand verb, SitGoal). */
-    public void toggleWolfSitting() {
-        wolfFlags ^= WOLF_FLAG_SITTING;
+    /**
+     * The owner's empty-hand verb (Wave TS2 — the reference's own body,
+     * interactMob lines 327-332): the VERB flips to the POSTURE'S OWN
+     * OPPOSITE ({@code sitGoal.setEnabledWithOwner(!isSitting())}), the
+     * path drops and the attack target clears (both engine seats of the
+     * single field — the verb that seats a FIGHTING pet stands it down
+     * whole), and the POSTURE ITSELF NEVER MOVES at the click — the sit
+     * goal's own claim/stop walk carries it a tick later. THE
+     * CHEST-QUIRK rides the same law: a cat perched on a chest
+     * (posture up, verb already down) computes !true = false — no
+     * change, no stand-down, the cat stays perched exactly as vanilla.
+     */
+    public void ownerSitVerbFlip() {
+        sitVerb = !wolfSitting();
+        clearPath();
+        setMobAttackTarget(null);
+        forcedHuntPlayerId = -1;
     }
 
     /**
@@ -3428,10 +3485,12 @@ public final class MobEntity implements LivingEntity {
      * verb: a pet whose owner left the world parks whole), and a present
      * owner releases the claim only when hit inside the 12-block band
      * ({@code !(squaredDistanceTo < 144) || livingentity.getAttacker() ==
-     * null} — the classic stand-and-defend window) or the verb itself
-     * stands.
+     * null} — the classic stand-and-defend window) or the VERB itself
+     * stands (Wave TS2 — the folded posture arm the single-bit shape
+     * carried retired: the verb is the owner's command, the posture the
+     * goals' write).
      */
-    boolean sitGoalHolds() {
+    private boolean sitGoalCanStart() {
         if (!isTameableKind() || !wolfTamed() || goalInFluid() || !onGround) {
             return false;
         }
@@ -3441,7 +3500,18 @@ public final class MobEntity implements LivingEntity {
         }
         return (squaredDistanceToView(owner) >= 144.0
                         || !owner.hurtByMobRecently())
-                && wolfSitting();
+                && sitVerb;
+    }
+
+    /**
+     * The sit goal's LIVE claim (the selector's running state — the
+     * chase arms and the stroll gates read it; the claim/stop
+     * transitions the clock walk writes carry the posture).
+     */
+    private boolean sitGoalHolding;
+
+    boolean sitGoalHolds() {
+        return sitGoalHolding;
     }
 
     /**
@@ -3659,13 +3729,31 @@ public final class MobEntity implements LivingEntity {
         }
         wolfAttackDamage = 4.0f;
         this.health = 20.0f; // setHealth(20) under setTamed's raised ceiling
-        wolfFlags |= WOLF_FLAG_SITTING; // sitGoal.setEnabledWithOwner(true)
+        standDownByVerb(); // lines 344-345: the navigation stop + the target clear
+        sitVerb = true; // line 346: sitGoal.setEnabledWithOwner(true)
     }
 
     /** The wolf's own tick clock ({@code this.ticks} — the tameable family's
      * 2400-tick despawn gate; the ocelot shares it). */
     void tickWolfClock() {
         wolfTicksExisted++;
+        // THE SIT GOAL'S CLAIM/STOP TRANSITIONS (Wave TS2 — SitGoal's
+        // start/stop over the selector's every-tick re-consult: the
+        // reference's Goal.shouldContinue default re-runs canStart each
+        // pass, and the transitions carry the posture writes — start()
+        // line 44's setSitting(true) + getNavigation().stop(), stop()
+        // line 48's setSitting(false)). The VERB drives the claim (the
+        // owner's command, the wound's stand-down, the block-sit's own
+        // disable); the POSTURE follows here, one pass behind the verb —
+        // the reference's own shape.
+        boolean holds = sitGoalCanStart();
+        if (holds != sitGoalHolding) {
+            sitGoalHolding = holds;
+            setWolfSitting(holds); // start()/stop(): the posture writes
+            if (holds) {
+                clearPath(); // start(): getNavigation().stop()
+            }
+        }
     }
 
     /**
@@ -3703,7 +3791,8 @@ public final class MobEntity implements LivingEntity {
             this.ownerUuid = ownerUuid;
         }
         catVariant = variant;
-        wolfFlags |= WOLF_FLAG_SITTING; // sitGoal.setEnabledWithOwner(true)
+        standDownByVerb(); // lines 170-171: the navigation stop + the target clear
+        sitVerb = true; // line 172: sitGoal.setEnabledWithOwner(true)
     }
 
     /** @return the slime's size byte (1, 2, or 4; 1 for every other kind). */
@@ -14544,6 +14633,14 @@ public final class MobEntity implements LivingEntity {
                             sitOnBlockY = y;
                             sitOnBlockZ = z;
                             sitOnBlockHasTarget = true;
+                            // Wave TS2 — OcelotSitOnBlockGoal.start line 31:
+                            // the block-sit DISABLES THE VERB (the sit
+                            // goal never claims against the perch — the
+                            // owner's right-click quirk rides the same
+                            // write: the perched cat's verb already down,
+                            // the click's !isSitting() = false changes
+                            // NOTHING).
+                            sitVerb = false;
                             // GoToBlockGoal.start (lines 41-45): the first
                             // walk arms at the perch's up-center, the clock
                             // starts, and the window's own bound rolls
@@ -14572,6 +14669,10 @@ public final class MobEntity implements LivingEntity {
      * wire's state-16 bit rides the manager's flip detection.
      */
     void goalSitOnBlockTick() {
+        // Wave TS2 — OcelotSitOnBlockGoal.tick line 38: the verb stands
+        // down EVERY tick the perch walk owns (the reference's own
+        // belt-and-braces write beside the start's).
+        sitVerb = false;
         double tx = sitOnBlockX + 0.5;
         double ty = sitOnBlockY + 1.0;
         double tz = sitOnBlockZ + 0.5;

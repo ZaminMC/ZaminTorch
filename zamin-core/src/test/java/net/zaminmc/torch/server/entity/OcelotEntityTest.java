@@ -30,6 +30,28 @@ class OcelotEntityTest {
             public Position nearestPlayer(double x, double y, double z, double range) {
                 return null;
             }
+
+            // Wave TS2 — the sit verb's arm consults the owner view (the
+            // reference's ownerless arm NEVER consults the verb: the ||/&&
+            // precedence quirk, SitGoal line 30); the seats drive the verb
+            // so the stub answers a standing, unhurt owner beside the pet.
+            @Override
+            public MobEntity.PlayerView ownerPlayerView(String name, String uuid) {
+                return new MobEntity.PlayerView() {
+                    @Override public Position position() {
+                        return new Position(2.5, 8.0, 0.5);
+                    }
+                    @Override public float yaw() {
+                        return 0;
+                    }
+                    @Override public float pitch() {
+                        return 0;
+                    }
+                    @Override public String heldItem() {
+                        return null;
+                    }
+                };
+            }
         };
     }
 
@@ -68,6 +90,11 @@ class OcelotEntityTest {
         assertTrue(cat.wolfTamed());
         assertEquals("Owner", cat.ownerName());
         assertEquals(2, cat.catVariant()); // 1 + nextInt(3): the tamed coats
+        // Wave TS2 — the tame arms the verb; the posture follows the goal's
+        // claim pass (the reference's own one-pass shape; the first tick
+        // settles the hurt body's ground state).
+        cat.tick(false); // the settle
+        cat.tick(false); // the claim
         assertTrue(cat.wolfSitting()); // sitGoal.setEnabledWithOwner(true)
         assertEquals(7.0f, cat.health(), 1e-6f); // NO health flip
         assertEquals(10.0f, cat.maxHealth(), 1e-6f); // the same ceiling
@@ -84,10 +111,16 @@ class OcelotEntityTest {
 
         a.tameOcelot("Owner", "", 1);
         b.tameOcelot("Owner", "", 3);
+        a.tick(false); // the settle
+        b.tick(false);
+        a.tick(false); // the claim pass seats both (Wave TS2's split)
+        b.tick(false);
         assertTrue(a.wolfSitting());
         assertFalse(a.canBreedWith(b), "the sitting gate");
-        a.toggleWolfSitting();
-        b.toggleWolfSitting();
+        a.ownerSitVerbFlip();
+        b.ownerSitVerbFlip();
+        a.tick(false); // the stop pass stands both
+        b.tick(false);
         a.enterLove(1);
         b.enterLove(2);
         assertTrue(a.canBreedWith(b), "two tamed standing cats breed");
@@ -96,7 +129,10 @@ class OcelotEntityTest {
         MobEntity dog = new MobEntity(601, MobType.WOLF, new Position(0.5, 8.0, 0.5),
                 new Random(24L), worldAt());
         dog.tameWolf("Owner", "");
-        dog.toggleWolfSitting();
+        dog.tick(false); // the settle
+        dog.tick(false); // the claim
+        dog.ownerSitVerbFlip();
+        dog.tick(false);
         a.enterLove(1);
         assertFalse(a.canBreedWith(dog));
     }

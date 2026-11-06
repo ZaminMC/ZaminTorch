@@ -153,6 +153,7 @@ class OwnerRowsModelTest {
         MobEntity saved = mob(MobType.WOLF);
         String uuid = UUID.randomUUID().toString();
         saved.tameWolf("Abasing", uuid);
+        saved.setWolfSitting(true); // Wave TS2: the write reads the POSTURE (the claim pass's write — the void stub carries no ground)
         Map<String, Snbt.Tag> written = new java.util.LinkedHashMap<>();
         EntityNbt.writeNbtWithoutId(saved, written, potions());
         assertNull(NbtOps.get(written, "Tame"));
@@ -191,6 +192,7 @@ class OwnerRowsModelTest {
         MobEntity saved = mob(MobType.OCELOT);
         String uuid = UUID.randomUUID().toString();
         saved.tameOcelot("Abasing", uuid, 2);
+        saved.setWolfSitting(true); // Wave TS2: the write reads the POSTURE (the claim pass's write — the void stub carries no ground)
         Map<String, Snbt.Tag> written = new java.util.LinkedHashMap<>();
         EntityNbt.writeNbtWithoutId(saved, written, potions());
         assertEquals(uuid, NbtOps.getString(written, "OwnerUUID"));

@@ -108,12 +108,14 @@ class TameableSitChaseParityDiscoveryTest {
         MobEntity skeleton = spawn(world, 931, MobType.SKELETON,
                 new Position(8.5, 8.0, 0.5), 81L);
         pet.tameWolf("Owner", "owner-1");
-        // The seated posture (the taming's own start) + the standing
-        // target write (the skeleton feud / the revenge write).
-        assertTrue(pet.wolfSitting(), "the taming seats the pet");
+        // Wave TS2 — the taming arms the VERB; the POSTURE follows the
+        // goal's claim one pass behind (the reference's own shape: the
+        // verb at the tame, the seated bit at the selector's next pass).
         pet.setMobAttackTarget(skeleton);
 
         pet.tick(false); // the spawn settle: the fresh body grounds itself
+        pet.tick(false); // the claim pass seats the pet (Wave TS2: the posture follows the verb)
+        assertTrue(pet.wolfSitting(), "the taming seats the pet");
         double settledX = pet.position().x();
         for (int i = 0; i < 60; i++) {
             pet.tick(false);
@@ -185,6 +187,8 @@ class TameableSitChaseParityDiscoveryTest {
         MobEntity pet = spawn(world, 933, MobType.WOLF,
                 new Position(0.5, 8.0, 0.5), 83L);
         pet.tameWolf("Owner", "owner-1");
+        pet.tick(false); // the spawn settle
+        pet.tick(false); // the claim pass seats the pet (Wave TS2: the posture follows the verb)
         assertTrue(pet.wolfSitting());
 
         for (int i = 0; i < 400; i++) {

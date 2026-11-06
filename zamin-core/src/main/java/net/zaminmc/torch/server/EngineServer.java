@@ -18806,8 +18806,7 @@ public final class EngineServer implements Server, EngineBridge {
             // reference's own isBreedingItem gate).
             if (mob.isOwner(player)
                     && !isBreedingItem(mob.type(), heldId)) {
-                mob.standDownByVerb();
-                mob.toggleWolfSitting();
+                mob.ownerSitVerbFlip(); // Wave TS2: the verb flips to the POSTURE's own opposite (the chest-quirk); the posture follows the goal's claim/stop
                 publishWolfState(mob);
                 return;
             }
@@ -18858,8 +18857,7 @@ public final class EngineServer implements Server, EngineBridge {
             // the fall-through instead).
             if (mob.isOwner(player)
                     && !isBreedingItem(mob.type(), heldId)) {
-                mob.standDownByVerb();
-                mob.toggleWolfSitting();
+                mob.ownerSitVerbFlip(); // Wave TS2: the verb flips to the POSTURE's own opposite (the chest-quirk); the posture follows the goal's claim/stop
                 publishWolfState(mob);
                 return;
             }

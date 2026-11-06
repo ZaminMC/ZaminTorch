@@ -33,6 +33,28 @@ class WolfEntityTest {
             public Position nearestPlayer(double x, double y, double z, double range) {
                 return null;
             }
+
+            // Wave TS2 — the sit verb's arm consults the owner view (the
+            // reference's ownerless arm NEVER consults the verb: the ||/&&
+            // precedence quirk, SitGoal line 30); the seats drive the verb
+            // so the stub answers a standing, unhurt owner beside the pet.
+            @Override
+            public MobEntity.PlayerView ownerPlayerView(String name, String uuid) {
+                return new MobEntity.PlayerView() {
+                    @Override public Position position() {
+                        return new Position(2.5, 8.0, 0.5);
+                    }
+                    @Override public float yaw() {
+                        return 0;
+                    }
+                    @Override public float pitch() {
+                        return 0;
+                    }
+                    @Override public String heldItem() {
+                        return null;
+                    }
+                };
+            }
         };
     }
 
@@ -69,7 +91,12 @@ class WolfEntityTest {
         assertEquals(20.0f, wolf.health(), 1e-6f); // setHealth(20) under the raised ceiling
         assertEquals(20.0f, wolf.maxHealth(), 1e-6f); // setTamed's attribute recompute
         assertEquals(4.0f, wolf.attackDamage(), 1e-6f); // setTamed's damage recompute
-        assertTrue(wolf.wolfSitting()); // sitGoal.setEnabledWithOwner(true)
+        // Wave TS2 — the tame arms the VERB (setEnabledWithOwner(true));
+        // the POSTURE follows the goal's claim pass, the first tick
+        // settling the fresh body on the ground.
+        wolf.tick(false); // the settle
+        wolf.tick(false); // the claim: setSitting(true)
+        assertTrue(wolf.wolfSitting()); // the claim's own posture write
 
         // The collar's default is the reference's own red (DyeColor.RED).
         assertEquals(1, wolf.wolfCollarColor());
@@ -92,10 +119,20 @@ class WolfEntityTest {
     void theSitToggleAndTheAngryClear() {
         MobEntity wolf = wolf(13L);
         wolf.tameWolf("Owner", "");
+        // Wave TS2 — the taming arms the VERB; the POSTURE follows the
+        // goal's claim pass (the reference's own one-pass shape; the
+        // first tick settles the fresh body on the ground).
+        wolf.tick(false); // the settle
+        wolf.tick(false); // the claim
         assertTrue(wolf.wolfSitting());
-        wolf.toggleWolfSitting();
+        // The owner's empty-hand verb: the verb flips to the POSTURE'S
+        // own opposite (the stand command), the posture dropping at the
+        // goal's next pass.
+        wolf.ownerSitVerbFlip();
+        wolf.tick(false);
         assertFalse(wolf.wolfSitting());
-        wolf.toggleWolfSitting();
+        wolf.ownerSitVerbFlip();
+        wolf.tick(false);
         assertTrue(wolf.wolfSitting());
 
         // The angry posture stands until the targetless clear (mobTick's
@@ -119,12 +156,21 @@ class WolfEntityTest {
 
         a.tameWolf("Owner", "");
         b.tameWolf("Owner", "");
-        // The tame starts both sitting (sitGoal.setEnabledWithOwner(true))
-        // — the sitting gate refuses while they sit.
+        // The tame arms the verb; the posture follows the claim pass (the
+        // sitting gate refuses while they sit) — the first tick settles
+        // the fresh bodies on the ground.
+        a.tick(false);
+        b.tick(false);
+        a.tick(false);
+        b.tick(false);
         assertTrue(a.wolfSitting());
         assertFalse(a.canBreedWith(b));
-        a.toggleWolfSitting();
-        b.toggleWolfSitting();
+        // The stand command: the verb flips, the posture drops at the
+        // goal's next pass (Wave TS2's split).
+        a.ownerSitVerbFlip();
+        b.ownerSitVerbFlip();
+        a.tick(false);
+        b.tick(false);
         assertFalse(a.wolfSitting());
         assertFalse(b.wolfSitting());
         a.enterLove(1);
@@ -132,7 +178,8 @@ class WolfEntityTest {
         assertTrue(a.canBreedWith(b));
 
         // A sitting body stands down (the reference's own !isSitting gate).
-        a.toggleWolfSitting();
+        a.ownerSitVerbFlip();
+        a.tick(false);
         assertTrue(a.wolfSitting());
         assertFalse(a.canBreedWith(b)); // the sitting gate
     }
