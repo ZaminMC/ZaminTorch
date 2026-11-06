@@ -145,7 +145,11 @@ class GoalApiAcceptanceTest {
         // and inert on a pig).
         List<Goal> live = pig.goals().goals();
         assertTrue(live.contains(goal), "the registered instance is in the snapshot by identity");
-        assertEquals(16, live.size(), "fifteen built-ins plus the registered goal");
+        // The catalog's whole ladder (the PE-22..25 waves): the twenty-nine
+        // built-ins — the idle-life family's standing tails, the village
+        // walks, the look family, and the horse-bond riding window (PE-25,
+        // the band-1 third seat) — plus the registered goal.
+        assertEquals(30, live.size(), "twenty-nine built-ins plus the registered goal");
         server.shutdown(null);
     }
 

@@ -798,7 +798,14 @@ public final class AnvilWorldImport {
                     return;
                 }
             } else {
-                content.mobs().seatImportedRider(mount.mob, head.engineId());
+                // The mob-rider arm (a loaded MOB on the mount's back —
+                // the reference's riding chain carries them): no player
+                // identity rides the seat, so the bond goal's instanceof
+                // arm refuses exactly as the reference's — the dice can
+                // only ever buck a non-player rider (HorseBondWithPlayer
+                // Goal.tick lines 51-66).
+                content.mobs().seatImportedRider(mount.mob, head.engineId(),
+                        null, null);
             }
             head = mount;
             rows = mountRows;

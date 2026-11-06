@@ -126,7 +126,7 @@ class RidingFollowTest {
         var pig = server.mobs().spawnAt(MobType.PIG, ground);
         var zombie = server.mobs().spawnAt(MobType.ZOMBIE, ground);
         server.ticker().submit(() ->
-                server.mobs().seatImportedRider(pig, zombie.entityId()));
+                server.mobs().seatImportedRider(pig, zombie.entityId(), null, null));
         long from = server.world().totalTicks();
         await(() -> server.world().totalTicks() >= from + 3, "three follow ticks");
         // The pig's own 0.55 seat plus the zombie family's -0.35: the

@@ -56,52 +56,94 @@ class HorseMountTest {
     }
 
     @Test
-    void temperAttemptsTameTheHorseDeterministicallyAtFullTemper() {
+    void mountingNeverRollsTheDice() {
+        MobEntity wild = horse(5);
+        // The seat alone consults nothing (Wave PE-25 — putPlayerOnBack
+        // lines 795-803: the plain seat; the taming dice ride the RIDING
+        // window, the HorseBondWithPlayerGoal's own per-tick roll).
+        wild.setRider(100);
+        wild.setRiderIdentity("Alex", "uuid-alex");
+        assertEquals(0, wild.temper(), "the seat itself never pays temper");
+        assertFalse(wild.consumeHorseBondTame(), "no tame verdict at the seat");
+        assertFalse(wild.consumeHorseBondBuck(), "no buck verdict at the seat");
+        assertTrue(wild.hasRider(), "the plain seat holds");
+        assertFalse(wild.tamed(), "mounting never tames");
+        assertFalse(wild.rearing(), "mounting never rears");
+    }
+
+    @Test
+    void theRidingDiceTameAtFullTemperAndKeepTheSeat() {
         MobEntity wild = horse(5);
         // Feeding rides the temper: 34 feeds of +3 land above 100 -> min-capped.
         for (int i = 0; i < 34; i++) {
             wild.feedTemper(MobEntity.TEMPER_PER_FEED);
         }
         assertEquals(100, wild.temper(), "temper caps at 100");
-        // The first mount attempt at full temper always tames (nextInt(100) < 100).
-        MobEntity.MountAttempt attempt = wild.attemptMount("", "");
-        assertEquals(MobEntity.MountAttempt.TAMED, attempt, "full temper tames on the first try");
-        assertTrue(wild.tamed(), "the tame bit flipped");
-    }
-
-    @Test
-    void untamedMountAttemptRearsAndArmsTheBuck() {
-        MobEntity wild = horse(1);
-        MobEntity.MountAttempt attempt = wild.attemptMount("", "");
-        // Seed 1, temper 5: nextInt(100) < 5 is nearly impossible; assert the
-        // attempt either tamed (lucky roll) or armed the buck — and that the
-        // bucked path always rears and keeps the horse untamed.
-        if (attempt == MobEntity.MountAttempt.BUCKED) {
-            assertTrue(wild.rearing(), "the rear flag is up while bucking");
-            assertFalse(wild.tamed(), "a buck does not tame");
-        }
-    }
-
-    @Test
-    void buckedSeatThrowsTheRiderAfterTheClock() {
-        MobEntity wild = horse(3);
-        // Force the buck path deterministically: low temper, force the roll.
-        MobEntity.MountAttempt attempt = wild.attemptMount("", "");
-        if (attempt != MobEntity.MountAttempt.BUCKED) {
-            return; // this seed tamed on the first try; the throw test needs a buck
-        }
-        // The manager seats the rider after the attempt; the buck clock runs
-        // only on a seated body.
         wild.setRider(100);
-        assertTrue(wild.rearing(), "seated buck rears");
-        // The buck clock (20-40 ticks) runs down and arms the throw.
-        boolean thrown = false;
-        for (int i = 0; i < 60 && !thrown; i++) {
+        wild.setRiderIdentity("Alex", "uuid-alex");
+        // The dice ride the window: a 1-in-50 roll per live tick; at full
+        // temper every landed dice tames (nextInt(100) < 100). The taming
+        // tick RETURNS — no buck on the same roll (line 57).
+        boolean tamed = false;
+        for (int i = 0; i < 10_000 && !tamed; i++) {
             wild.tick();
-            thrown = wild.consumeBuckThrow();
+            assertFalse(wild.consumeHorseBondBuck(), "the taming arm never bucks");
+            tamed = wild.consumeHorseBondTame();
         }
-        assertTrue(thrown, "the buck throws within the clock window");
-        assertFalse(wild.rearing(), "the rear flag drops at the throw");
+        assertTrue(tamed, "the riding dice tamed within the window budget");
+        assertTrue(wild.tamed(), "the tame bit flipped");
+        assertEquals("Alex", wild.ownerName(), "the LIVE rider's identity rides the owner row");
+        assertEquals("uuid-alex", wild.ownerUuid(), "the rider's uuid rides the owner slot");
+        assertTrue(wild.hasRider(), "the taming tick keeps the seat (no buck)");
+        assertFalse(wild.rearing(), "the hearts arm never rears");
+    }
+
+    @Test
+    void theRidingDiceBuckRaisesTemperAndArmTheAngryWindow() {
+        MobEntity wild = horse(3);
+        wild.setRider(100);
+        wild.setRiderIdentity("Alex", "uuid-alex");
+        // Temper 0: nextInt(100) < 0 never — the first landed dice pays
+        // addTemper(5) and THE BUCK (lines 60-66): the verdict, the angry
+        // flag, the sound-and-smoke arm the manager drains.
+        boolean bucked = false;
+        for (int i = 0; i < 10_000 && !bucked; i++) {
+            wild.tick();
+            assertFalse(wild.consumeHorseBondTame(), "temper 0 never tames");
+            bucked = wild.consumeHorseBondBuck();
+        }
+        assertTrue(bucked, "the riding dice bucked within the window budget");
+        assertFalse(wild.tamed(), "a buck does not tame");
+        assertEquals(MobEntity.TEMPER_PER_ATTEMPT, wild.temper(),
+                "the failed roll paid addTemper(5)");
+        assertTrue(wild.rearing(), "the buck arms the angry flag (flag 64)");
+        // The manager's drain verb empties the seat; the angry window then
+        // decays on the horse's own clock (tick lines 894-897: the
+        // ++angryTicks > 20 law).
+        wild.clearRider();
+        boolean calmed = false;
+        for (int i = 0; i < 40 && !calmed; i++) {
+            wild.tick();
+            calmed = !wild.rearing();
+        }
+        assertTrue(calmed, "the angry window decays after ~20 ticks");
+    }
+
+    @Test
+    void anIdentitylessSeatBucksOnEveryLandedDice() {
+        MobEntity wild = horse(9);
+        wild.setRider(100);
+        // No identity rides the seat (the anvil chain's mob-rider arm): the
+        // reference's instanceof PlayerEntity gate refuses — no temper arm,
+        // every landed dice is a plain buck.
+        boolean bucked = false;
+        for (int i = 0; i < 10_000 && !bucked; i++) {
+            wild.tick();
+            bucked = wild.consumeHorseBondBuck();
+        }
+        assertTrue(bucked, "a non-player rider is thrown at the first dice");
+        assertEquals(0, wild.temper(), "the non-player arm pays no temper");
+        assertFalse(wild.tamed(), "the non-player arm never tames");
     }
 
     @Test

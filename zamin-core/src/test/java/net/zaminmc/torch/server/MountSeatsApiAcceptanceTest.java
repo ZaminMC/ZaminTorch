@@ -181,7 +181,7 @@ class MountSeatsApiAcceptanceTest {
 
         // The seat (the anvil chain's mob-mount arm — the reference's
         // startRiding-at-load: the plain seat, no temper flow).
-        server.mobs().seatImportedRider(mount, riderId);
+        server.mobs().seatImportedRider(mount, riderId, null, null);
 
         // The reads — through the api alone.
         assertEquals(riderId, api.seatRows().seatedRiderEntityId(mountId),
@@ -296,7 +296,7 @@ class MountSeatsApiAcceptanceTest {
                                 .anyMatch(live -> live.entityId() == itemMountId),
                         0.1875, genericRiderId),
                 "the generic seat opened");
-        server.mobs().seatImportedRider(mobMount, mobRiderId);
+        server.mobs().seatImportedRider(mobMount, mobRiderId, null, null);
         assertTrue(server.vehicles().mount(cart, boatId), "the cart seat opened");
         assertEquals(genericRiderId, api.seatRows().seatedRiderEntityId(itemMountId));
         assertEquals(mobRiderId, api.seatRows().seatedRiderEntityId(mobMountId));

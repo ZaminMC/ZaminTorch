@@ -35707,8 +35707,12 @@ public final class EngineServer implements Server, EngineBridge {
             }
             // The plain load-seat (the anvil chain's own verb, the reference's
             // startRiding at AnvilChunkStorage line 335): no temper flow, no
-            // buck — a restored rider simply sits.
-            mobManager.seatImportedRider(mob, session.engineEntityId());
+            // buck — a restored rider simply sits. The identity rides the
+            // seat with it (the bond goal's consult — the reference's
+            // rider instanceof PlayerEntity arm answers for the restored
+            // player exactly as for the fresh interact's).
+            mobManager.seatImportedRider(mob, session.engineEntityId(),
+                    session.name(), session.uuid().toString());
             if (mob.riderId() != session.engineEntityId()) {
                 return; // the seat was taken in the window: on foot
             }

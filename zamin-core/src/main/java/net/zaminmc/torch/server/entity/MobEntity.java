@@ -1087,12 +1087,23 @@ public final class MobEntity implements LivingEntity {
     public static final int HORSE_ARMOR_GOLD = 2;
     public static final int HORSE_ARMOR_DIAMOND = 3;
 
-    /** Temper gained per mount attempt on an untamed horse (the historical +5). */
+    /** Temper gained per failed riding-dice roll (HorseBondWithPlayerGoal.tick
+     * line 60: addTemper(5), clamped to [0, max]). */
     public static final int TEMPER_PER_ATTEMPT = 5;
     /** Temper the common foods add per feeding (sugar/wheat/apple band). */
     public static final int TEMPER_PER_FEED = 3;
-    /** Ticks a bucking horse keeps its rider before the throw (the rear-and-throw feel). */
-    public static final int BUCK_THROW_TICKS = 20;
+    /** The horse's max temper (HorseBaseEntity.getMaxTemper line 567: 100). */
+    public static final int HORSE_MAX_TEMPER = 100;
+    /** The riding dice's band — a 1-in-50 roll per tick of the riding window
+     * (HorseBondWithPlayerGoal.tick line 50: nextInt(50) == 0). */
+    public static final int HORSE_BOND_DICE = 50;
+    /** The bond goal's TargetFinder pair (canStart line 24: getTarget(this, 5, 4)). */
+    public static final int HORSE_BOND_RANGE = 5;
+    public static final int HORSE_BOND_VERTICAL = 4;
+    /** The bond goal's ctor speed parameter (HorseBaseEntity line 108: 1.2). */
+    public static final double HORSE_BOND_SPEED = 1.2;
+    /** The angry window's length (HorseBaseEntity.tick line 894: ++angryTicks > 20). */
+    public static final int HORSE_ANGRY_TICKS = 20;
     /** Degrees per tick a mount turns at full sideways input (the 1.8 A/D steering). */
     public static final float RIDDEN_TURN_RATE = 3.5f;
     /** Controlled horse forward speed in blocks/tick (the canter). */
@@ -1108,9 +1119,6 @@ public final class MobEntity implements LivingEntity {
     /** Rider seat height above the mount's feet (the saddle top). */
     public static final double HORSE_SEAT_HEIGHT = 1.12;
     public static final double PIG_SEAT_HEIGHT = 0.55;
-
-    /** The outcome of a mount attempt on an untamed horse (the vanilla temper flow). */
-    public enum MountAttempt { BUCKED, TAMED, MOUNTED }
 
     private int horseSubtype = HORSE_SUBTYPE_HORSE;
     private int variant;
@@ -1137,8 +1145,21 @@ public final class MobEntity implements LivingEntity {
     private boolean steerJump;
     private boolean pigSaddled;
     private int jumpCooldown;
-    private int buckTicks;
-    private boolean pendingBuckThrow;
+    /** THE HORSE-BOND WINDOW (Wave PE-25 — HorseBondWithPlayerGoal, the
+     * reference's taming law whole): the picked wander cell (canStart's
+     * TargetFinder store, lines 24-31), the riding dice's two verdicts
+     * (the tame arm's bond + the buck arm's throw — the manager's drains),
+     * and the angry window's clock (updateAnger's angryTicks, line 991 —
+     * the 20-tick decay the horse's own tick carries). */
+    private Position horseBondTarget;
+    private boolean pendingHorseBondTame;
+    private boolean pendingHorseBondBuck;
+    private int horseAngryTicks;
+    /** The live seat's rider identity (the player the mount consult
+     * stored — the bond goal's instanceof-PlayerEntity arm and the tame's
+     * own rows read it; empty when no player sits). */
+    private String riderName = "";
+    private String riderUuid = "";
     private int eatingTicks;
 
     // The breeding state (the vanilla AnimalEntity age/love) and the donkey
@@ -2382,6 +2403,22 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.IRON_GOLEM && golemLookingAtVillagerTicks > 0) {
             golemLookingAtVillagerTicks--;
         }
+        // The horse's own clock pair (HorseBaseEntity.tick lines 889-897
+        // — Wave PE-25): the eating window's end and the ANGRY window's
+        // end (updateAnger's angryTicks counting to 20, then setAngry
+        // (false) — flag 64 down; the reference runs both under every
+        // mind the horse carries, the ridden seat included — the eating
+        // decay formerly lived in the rider branch alone, an unridden
+        // fed horse pinned the flag forever).
+        if (type == MobType.HORSE) {
+            if (eatingTicks > 0 && --eatingTicks == 0) {
+                horseFlags &= ~HORSE_FLAG_EATING;
+            }
+            if (horseAngryTicks > 0 && ++horseAngryTicks > HORSE_ANGRY_TICKS) {
+                horseAngryTicks = 0;
+                horseFlags &= ~HORSE_FLAG_REARING; // setAngry(false): flag 64 down
+            }
+        }
         if (sheared && regrowTimer > 0) {
             regrowTimer--;
             if (regrowTimer == 0) {
@@ -2412,21 +2449,20 @@ public final class MobEntity implements LivingEntity {
             return fixedPoint() != before || beforeYaw != yaw || beforeHeadYaw != headYaw;
         }
 
-        // A ridden body parks its mind: the rider owns the reins (the vanilla
-        // AI-suspension rule). The buck clock runs and the seat physics tick.
-        if (hasRider()) {
-            if (buckTicks > 0) {
-                buckTicks--;
-                if (buckTicks == 0) {
-                    horseFlags &= ~HORSE_FLAG_REARING;
-                    pendingBuckThrow = true;
-                }
-            }
+        // A ridden body parks its mind: the rider owns the reins (the
+        // reference's moveRelative rider arm — the SADDLED body answers
+        // the rider's input, the AI's own move output replaced). THE
+        // UNTAMED HORSE'S CARVE-OUT (Wave PE-25 — HorseBondWithPlayer
+        // Goal's window): the reference's serverTickAi carries NO rider
+        // gate (MobEntity line 441 runs under isLocallyControlled alone)
+        // and moveRelative's rider arm requires isSaddled() — an
+        // unsaddled body's AI still owns the movement, so an UNTAMED
+        // horse's mind KEEPS RUNNING while the rider sits (the riding
+        // window IS a goal window: the bond goal's canStart reads the
+        // rider, its dice ride every tick of the seat).
+        if (hasRider() && !(type == MobType.HORSE && !tamed())) {
             if (jumpCooldown > 0) {
                 jumpCooldown--;
-            }
-            if (eatingTicks > 0 && --eatingTicks == 0) {
-                horseFlags &= ~HORSE_FLAG_EATING;
             }
             tickRiddenBody();
             return fixedPoint() != before || beforeYaw != yaw || beforeHeadYaw != headYaw;
@@ -7110,34 +7146,164 @@ public final class MobEntity implements LivingEntity {
         return riderId >= 0;
     }
 
-    /** @return and clears whether the body must throw its rider this tick (buck flow). */
-    public boolean consumeBuckThrow() {
-        boolean value = pendingBuckThrow;
-        pendingBuckThrow = false;
-        return value;
+    /**
+     * THE HORSE-BOND WINDOW'S RIDING DICE — HorseBondWithPlayerGoal.tick
+     * lines 49-68 whole (Wave PE-25; the engine's former MountAttempt
+     * stand-in rolled the SAME temper flow at MOUNT time — retired: the
+     * reference's dice ride the RIDING window, a 1-in-50 per-tick roll
+     * while an UNTAMED horse carries its rider).
+     *
+     * <p>The roll: {@code nextInt(50) == 0}. The player arm (the seat's
+     * stored identity — the reference's {@code rider instanceof
+     * PlayerEntity}): the temper dice {@code nextInt(maxTemper) <
+     * temper} TAMES (bondWithPlayer lines 1020-1024 — the tame at the
+     * dice itself, the rider's uuid on the owner slot; the hearts
+     * Entity Status 7 rides the manager's drain, line 56) and RETURNS —
+     * no buck on the taming tick; a miss pays {@code addTemper(5)}
+     * (clamped to [0, max], lines 311-314). Then THE BUCK on every
+     * failure arm (lines 63-66): the thrown dismount (the manager's
+     * drain), the angry flag up (updateAnger's setAngry(true) — flag
+     * 64, with its 20-tick decay clock armed), the angry sound and the
+     * smoke Entity Status 6 (the manager's drain, lines 65-66).</p>
+     */
+    void goalHorseBondTick() {
+        if (horseBondTarget == null) {
+            return; // the defensive clear (canUse always arms first)
+        }
+        if (navigation.isDone()) {
+            // start() line 40: moveTo(target, speed) — the route found
+            // once, the stored path walked to its end.
+            navigation.moveTo(horseBondTarget.x(), horseBondTarget.y(),
+                    horseBondTarget.z(), HORSE_BOND_SPEED);
+            if (navigation.isDone()) {
+                horseBondTarget = null; // no route: the goal yields
+                return;
+            }
+            mode = Mode.WANDER;
+            modeTicks = 0;
+        }
+        // The walk band: the goal's own 1.2 ctor parameter over the walk
+        // base (the same convention the panic family carries).
+        goalWalkSpeed = HORSE_BOND_SPEED;
+        navigation.tick();
+        if (navigation.hasTarget) {
+            yaw = angleTo(navigation.currentTargetX - position.x(),
+                    navigation.currentTargetZ - position.z());
+            headYaw = yaw;
+            pathYaw = yaw;
+            pathYawValid = true;
+        } else {
+            pathYawValid = false;
+        }
+        if (navigation.isDone() || !hasRider()) {
+            // shouldContinue (line 45): the path's end or the empty seat
+            // closes the window — no dice on the closing tick (the goal
+            // stopped; the selector's next pass re-consults canStart).
+            horseBondTarget = null;
+            pathYawValid = false;
+            return;
+        }
+        // THE RIDING DICE (line 50): the 1-in-50 roll, every live tick
+        // of the window.
+        if (random.nextInt(HORSE_BOND_DICE) == 0) {
+            if (!riderName.isEmpty() || !riderUuid.isEmpty()) {
+                // The player arm (lines 51-61).
+                int i = temper;
+                int j = HORSE_MAX_TEMPER;
+                if (j > 0 && random.nextInt(j) < i) {
+                    // The tame (bondWithPlayer, lines 1020-1024): the
+                    // body's own verb at the dice — setOwnerName(uuid)
+                    // + setTame(true). The hearts Entity Status 7 rides
+                    // the manager's drain (line 56).
+                    tame(riderName, riderUuid);
+                    pendingHorseBondTame = true;
+                    horseBondTarget = null; // the untamed gate closes the window
+                    pathYawValid = false;
+                    return;
+                }
+                // The miss: addTemper(5) (line 60), clamped to [0, max].
+                temper = Math.max(0, Math.min(HORSE_MAX_TEMPER,
+                        temper + TEMPER_PER_ATTEMPT));
+            }
+            // THE BUCK (lines 63-66): the dismount, the angry flag, the
+            // sound, the smoke — the first three the manager's drain, the
+            // flag and its decay clock the body's own updateAnger (lines
+            // 988-993).
+            horseFlags |= HORSE_FLAG_REARING; // setAngry(true): flag 64 up
+            horseAngryTicks = 1; // updateAnger's clock (the 20-tick decay)
+            pendingHorseBondBuck = true;
+            horseBondTarget = null; // the seat empties: the window closes
+            pathYawValid = false;
+        }
     }
 
     /**
-     * A mount attempt on the untamed horse rolls the vanilla temper flow:
-     * temper rises, and the odds ride it. A pig or a tamed horse mounts
-     * directly. The result tells the manager whether to seat, tame-and-seat,
-     * or seat-and-buck.
+     * The bond goal's canUse: the reference's canStart + shouldContinue
+     * composed (the selector's own restart loop — a closed window
+     * re-arms on the same pass when the rider still sits). canStart
+     * (lines 22-36): the UNTAMED gate, the rider gate, then
+     * TargetFinder's pick ({@code getTarget(this, 5, 4)} — the escape
+     * family's own ±5/±4 pair); null answers false. shouldContinue
+     * (lines 44-46): the navigation not done and the rider still seated.
      */
-    public MountAttempt attemptMount(String ownerName, String ownerUuid) {
-        if (type == MobType.PIG || tamed()) {
-            return MountAttempt.MOUNTED;
+    boolean goalHorseBondCanUse() {
+        if (type != MobType.HORSE || tamed()) {
+            horseBondTarget = null; // the closed window's dead state dies with the gate
+            return false; // the census + canStart's untamed gate (line 23)
         }
-        temper = Math.min(100, temper + TEMPER_PER_ATTEMPT);
-        if (random.nextInt(100) < temper) {
-            // bondWithPlayer (lines 1020-1024): the taming rider's own
-            // uuid rides the owner slot.
-            tame(ownerName, ownerUuid);
-            return MountAttempt.TAMED;
+        if (horseBondTarget != null) {
+            if (navigation.isDone() || !hasRider()) {
+                horseBondTarget = null; // shouldContinue's end (line 45)
+            } else {
+                return true; // the live window owns the band
+            }
         }
-        // The buck: seated, rearing, thrown shortly (the vanilla feel).
-        buckTicks = BUCK_THROW_TICKS + random.nextInt(20);
-        horseFlags |= HORSE_FLAG_REARING;
-        return MountAttempt.BUCKED;
+        if (!hasRider()) {
+            return false; // canStart's rider gate
+        }
+        Position pick = targetFinderPick(HORSE_BOND_RANGE, HORSE_BOND_VERTICAL);
+        if (pick == null) {
+            return false; // canStart's null: no candidate this pass
+        }
+        horseBondTarget = pick;
+        return true;
+    }
+
+    /** @return and clears the riding dice's tame verdict (the manager's drain). */
+    public boolean consumeHorseBondTame() {
+        boolean value = pendingHorseBondTame;
+        pendingHorseBondTame = false;
+        return value;
+    }
+
+    /** @return and clears the riding dice's buck verdict (the manager's drain). */
+    public boolean consumeHorseBondBuck() {
+        boolean value = pendingHorseBondBuck;
+        pendingHorseBondBuck = false;
+        return value;
+    }
+
+    /** @return the bond window's live pick (the acceptance pin's read —
+     *  the ±5/±4 band law). */
+    public Position horseBondTargetForTest() {
+        return horseBondTarget;
+    }
+
+    /** Writes the temper directly (the discovery seats' deterministic
+     *  setup — the feeds' own cap law stays the interact's). */
+    public void setTemperForTest(int temper) {
+        this.temper = Math.max(0, Math.min(HORSE_MAX_TEMPER, temper));
+    }
+
+    /**
+     * The angry sound's id (getAngreType lines 516-524 over playAngrySound
+     * lines 997-1004): the donkey/mule band carries the donkey's angry
+     * cry, the plain horse its own; the reference's zombie/skeleton-horse
+     * null arm is not reachable in the engine's kind set (no subtype 3/4).
+     */
+    public String horseAngrySound() {
+        return horseSubtype == HORSE_SUBTYPE_DONKEY || horseSubtype == HORSE_SUBTYPE_MULE
+                ? "mob.horse.donkey.angry" : "mob.horse.angry";
     }
 
     /** Flips the tame bit and records the tamer (the hearts moment). */
@@ -7707,9 +7873,33 @@ public final class MobEntity implements LivingEntity {
         steerJump = false;
     }
 
+    /**
+     * The seat's rider identity (the bond goal's own consult — the
+     * reference's {@code rider instanceof PlayerEntity} arm and the tame's
+     * owner rows read the LIVE rider, never the mount-time caller): the
+     * manager stores it at every seat, the dismount clears it with the
+     * seat. Empty identity (an identity-less seat) refuses the player arm.
+     */
+    public void setRiderIdentity(String name, String uuid) {
+        this.riderName = name == null ? "" : name;
+        this.riderUuid = uuid == null ? "" : uuid;
+    }
+
+    /** @return the live seat's rider name ("" when no identity stands). */
+    public String riderName() {
+        return riderName;
+    }
+
+    /** @return the live seat's rider uuid string ("" when no identity stands). */
+    public String riderUuid() {
+        return riderUuid;
+    }
+
     /** Opens the seat (the dismount; the mount wanders on). */
     public void clearRider() {
         this.riderId = -1;
+        riderName = "";
+        riderUuid = "";
         steerSideways = 0;
         steerForward = 0;
         steerJump = false;

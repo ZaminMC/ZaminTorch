@@ -100,6 +100,36 @@ final class MobGoals {
     };
 
     /**
+     * Priority 1, exclusive, LATE in the band (the band's third seat —
+     * the reference's own registration order, HorseBaseEntity lines
+     * 107-108: the escape BEFORE the bond at the same number; a hurt
+     * body panics first, a pressed one breaks, the rider's dice ride
+     * last — Wave PE-25): the UNTAMED horse's riding window
+     * (HorseBondWithPlayerGoal 1:1). The rider gate, the (5, 4)
+     * TargetFinder pick, the 1.2-speed wander while the seat is held,
+     * and THE RIDING DICE — a 1-in-50 roll per live tick: the temper
+     * dice nextInt(maxTemper) &lt; temper TAMES (the hearts Entity
+     * Status 7, no buck on the taming tick), else +5 temper and THE
+     * BUCK (the thrown dismount, the angry flag + its 20-tick decay,
+     * the angry sound, the smoke Entity Status 6). The taming law the
+     * engine's former MountAttempt stand-in rolled at MOUNT time —
+     * retired; the dice ride the window the reference's own mind runs
+     * (the untamed seat keeps the mind: serverTickAi carries no rider
+     * gate, moveRelative's rider arm requires the saddle).
+     */
+    static final MobGoal HORSE_BOND = new MobGoal() {
+        @Override public String goalId() { return "horse_bond"; }
+        @Override public int priority() { return 1; }
+        @Override public boolean exclusive() { return true; }
+        @Override public boolean canUse(MobEntity mob, boolean night) {
+            return mob.goalHorseBondCanUse();
+        }
+        @Override public void tick(MobEntity mob, boolean night) {
+            mob.goalHorseBondTick();
+        }
+    };
+
+    /**
      * Priority 2, exclusive: the breeding drive (the vanilla AnimalBreedGoal).
      * A loved body scans for the nearest legal partner, walks to it, and
      * after 60 ticks inside the 3-block band the breed lands through the
@@ -694,7 +724,7 @@ final class MobGoals {
      */
     static GoalSelector standard() {
         return new GoalSelector(List.of(FLOAT, AVOID_SUNLIGHT, PANIC, BREAK_DOOR,
-                VILLAGER_FLEE, STAY_INDOORS, BREED,
+                HORSE_BOND, VILLAGER_FLEE, STAY_INDOORS, BREED,
                 BEG, GOLEM_LOOK, LOOK_AT, RESTRICT_DOOR, TEMPT, ESCAPE_SUNLIGHT, FLEE_PLAYER,
                 OPEN_DOOR, FOLLOW_OWNER, SIT_ON_BLOCK, FOLLOW_PARENT,
                 RABBIT_RAID_FARM, VILLAGE_RETURN, NIGHT_VILLAGE, VILLAGER_FARM,

@@ -1593,10 +1593,14 @@ public final class MobManager {
     // ------------------------------------------------ mounts (the horse/pig slice)
 
     /**
-     * Seats a player on a mount: the vanilla temper flow for an untamed
-     * horse (tame-and-seat, seat-and-buck, or a plain seat), a direct seat
-     * for pigs and tamed horses. Returns whether the rider is in the seat.
-     * Tick-thread context.
+     * Seats a player on a mount: the PLAIN seat (Wave PE-25 — the
+     * reference's putPlayerOnBack lines 795-803: the yaw sync, the
+     * eating/anger flags down, {@code startRiding} — NO temper flow at
+     * the mount itself; the taming dice ride the RIDING window, the
+     * HorseBondWithPlayerGoal the untamed horse's own mind carries).
+     * The rider's identity rides the seat (the bond goal's consult —
+     * the tame's own rows read the LIVE rider). Returns whether the
+     * rider is in the seat. Tick-thread context.
      */
     public boolean mountMob(MobEntity mob, int riderEngineId,
             String ownerName, String ownerUuid) {
@@ -1604,20 +1608,10 @@ public final class MobManager {
         if (!mob.isMountable() || mob.hasRider() || mob.dead()) {
             return false;
         }
-        MobEntity.MountAttempt attempt = mob.attemptMount(ownerName, ownerUuid);
         mob.setRider(riderEngineId);
+        mob.setRiderIdentity(ownerName, ownerUuid);
         for (Listener listener : listeners) {
             listener.onMobMounted(mob, riderEngineId);
-        }
-        if (attempt == MobEntity.MountAttempt.TAMED) {
-            for (Listener listener : listeners) {
-                listener.onHorseFlagsChanged(mob); // the tame bit flipped
-            }
-        }
-        if (attempt == MobEntity.MountAttempt.BUCKED) {
-            for (Listener listener : listeners) {
-                listener.onHorseFlagsChanged(mob); // the rear flag went up
-            }
         }
         return true;
     }
@@ -1626,16 +1620,20 @@ public final class MobManager {
      * Seats a restored rider (the anvil load path — the reference's
      * startRiding at AnvilChunkStorage line 335: the plain seat, NO
      * temper flow, no buck — the load never consults the live interact's
-     * mount-attempt law). The listener still fires (the attach
-     * publication flows through the manager host, the §27.7-style
-     * convention the import rides). Tick-thread context.
+     * mount law). The rider's identity rides the seat (the bond goal's
+     * consult — a restored player answers the riding dice exactly as a
+     * fresh one). The listener still fires (the attach publication flows
+     * through the manager host, the §27.7-style convention the import
+     * rides). Tick-thread context.
      */
-    public void seatImportedRider(MobEntity mob, int riderEngineId) {
+    public void seatImportedRider(MobEntity mob, int riderEngineId,
+            String ownerName, String ownerUuid) {
         Objects.requireNonNull(mob, "mob");
         if (mob.hasRider() || mob.dead()) {
             return;
         }
         mob.setRider(riderEngineId);
+        mob.setRiderIdentity(ownerName, ownerUuid);
         for (Listener listener : listeners) {
             listener.onMobMounted(mob, riderEngineId);
         }
@@ -2333,9 +2331,6 @@ public final class MobManager {
                     listener.onHorseFlagsChanged(mob);
                 }
             }
-            if (mob.consumeBuckThrow()) {
-                dismountMob(mob, true); // the rear-and-throw (the exit is a pop)
-            }
             if (mob.consumeRegrown()) {
                 for (Listener listener : listeners) {
                     listener.onMobCoatRegrown(mob);
@@ -2490,6 +2485,33 @@ public final class MobManager {
             if (mob.consumeGolemOfferStatus()) {
                 for (Listener listener : listeners) {
                     listener.onMobStatusEvent(mob, 11);
+                }
+            }
+            // The horse-bond verdicts (Wave PE-25 — HorseBondWithPlayerGoal
+            // .tick lines 49-68): the riding window's dice landed. THE TAME
+            // ARM: the bond happened at the dice itself (bondWithPlayer —
+            // the body's own verb); the drain pays the flags publication
+            // (the tame bit flipped) and the hearts Entity Status 7
+            // (doEntityEvent line 56). THE BUCK ARM: the thrown dismount
+            // (lines 63-64 — rider.startRiding(null) + the seat's own
+            // open), the angry sound (playAngrySound line 65 — the type
+            // table: the donkey/mule band "mob.horse.donkey.angry", the
+            // plain horse "mob.horse.angry", at the horse's 0.8 volume
+            // and the reference's own pitch consult), the angry-flag
+            // publication, and the smoke Entity Status 6 (line 66).
+            if (mob.consumeHorseBondTame()) {
+                for (Listener listener : listeners) {
+                    listener.onHorseFlagsChanged(mob); // the tame bit flipped
+                    listener.onMobStatusEvent(mob, 7); // doEntityEvent(7) — the hearts
+                }
+            }
+            if (mob.consumeHorseBondBuck()) {
+                dismountMob(mob, true); // the thrown exit (the seat's own verb)
+                for (Listener listener : listeners) {
+                    listener.onMobSoundAt(mob, mob.horseAngrySound(),
+                            mob.ambientSoundVolume(), mob.ambientSoundPitch());
+                    listener.onHorseFlagsChanged(mob); // the angry bit went up
+                    listener.onMobStatusEvent(mob, 6); // doEntityEvent(6) — the smoke
                 }
             }
             // The villager's farm writes (Wave PE-23 — VillagerFarmGoal
