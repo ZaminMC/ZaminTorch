@@ -2430,9 +2430,7 @@ public final class MobEntity implements LivingEntity {
         // clears BEFORE the super's i-frame consult, so even a frame-refused
         // contact wound stands a sitting pet's command down — the hit pet
         // rises at the goal's next pass and never re-sits on its own).
-        if (isTameableKind() && sitVerb) {
-            sitVerb = false;
-        }
+        standSitVerbDown();
         float verdict = consultHurtFrame(amount);
         if (verdict == 0.0f) {
             hurt(amount, bypassesArmor, true);
@@ -2455,6 +2453,24 @@ public final class MobEntity implements LivingEntity {
         if (dead) {
             pendingEnvironmentalDeath = true;
             environmentalDeathExcess = verdict > 0.0f;
+        }
+    }
+
+    /**
+     * Wave FR — THE SIT VERB'S STAND-DOWN (WolfEntity.takeDamage line 265
+     * / OcelotEntity line 154, the override's HEAD): the verb clears at
+     * the head of every takeDamage call, BEFORE the super's own gates —
+     * the FIRE_RESISTANCE consult included (LivingEntity lines 645-647):
+     * a fire-resistant pet in fire RISES (the verb stood down) while the
+     * wound itself is refused. The engine's fire family consulted the
+     * resistance before the wound walk, so the resistant pet never stood
+     * the verb down — the corner this wave closes at both fire-family
+     * sites (the burn clock's cadence arm, the lava walk's wound arm),
+     * beside the shared frame walk's own head.
+     */
+    void standSitVerbDown() {
+        if (isTameableKind() && sitVerb) {
+            sitVerb = false;
         }
     }
 
@@ -2642,23 +2658,35 @@ public final class MobEntity implements LivingEntity {
                     fireTicks = 0;
                 }
                 fireDamageTimer = 0; // no wound ever arms against the immune
-            } else if (++fireDamageTimer >= 20
-                    // The FIRE_RESISTANCE consult (Slice 93/D2 — LivingEntity
-                    // lines 645-647's own gate over the ON_FIRE source, an
-                    // isFire family member like the lava): a resistant body
-                    // burns visually but never wounds — the same gate the
-                    // reference's takeDamage carries for the whole fire
-                    // family.
-                    && effectAmplifierPlusOne(
-                            net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE) == 0) {
+            } else if (++fireDamageTimer >= 20) {
                 fireDamageTimer = 0;
-                // ON_FIRE bypasses armor (DamageSource line 16's own
-                // setBypassesArmor) — the burn clock never consults pieces.
-                // The wound rides the hurt frame (the reference's %20 fire
-                // tick calls the shared takeDamage: a recent STRONGER hit
-                // holds the 1.0 burn off for the window's first half —
-                // the cross-source law the flat timer never carried).
-                hurtThroughFrame(FIRE_DAMAGE_PER_SECOND, true);
+                // Wave FR — THE FIRE-RESISTANT SITTING PET'S VERB CORNER:
+                // the reference's takeDamage OVERRIDE clears the verb at
+                // its HEAD (WolfEntity line 265 / OcelotEntity line 154),
+                // BEFORE the super's resistance consult (LivingEntity
+                // lines 645-647) — a resistant pet in fire RISES (the
+                // verb stood down) while the wound itself is refused.
+                // The engine's clock consulted the resistance before the
+                // wound walk, so the resistant pet never stood the verb
+                // down — the corner closed here, at the cadence arm's
+                // own head (the takeDamage call's head in the reference).
+                standSitVerbDown();
+                // The FIRE_RESISTANCE consult (Slice 93/D2 — LivingEntity
+                // lines 645-647's own gate over the ON_FIRE source, an
+                // isFire family member like the lava): a resistant body
+                // burns visually but never wounds — the same gate the
+                // reference's takeDamage carries for the whole fire
+                // family.
+                if (effectAmplifierPlusOne(
+                        net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE) == 0) {
+                    // ON_FIRE bypasses armor (DamageSource line 16's own
+                    // setBypassesArmor) — the burn clock never consults pieces.
+                    // The wound rides the hurt frame (the reference's %20 fire
+                    // tick calls the shared takeDamage: a recent STRONGER hit
+                    // holds the 1.0 burn off for the window's first half —
+                    // the cross-source law the flat timer never carried).
+                    hurtThroughFrame(FIRE_DAMAGE_PER_SECOND, true);
+                }
             }
         }
         // The breath clock (Slice 92 — LivingEntity.baseTick lines
@@ -16029,6 +16057,12 @@ public final class MobEntity implements LivingEntity {
         // split: the halving in the tick, the water zero in the move).
         if (inLava && !fireImmune()) {
             ignite(LAVA_BURN_TICKS);
+            // Wave FR — the verb stands down BEFORE the resistance
+            // consult here too (the takeDamage override's head precedes
+            // the super's gates — a resistant pet in LAVA rises while
+            // the wound is refused, the same corner the burn clock
+            // closed).
+            standSitVerbDown();
             // The wound rides the hurt frame (the reference's every-tick
             // takeDamage(LAVA, 4.0) — the frame's own window IS the
             // cadence: the first wound lands the tick the body enters,
