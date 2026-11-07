@@ -93,10 +93,19 @@ class SleepAcceptanceTest {
                 (int) Math.floor(sleeper.position().x()) + 2,
                 (int) Math.floor(sleeper.position().y()),
                 (int) Math.floor(sleeper.position().z()));
-        // A stone pad at the join's eye level keeps the placement clear of
-        // the placer's box and the head cell next to it open.
-        server.ticker().submit(() -> world.setBlock(foot, BuiltinBlocks.STONE));
-        await(() -> world.getBlock(foot).equals(BuiltinBlocks.STONE), "pad seeded");
+        // A stone pad under BOTH halves at the join's eye level keeps the
+        // placement clear of the placer's box and the head cell next to it
+        // open — and carries each half a solid top (the W-BED law,
+        // BedItem.useOn line 42: World.hasSolidTop(pos.down()) &&
+        // World.hasSolidTop(head.down()) — vanilla never places a bed
+        // whose head half floats).
+        server.ticker().submit(() -> {
+            world.setBlock(foot, BuiltinBlocks.STONE);
+            world.setBlock(foot.offset(0, 0, 1), BuiltinBlocks.STONE);
+        });
+        await(() -> world.getBlock(foot).equals(BuiltinBlocks.STONE)
+                && world.getBlock(foot.offset(0, 0, 1)).equals(BuiltinBlocks.STONE),
+                "pad seeded");
 
         hold(sleeper, item("minecraft:bed"), 1);
         useOn(sleeper, foot, 1); // click the pad's top face: the bed lands on it

@@ -499,6 +499,20 @@ class PistonEntityPushTest {
         EngineServer server = boot();
         try {
             int x = 210, z = 210, y = 40;
+            // The arrow's own carrier column, three cells south: a
+            // co-located arrow cannot survive the shared cell — PE-19's
+            // exact segment scan + PE-20's census put the co-located
+            // stand's and TNT's 0.3-grown hulls over the WHOLE cell
+            // (a 0.5-wide body + 0.6 growth spans the block), and the
+            // reference's own laws then eat the flung arrow mid-flight:
+            // the stand's one-shot (the arrow consumed, the stand broken)
+            // or the TNT's refused-body bounce (ArrowEntity.onHit lines
+            // 279-285's per-axis *-0.1 — the arrow reverses and lands
+            // half a block east). Each is the reference's law; the packed
+            // bench was a pre-PE-19 artifact (the coarse point-sampling
+            // scan never saw the grown hulls). The arrow family's fling
+            // pins clean on its own carrier.
+            int z2 = z + 3;
             AtomicReference<net.zaminmc.torch.server.experience.ExperienceOrbEntity> orb =
                     new AtomicReference<>();
             AtomicReference<net.zaminmc.torch.server.armorstand.ArmorStand> stand =
@@ -534,9 +548,26 @@ class PistonEntityPushTest {
                 orb.set(server.experienceOrbs().spawnRestored(
                         new Position(x + 2.5, y + 0.125, z + 0.4), 5, 0));
                 server.tnt().spawnPrimedAt(server.world(), x + 2.5, y, z + 0.6);
+                // The arrow's own carrier (the same vanilla-valid power
+                // arrangement), the arrow launched UPWARD (vy 0.2 — the
+                // hang stays inside the cell for ~13 ticks): an at-rest
+                // arrow sticks in the floor within ~5 ticks, and the
+                // engine's own 1:1 stick law (the fling on a grounded
+                // arrow is dead state — ArrowEntity.tick's stick branch
+                // returns before any velocity use) makes the catch a
+                // razor-edge race on a loaded runner. The upward launch
+                // holds the body in the carrier's sweep until the fling.
+                server.world().setBlock(new BlockPosition(x, y, z2),
+                        PistonBlocks.pistonOf(EAST, false, false));
+                server.world().setBlock(new BlockPosition(x + 1, y, z2),
+                        BuiltinBlocks.SLIME_BLOCK);
+                server.world().setBlock(new BlockPosition(x, y + 1, z2), BuiltinBlocks.STONE);
+                server.world().setBlock(new BlockPosition(x, y + 2, z2),
+                        RedstoneBlocks.leverOf(5, false));
                 arrow.set(server.projectiles().launchVector(
                         net.zaminmc.torch.server.entity.projectile.ProjectileEntity.Kind.ARROW,
-                        -1, new Position(x + 2.5, y + 0.5, z + 0.2), 1.0, 0.0, 0.0, 0.0, 0.0, 0));
+                        -1, new Position(x + 2.5, y + 0.5, z2 + 0.5),
+                        0.0, 1.0, 0.0, 0.2, 0.0, 0));
                 for (net.zaminmc.torch.server.armorstand.ArmorStand placed
                         : server.armorStands().allStands()) {
                     stand.set(placed);
@@ -552,10 +583,13 @@ class PistonEntityPushTest {
             double standBefore = stand.get().x();
             double tntBefore = tnt.get().x();
             double arrowBefore = arrow.get().position().x();
-            server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 2, z)));
-            await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
-                    "the piston flipped to its extended pair");
+            server.ticker().submit(() -> {
+                server.redstone().useLever(new BlockPosition(x, y + 2, z));
+                server.redstone().useLever(new BlockPosition(x, y + 2, z2));
+            });
+            await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z))
+                    && PistonBlocks.pistonExtended(typeAt(server, x, y, z2)),
+                    "both carriers flipped to their extended pair");
             // The fling (lines 94-107): each family's velocity SET along the
             // facing axis, the family's own integration carrying it out — a
             // plain push moves a body at most 0.8125, the fling flies them.
@@ -563,7 +597,7 @@ class PistonEntityPushTest {
                     && stand.get().x() > standBefore + 1.0
                     && tnt.get().x() > tntBefore + 1.5
                     && arrow.get().position().x() > arrowBefore + 1.5,
-                    "the four bodies flung east by the slime carrier");
+                    "the four bodies flung east by the slime carriers");
             assertTrue(stand.get().x() > standBefore + 1.0,
                     "the stand slid east (the walk's friction decay): before "
                             + standBefore + ", after " + stand.get().x());

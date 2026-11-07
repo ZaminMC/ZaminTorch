@@ -97,10 +97,13 @@ class FxDimensionReadsTest {
 
     @Test
     void theProjectileShatterCarriesTheProjectilesDimension() {
-        // The egg's shard break (the splat puff + the glassy click) stamps
-        // the projectile's own dimension — the family's TF-9 field riding
-        // the FX bus. (The fishing splash's own stamp — the bobber's
-        // dimension through the CatchSink — is pinned beside its family in
+        // The egg's shard break (Wave PE-21's reference form: the 8-particle
+        // ITEM_CRACK burst at the collision origin — EggEntity.onCollision
+        // lines 55-66 — and NOTHING else; the reference's shards play no
+        // sound, the engine's random.glass stand-in retired) stamps the
+        // projectile's own dimension — the family's TF-9 field riding the
+        // FX bus. (The fishing splash's own stamp — the bobber's dimension
+        // through the CatchSink — is pinned beside its family in
         // FishingSystemTest.theSplashSoundCarriesTheBobbersDimension.)
         net.zaminmc.torch.server.entity.projectile.ProjectileManager.SolidQuery solid =
                 new net.zaminmc.torch.server.entity.projectile.ProjectileManager.SolidQuery() {
@@ -161,9 +164,10 @@ class FxDimensionReadsTest {
         for (int i = 0; i < 60 && kinds.isEmpty(); i++) {
             manager.tick(List.of());
         }
-        assertEquals(List.of("Poof", "Sound"), kinds,
-                "the egg's landing burst and glass sound ride the bus");
-        assertEquals(List.of(-1, -1), dimensions,
-                "both halves of the shatter play in the projectile's own world");
+        assertEquals(List.of("ItemShatter"), kinds,
+                "the egg's landing burst is the ITEM_CRACK crumb event alone "
+                        + "(the reference plays no sound on the shard family)");
+        assertEquals(List.of(-1), dimensions,
+                "the burst plays in the projectile's own world");
     }
 }

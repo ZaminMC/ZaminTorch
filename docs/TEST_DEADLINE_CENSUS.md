@@ -110,6 +110,28 @@ becomes eligible by recurring. The seed membership, with the evidence:
   workflow's own historical note; engine-condition polls, green in
   isolation, load-flaked on the hosted runner across the 100-run audit
   window).
+- The 2026-11-08 extension — the stuck-release window's diagnosed watch
+  family (six release runs, #632–#663, failed between 2026-11-04 and
+  2026-11-07; the window's DETERMINISTIC members were root-caused and
+  fixed at the source that day and are NOT on the list — see the
+  retirement rows below). Each member below carries the wave records'
+  own evidence: green solo across every verification run, failing only
+  on the loaded 2-core hosted runner, intermittently, across the
+  documented CI-watch window:
+  - `PanicFleeParityDiscoveryTest` (the wounded-cow seat) — the panic
+    arms through the goal selector's 20-tick stride inside the wound's
+    100-tick window; green solo in every wave's lane (the PE-27 record's
+    own watch), CI-failed on runs #634/#637/#642's artifacts. The
+    selector-stride/TargetFinder interplay under load is the verifier's
+    open root-cause row.
+  - `MultiplayerSleepWireTest` — the protocol module's wire-read awaits
+    (the pose/morning/leave-bed packet sequence); CI-failed on runs
+    #634/#637's artifacts, green solo.
+  - `SurvivalFlowIntegrationTest` / `DonkeyChestIntegrationTest` — the
+    protocol lane's two documented load-flakes (the RD/RK wave record's
+    own watch list: the drop-settle await and the open-window await,
+    both re-verified green solo that session); CI-failed on runs
+    #636/#637's artifacts.
 
 Root-caused and RETIRED from candidacy (fixed at the source, run 556's
 evidence — these were never added to the list):
@@ -171,6 +193,40 @@ evidence — these were never added to the list):
   one wound is the detonation's EXPLOSIVE arm, asserted after the
   chain-stone await) — the same retirement shape as the bed seat's night
   hunt and the GroupTwo death await before it.
+- The 2026-11-08 stuck-release window's DETERMINISTIC members — four
+  seats root-caused from the failed runs' own artifacts (every failure
+  reproduced locally first try) and fixed at the source the same day,
+  never allowlisted:
+  - `SleepAcceptanceTest.bedsPlaceAsAPairAndSleepThroughTheNight` — a
+    STALE SEAT against the landed W-BED law (PR #154): the bed's head
+    half needs its own solid-top floor (BedItem.useOn line 42's
+    BOTH-halves consult) and the seat's bench padded only the foot half.
+    Fixed as the bench (the pad under both halves).
+  - `RangedCombatAcceptanceTest.theSnowballThrowsOnThePressAndShattersOnTheGround`
+    — a STALE SEAT against Wave PE-21: the reference's shard family
+    plays NO sound (SnowballEntity.onCollision lines 51-54 — particles
+    alone; the engine's random.glass stand-in retired with the wave).
+    The seat still asserted the retired glass sound; re-pinned to the
+    puff + the silence.
+  - `FxDimensionReadsTest.theProjectileShatterCarriesTheProjectilesDimension`
+    — the same PE-21 staleness on the egg arm: the burst is the
+    ITEM_CRACK crumb event alone, no poof, no sound. Re-pinned.
+  - `PistonEntityPushTest.theSlimeBlockFlingsTheOrbTheStandTheTntAndTheArrow`
+    — a PRE-PE-19 BENCH ARTIFACT, proven by a per-tick probe: the
+    at-rest arrow launched into the shared cell sticks in ~5 ticks (the
+    fling on a grounded arrow is dead state — ArrowEntity.tick's stick
+    branch, the engine's own documented 1:1 law), and when the fling
+    catches it airborne, PE-19's exact segment scan + PE-20's census
+    put the co-located stand's/TNT's 0.3-grown hulls over the whole
+    cell — the flung arrow strikes one MID-FLIGHT (the stand's one-shot
+    or the TNT's refused-body bounce, each the reference's own law) and
+    never crosses the +1.5 threshold. Every branch of the old bench
+    fails; it passed only while the engine's pre-PE-19 point-sampling
+    scan masked the interaction. Repaired as the bench: the orb, the
+    stand and the TNT keep the one carrier (the uniform moveEntities
+    law), the arrow rides its own carrier three cells south (launched
+    upward, holding it in the sweep for ~13 ticks so the fling's catch
+    is not a razor-edge race), both levers flipped in one submit.
 
 ## The audit list (hand-adjudicated rows)
 

@@ -89,11 +89,15 @@ class RangedCombatAcceptanceTest {
         // The shard falls (thrown from eye height) and shatters on the ground.
         await(() -> server.projectiles().all().isEmpty() && !fxEvents.isEmpty(),
                 "the shard shattered on the ground");
+        // Wave PE-21's law (SnowballEntity.onCollision lines 51-54): the
+        // burst is the white puff alone — the reference's shards play NO
+        // sound (the engine's random.glass stand-in retired whole).
         boolean poof = fxEvents.stream().anyMatch(e -> e instanceof FxManager.Poof);
         boolean glass = fxEvents.stream().anyMatch(e ->
                 e instanceof FxManager.Sound s && s.name().equals("random.glass"));
         assertTrue(poof, "the shatter puff rode the FX bus");
-        assertTrue(glass, "the shatter sound rode the FX bus");
+        assertFalse(glass, "the reference's shard plays no sound — the "
+                + "glass stand-in retired with PE-21");
         server.shutdown(null);
     }
 

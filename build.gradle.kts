@@ -74,6 +74,15 @@ subprojects {
                 includeClasses.add("*LifecycleEventAcceptanceTest")
                 includeClasses.add("*HopperSystemTest")
                 includeClasses.add("*HopperWindowAcceptanceTest")
+                // The 2026-11-08 extension — the stuck-release window's
+                // diagnosed watch family (the census rows carry each
+                // member's evidence; the deterministic members of that
+                // window were root-caused and FIXED the same day, never
+                // allowlisted):
+                includeClasses.add("*PanicFleeParityDiscoveryTest")
+                includeClasses.add("*MultiplayerSleepWireTest")
+                includeClasses.add("*SurvivalFlowIntegrationTest")
+                includeClasses.add("*DonkeyChestIntegrationTest")
             }
         }
     }
