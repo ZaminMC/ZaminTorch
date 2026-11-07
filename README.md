@@ -30,7 +30,7 @@ architecture, decisions and milestones.
 |------------|------|-------|
 | 1.8.8 vanilla parity (the mechanics ledger, §22/§29) | ≈95% | 3,300+ engine seats green; the roll-law family closed whole (the drag, the rider scale, the kick) and the standing audit is down to single-digit named rows (each fixed within a pass or two of its discovery) |
 | Dimension ownership (the FL4 waves — every system ranges its own world) | ≈97% | chests, containers, tiles, pistons, decorations, leads, beacons, the wither — each dimension's own family, redstone and wire |
-| CI pipeline (Phase A + publishing) | ≈97% | parallelised with selective retry and failure forensics; every known failing member root-caused and retired at the source |
+| CI pipeline (Phase A + publishing) | ≈97% | parallelised with selective retry and failure forensics; the six-day stuck-release window (2026-11-04 → 11-07, no build published) closed whole — the dead checkout secret revived, the four deterministic build failures root-caused and fixed, the documented watch family retry-covered |
 | Engine infrastructure (§22/§35: ownership, scheduling, transport) | ≈90% | the region model, the cross-owner protocol, the encode-once transport landed and pinned; the B-gaps wait for their triggers per §X.8 |
 | Concurrency Phase 5 — parallel pre-gen lighting | 90% (gated) | landed, measured 1.4–1.6×, OFF by default (`torch.parallel-pregen-light`) |
 | Concurrency Phase 6 — further parallel gameplay lanes | ≈20% | the random-tick lane landed; each further lane gated on its own evidence |
@@ -41,7 +41,7 @@ architecture, decisions and milestones.
 
 [Progress history](WORKLOG.md)
 
-<sub>Every row's estimate is measured against its own ledger — the wave/section named in the row — not a feeling; percentages move as work lands and a row leaves the table at 100%. The landed record behind these numbers lives in [`Torch-Arcetecture.txt`](Torch-Arcetecture.txt) §22/§29, [`VANILLA_1_8_8_COMPATIBILITY.md`](VANILLA_1_8_8_COMPATIBILITY.md), [`NATIVE_API_CAPABILITIES.md`](NATIVE_API_CAPABILITIES.md) and [`WORKLOG.md`](WORKLOG.md). Last full re-verification of the table: 2026-10-31 (the FL4-F10 redstone world-binding wave + the parity PR wave #101/#102/#104); latest landing: 2026-11-08 (Waves RD + RK + OR — the minecart's whole roll law: the ridden drag triple, the rider's 0.75 move scale, the wall launch, the W-kick with the brake cancel, the activator-rail gate, the off-rail walk).</sub>
+<sub>Every row's estimate is measured against its own ledger — the wave/section named in the row — not a feeling; percentages move as work lands and a row leaves the table at 100%. The landed record behind these numbers lives in [`Torch-Arcetecture.txt`](Torch-Arcetecture.txt) §22/§29, [`VANILLA_1_8_8_COMPATIBILITY.md`](VANILLA_1_8_8_COMPATIBILITY.md), [`NATIVE_API_CAPABILITIES.md`](NATIVE_API_CAPABILITIES.md) and [`WORKLOG.md`](WORKLOG.md). Last full re-verification of the table: 2026-10-31 (the FL4-F10 redstone world-binding wave + the parity PR wave #101/#102/#104); latest landing: 2026-11-08 (Wave CI-2 — the stuck-release window closed: the checkout revival verified on run #672, the four deterministic build failures root-caused and fixed, the watch family's retry rows landed; before it Waves RD + RK + OR — the minecart's whole roll law).</sub>
 
 ## Downloading a dev build (no build tools needed)
 

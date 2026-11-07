@@ -9624,22 +9624,29 @@ NATIVE_API_CAPABILITIES.md, WORKLOG.md); the numbers refreshed
 honestly (3,760 automated seats suite-wide per the module census;
 the parity row's 3,300+ engine seats).
 
-NEXT WORK (re-pinned after RD + RK + OR, in order): the minecart
-roll-law family is CLOSED whole (the ridden drag, the rider's 0.75
-move scale, the state/move split, the wall launch, the inventory
-drags, the activator gate with RD; the W-kick, the brake cancel, the
-rider's own look with RK; the off-rail walk's raw gravity, the
-±getMaxSpeed clamp, the grounded 0.5 pre-move and the air 0.95 with
-OR) — the remaining named rows: the flank walk's steal-poll
-cadence (the engine's 20-tick form of the selector's every-tick
-canStart consult — a documented adaptation, the verifier's row when
-the census reaches it); the verifier's PRs when they open (none at
-this session's close); the CI census watches (the PanicFlee
-wounded-cow flake, the WolfCollarDye one-off, the HuntScanBounds
-endermite-feud parallel flake and the protocol lane's two
-load-flakes — SurvivalFlow's drop-settle await and DonkeyChest's
-open-window await, both green solo — the documented watch family);
-the vanilla-grade census's next family pick when the verifier's rows
+NEXT WORK (re-pinned after RD + RK + OR + CI-2, in order): the
+minecart roll-law family is CLOSED whole (the ridden drag, the
+rider's 0.75 move scale, the state/move split, the wall launch, the
+inventory drags, the activator gate with RD; the W-kick, the brake
+cancel, the rider's own look with RK; the off-rail walk's raw
+gravity, the ±getMaxSpeed clamp, the grounded 0.5 pre-move and the
+air 0.95 with OR) — THE STUCK-RELEASE WINDOW IS CLOSED (Wave CI-2:
+the checkout blockage verified revived on run #672, the four
+deterministic build failures root-caused and fixed, the watch
+family's retry rows landed) — the remaining named rows: the flank
+walk's steal-poll cadence (the engine's 20-tick form of the
+selector's every-tick canStart consult — a documented adaptation,
+the verifier's row when the census reaches it); the verifier's PRs
+when they open (none at this session's close); THE CI RELEASE WATCH
+(run #672 building toward torch-1.8.8-158 — the first green release
+since #598 closes the window whole; the retry-covered watch family
+PanicFlee/MultiplayerSleepWire/SurvivalFlow/DonkeyChest each gets
+its first-occurrence root-cause read from the uploaded forensics
+per the census law, and the one-off members — SpawnEgg,
+CauldronAcceptance, BedPlacementFloor's control, DyeFamily,
+PistonBreakDrop, ArmorStandSystem's ladder walk,
+BedPairFacingResolution — stay the verifier's open lane); the
+vanilla-grade census's next family pick when the verifier's rows
 land — the seated mob's goal behaviors stay the verifier's three-pass
 rows (the panic flee's velocity churn under the freeze, the zombie's
 seated targeting, the villager's seated breeding consults); NEW
@@ -10151,6 +10158,86 @@ families, each exactly per the trace above.
   the next CI occurrence reads the drop's fate straight from the test
   report: absent-from-list, present-but-airborne, present-but-wrong-id,
   or grounded-but-late).
+
+WAVE CI-2 — THE 2026-11-08 STUCK-RELEASE WINDOW CLOSED (commit ae1ede72):
+six days of red release runs (#632–#671, 2026-11-04 → 2026-11-07) with
+ZERO builds published since torch-1.8.8-157 (Nov 1), the window read
+whole from the failed runs' own artifacts and every DETERMINISTIC member
+fixed at the source (test-side staleness and bench artifacts, never
+engine regressions — the engine verified 1:1 at every turn):
+
+(1) THE CHECKOUT BLOCKAGE (runs #664–#671, 2026-11-06 evening onward):
+every run died at the Checkout step with `could not read Username for
+'https://github.com'` — the ABASING_TOKEN secret dead (the extraheader
+auth failing on a public repo's fetch); the OWNER rotated the secret at
+2026-11-07T19:04 and run #672 (ae1ede72) verified the revival live: the
+checkout, the version ledger, the stamp and the bump sync all green, the
+full suite building. No workflow change needed — the pipeline's own
+timeout repair (the 2026-10-30 window, 120 minutes) stood correct.
+
+(2) THE FOUR DETERMINISTIC BUILD FAILURES (runs #632–#663, root-caused
+from the uploaded test-report artifacts, every one reproduced locally
+first try):
+- SleepAcceptanceTest's bed seat — STALE BENCH against the landed W-BED
+  law (PR #154): BedItem.useOn line 42's BOTH-halves solid-top consult
+  (World.hasSolidTop(pos.down()) && World.hasSolidTop(head.down()))
+  refuses a bed whose head half floats, and the seat's bench padded
+  only the foot half's floor — the pad now lies under BOTH halves
+  (the same session's stash carried the fix; landed here).
+- RangedCombatAcceptanceTest's snowball seat — STALE against Wave
+  PE-21: the reference's shard family plays NO sound
+  (SnowballEntity.onCollision lines 51-54, the 8-particle burst
+  alone; the engine's random.glass stand-in retired with the wave);
+  the seat re-pinned to the puff PLUS THE SILENCE (the negative
+  assertion now pins the reference's own law).
+- FxDimensionReadsTest's egg arm — the same PE-21 staleness: the
+  egg's burst is the ITEM_CRACK crumb event alone (EggEntity
+  .onCollision lines 55-66), no poof, no sound — re-pinned to
+  [ItemShatter] with the projectile's own dimension.
+- PistonEntityPushTest's slime four-body seat — a PRE-PE-19 BENCH
+  ARTIFACT, proven by a per-tick probe run on the failing tree: the
+  at-rest arrow launched into the shared cell STICKS in ~5 ticks (the
+  fling on a grounded arrow is dead state — ArrowEntity.tick's stick
+  branch returns before any velocity use, the engine's own documented
+  1:1 law), and when the fling catches it AIRBORNE, PE-19's exact
+  segment scan + PE-20's census put the co-located stand's and TNT's
+  0.3-grown hulls over the WHOLE shared cell (a 0.5-wide body + 0.6
+  growth spans the block) — the flung arrow strikes one MID-FLIGHT
+  (the stand's ONE-SHOT per PE-18, or the TNT's refused-body bounce:
+  ArrowEntity.onHit lines 279-285's per-axis *-0.1 — the probe's own
+  trace: 212.5 → 213.49 → reversed → 213.016 stuck) and never crosses
+  the +1.5 threshold. EVERY branch of the old bench fails; it passed
+  only while the engine's pre-PE-19 coarse point-sampling scan masked
+  the interaction — the CI pass/fail pattern (green through run #636,
+  red from #637 ON THE SAME HEAD) was the loaded-runner thread-timing
+  race between the arrow's stick and the thread-submitted lever flip.
+  THE BENCH REPAIRED: the orb, the stand and the TNT keep the ONE
+  carrier (the uniform moveEntities law — every family pushed, none
+  exempted), the arrow rides its OWN carrier three cells south (a
+  co-located arrow provably cannot survive the shared cell under the
+  reference's own scan laws), launched UPWARD (vy 0.2 — the hang
+  holds it inside the sweep for ~13 ticks, the fling's catch never a
+  razor-edge race), both levers flipped in ONE submit — the piston
+  class 11/0 (was 20s-starving on the seat).
+
+(3) THE WATCH FAMILY'S RETRY ROWS (the census-governed path, the
+membership law followed — never a silent sweep): PanicFleeParity
+DiscoveryTest + MultiplayerSleepWireTest + SurvivalFlowIntegrationTest
++ DonkeyChestIntegrationTest joined the Phase-A allowlist, each with
+its evidence row in docs/TEST_DEADLINE_CENSUS.md (green solo across
+every wave record's verification; CI-failing only on the loaded 2-core
+runner across the stuck window). The one-off members (SpawnEgg,
+CauldronAcceptance, BedPlacementFloor's control, DyeFamily,
+PistonBreakDrop, ArmorStandSystem's ladder walk, BedPairFacing
+Resolution) stay OFF the list per the law — single occurrences, no
+diagnosed mechanism, the verifier's open lane.
+
+VERIFICATION: the four seats' lanes green twice over locally
+(SleepAcceptance, RangedCombatAcceptance, FxDimensionReads,
+PistonEntityPush — 25/25, the piston class 11/0); the watch family's
+solo-green re-verified by the RD/RK session's own protocol run; the
+pipeline's revival verified live on run #672 (checkout + ledger +
+stamp + sync green, the suite building toward torch-1.8.8-158).
 
 ---
 
