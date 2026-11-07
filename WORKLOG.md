@@ -3115,15 +3115,33 @@ Work Log:
   closes the window whole); the README's CI row and footnote
   refreshed.
 
-SESSION COMMITS (all as Abasing): ae1ede72 (the four root-cause
-fixes + the allowlist + the census rows) + the architecture/worklog/
-README record commit.
+- THE FIFTH MEMBER (run #672's build failure, root-caused and fixed
+  the same day, commit 58b37697): ProjectileRayScanParityDiscovery
+  Test's thin-wall cow spawned a quarter block INSIDE the wall's cell
+  (hull [10.75, 11.65] vs the wall's [10, 11)) and passed only while
+  the first suffocation wound waited a window deep — Waves HF+TS
+  (a437f25d) closed that divergence 1:1 and the cow now wounds
+  immediately (the probe's trace: 9.0 of 10.0 at spawn, inWall true
+  the whole stay). The engine is 1:1 (vanilla's suffocation trap — no
+  ejection); the bench's spawn fixed to z=11.7 (hull clear of the
+  wall). The class 4/0 twice over. THE RETRY ALLOWLIST VERIFIED LIVE:
+  DonkeyChest's open-window timeout failed its first attempt on #672
+  and PASSED its retry — the mitigation working as designed.
 
-AT CLOSE: run #672 building (44-92 min expected); the next session's
-first acts per the re-pin: THE CI RELEASE WATCH (confirm #672 green
-and the torch-1.8.8-158 release published — a red run's uploaded
-forensics are the retry-family's first-occurrence root-cause reads),
-the verifier's PRs when they open, the roll-law census rows (the
-ascending-slope roll, the rail-center d18 interpolation, the boat's
-steer model, the perpendicular-look kick edge), and the flank walk's
-steal-poll cadence.
+SESSION COMMITS (all as Abasing): ae1ede72 (the four root-cause
+fixes + the allowlist + the census rows) + 39ad18a6 (the architecture
+record + README) + 8736af4e (the worklog copy) + 58b37697 (the
+wall-clip seat's stale spawn) + the final record commit.
+
+AT CLOSE: run #674 building the pre-wall-clip-fix tree (deterministically
+doomed on that seat, but the never-cancel law protects it); run #675
+QUEUED on the full-fix tree 58b37697 — the first green release since
+#598 expected from it (or #676+, the pending-supersession carrying
+the newest tree whole). The next session's first acts per the
+re-pin: THE CI RELEASE WATCH (confirm the green release published —
+torch-1.8.8-158; a red run's uploaded forensics are the retry
+family's first-occurrence root-cause reads), the verifier's PRs when
+they open, the roll-law census rows (the ascending-slope roll, the
+rail-center d18 interpolation, the boat's steer model, the
+perpendicular-look kick edge), and the flank walk's steal-poll
+cadence.

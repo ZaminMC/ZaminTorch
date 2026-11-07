@@ -10239,6 +10239,26 @@ solo-green re-verified by the RD/RK session's own protocol run; the
 pipeline's revival verified live on run #672 (checkout + ledger +
 stamp + sync green, the suite building toward torch-1.8.8-158).
 
+THE WINDOW'S FIFTH MEMBER (run #672's own build failure, root-caused
+and fixed the same day — commit 58b37697): ProjectileRayScanParity
+DiscoveryTest's thin-wall cow — the seat's spawn put the cow's
+0.9-wide hull [10.75, 11.65] a quarter block INSIDE the wall's cell
+band [10, 11), and the seat had passed only while the first
+suffocation wound waited a window deep (the retired divergence Waves
+HF+TS closed at a437f25d — the immediate-first-wound law, 1:1 the
+reference's every-tick takeDamage(IN_WALL, 1.0) at the i-frame
+cadence); the probe's own trace: the cow spawned at 9.0 of 10.0
+health, inWall true the whole stay, decaying 1.0 per ten ticks — the
+engine never ejects an overlapping hull (exactly vanilla's
+suffocation trap). THE ENGINE 1:1, THE BENCH'S SPAWN the defect: the
+cow now spawns at z=11.7, its hull fully past the wall's east face,
+the wall-clip law itself unchanged (the clipped entity ray still
+ends at the wall's z=10 face). The class 4/0 twice over. THE RETRY
+ALLOWLIST VERIFIED LIVE on the same run: DonkeyChestIntegrationTest's
+open-window timeout failed its first attempt and PASSED its retry
+(the failed attempt + the retried pass both in the report XML) — the
+census-governed mitigation working exactly as designed.
+
 ---
 
 # 34. ENGINEERING AUTHENTICITY AND AI-GENERATED CODE QUALITY
