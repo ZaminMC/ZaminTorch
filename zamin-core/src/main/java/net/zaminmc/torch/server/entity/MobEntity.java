@@ -1456,6 +1456,33 @@ public final class MobEntity implements LivingEntity {
     private boolean noAi;
     private boolean invulnerable;
 
+    // Wave SM — THE VEHICLE SEAT (the reference's {@code this.vehicle}
+    // row, Entity.java): the id of the cart or boat whose seat the body
+    // holds, −1 when it walks free. The manager stamps it at the tick
+    // head from the vehicles' own passenger seats (the vehicle owns the
+    // pairing — the reference's rider/vehicle pair written from both
+    // sides, the engine's single-side shape) — the three consults that
+    // read it: the movement freeze below (the seat owns the position),
+    // the makesSteps gate (Entity line 715's {@code vehicle == null}),
+    // and the AUTO-MOUNT's own-seat refusal (MinecartEntity.push line
+    // 663's {@code entity.vehicle == null}).
+    private int seatedVehicleId = -1;
+
+    /** The vehicle whose seat the body holds (−1 = walking free). */
+    public int seatedVehicleId() {
+        return seatedVehicleId;
+    }
+
+    /** The manager's per-tick stamp (the vehicles' own passenger seats). */
+    public void setSeatedVehicleId(int vehicleEntityId) {
+        this.seatedVehicleId = vehicleEntityId;
+    }
+
+    /** The seat consult ({@code this.vehicle != null}). */
+    public boolean seatedInVehicle() {
+        return seatedVehicleId >= 0;
+    }
+
     // The EntityNbt rows (Slice 89 — the reference's Entity base rows the
     // engine now carries): the body's own uuid (UUIDMost/UUIDLeast — a
     // random one at construction, the readNbt rows overwrite it), the
@@ -15794,6 +15821,18 @@ public final class MobEntity implements LivingEntity {
         if (!makesSteps()) {
             return;
         }
+        // Wave SM — THE SEAT'S OWN GATE (Entity line 715's second
+        // conjunct, {@code this.vehicle == null}): a body holding a
+        // vehicle's seat makes no steps — the seat owns the position,
+        // the JOURNEY is the vehicle's (a mob riding a cart across the
+        // redstone ore never lights it — the mount carries the steps,
+        // the same law the jockey family rides). Belt-and-braces beside
+        // the movement freeze (the frozen body never applies a move for
+        // the step band to read) — the gate carried for the law's own
+        // row and any future caller.
+        if (seatedInVehicle()) {
+            return;
+        }
         // The feet cell (Entity.move line 568-573): floor(y - 0.2), and
         // when that cell is air the fence/wall/gate consult takes the
         // cell BELOW as the stepped-on block (a body standing in the
@@ -16098,6 +16137,33 @@ public final class MobEntity implements LivingEntity {
         // both kinds).
         if (inFluid && !inLava && fireTicks > 0) {
             extinguish(); // the water douses the burn (the historical rule)
+        }
+        // Wave SM — THE VEHICLE SEAT'S MOVEMENT FREEZE: a body holding a
+        // cart's or boat's seat integrates NO motion of its own — no
+        // gravity, no walk, no ground snap, no steps, whatever its family
+        // (the walker and the flight families alike — the gate sits above
+        // every family branch). The reference's own shape: the seated
+        // mob's AI runs and its move APPLIES, but the vehicle's
+        // updateRiderPositon (Entity.tick's closing arm) then overwrites
+        // the position with the seat anchor — the observable is the seat
+        // winning every tick, the mob's own drift invisible (the
+        // tracker's flush-time compare sees the net-zero delta and
+        // publishes nothing). The ENGINE publishes every applied move
+        // immediately, so the faithful observable rides the freeze
+        // instead: the seat owns the position whole (the seat-follow's
+        // per-tick teleport publishes the anchor alone), the mob's own
+        // movement standing down — the documented adaptation of the
+        // reference's apply-then-overwrite shape to the immediate-publish
+        // model. The CONTACT BLOCK above keeps running at the seat
+        // position (the burn, the drown, the wall — the vanilla seated
+        // mob takes them all); the MIND keeps running (the goals churn —
+        // the postures, the targets, the look-around the wire sees, the
+        // vanilla seated zombie still turning its head); the velocity
+        // decays like the NoAI pin's own form (the walk's inputs never
+        // integrate).
+        if (seatedInVehicle()) {
+            decayVelocity();
+            return;
         }
         // The ghast's flight (Slice 16c — FlyingMobEntity): the drift owns
         // the whole vertical + horizontal integration; no gravity, no

@@ -765,6 +765,29 @@ public final class MobManager {
         this.vehicleSource = java.util.Objects.requireNonNull(source, "source");
     }
 
+    /**
+     * Wave SM — the AUTO-MOUNT's seat write (the reference's
+     * {@code entity.startRiding(this)}, MinecartEntity.push line 664): the
+     * vehicle manager's own mount bookkeeping (the seat's pairing + the
+     * wire's passenger attach), handed to the push walk so the consult can
+     * seat a living body onto the moving rideable cart it crowds. Null
+     * until the engine wires it, in which case the consult never seats
+     * (the push math alone runs, the pre-SM engine's own shape).
+     */
+    public interface VehicleMount {
+        /** @return whether the seat was taken (the mount's own verdict). */
+        boolean mount(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
+                      int riderEngineId);
+    }
+
+    /** The AUTO-MOUNT seam (null = the consult never seats). */
+    private volatile VehicleMount vehicleMount;
+
+    /** Wires the AUTO-MOUNT seam (the engine's own boot). */
+    public void setVehicleMount(VehicleMount mount) {
+        this.vehicleMount = java.util.Objects.requireNonNull(mount, "mount");
+    }
+
     /** Wires the crossing service (the engine's own boot). */
     public void setDimensionCrossing(DimensionCrossing dimensionCrossing) {
         this.dimensionCrossing = java.util.Objects.requireNonNull(
@@ -1820,6 +1843,29 @@ public final class MobManager {
             removeHostiles();
         }
 
+        // Wave SM — THE SEAT STAMP (the reference's {@code this.vehicle}
+        // row, stamped from the vehicles' own passenger seats — the
+        // vehicle owns the pairing, the body carries the derived consult
+        // state): the stamp feeds the mob's own tick walks — the movement
+        // freeze (the seat owns the position), the makesSteps gate
+        // (Entity line 715's {@code vehicle == null}), and the
+        // AUTO-MOUNT's own-seat refusal (MinecartEntity.push line 663's
+        // {@code entity.vehicle == null}). A mid-tick mount (another
+        // body's push walk seating a mob) catches up on the NEXT tick's
+        // stamp — the freshly-seated body's own walk this tick runs free
+        // and the seat-follow's teleport re-anchors it whole (the same
+        // tick's observable still the seat, the reference's own
+        // apply-then-overwrite order).
+        java.util.Map<Integer, Integer> seatedPassengers = new java.util.HashMap<>();
+        if (vehicleSource != null) {
+            for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                    : vehicleSource.get()) {
+                if (vehicle.hasPassenger()) {
+                    seatedPassengers.put(vehicle.passengerId(), vehicle.entityId());
+                }
+            }
+        }
+
         // The breeds defer to the loop's end (the reference's own order:
         // children join the world after the walk closes — and the
         // copy-on-write iterator below would not visit a mid-walk add
@@ -1838,6 +1884,12 @@ public final class MobManager {
         Iterator<MobEntity> iterator = mobs.iterator();
         while (iterator.hasNext()) {
             MobEntity mob = iterator.next();
+
+            // Wave SM — the seat stamp (the passenger row's own vehicle
+            // id, −1 when the body walks free): the derived consult state
+            // for this body's whole tick.
+            mob.setSeatedVehicleId(seatedPassengers.getOrDefault(
+                    mob.entityId(), -1));
 
             // Wave EK — THE ENVIRONMENTAL KILL'S PUBLICATION (the drain
             // the loop's own head serves): the body-level arms — the
@@ -5343,12 +5395,17 @@ public final class MobManager {
      * override replaces Entity.push wholesale; a ridden cart still
      * drifts under crowding). The cart-cart blend (lines 687-723)
      * belongs to the VEHICLE family's own walk — the mob's gather
-     * never carries it (the pusher is never a cart here). The
-     * AUTO-MOUNT consult (lines 660-667, a moving rideable cart
-     * scooping a non-player non-golem living body onto the seat) is
-     * NOT-REACHABLE until the engine's mobs can ride: the seated-mob
-     * model the makesSteps gate's own javadoc names as absent — held
-     * as this wave's named tail.</p>
+     * never carries it (the pusher is never a cart here). Wave SM —
+     * THE AUTO-MOUNT consult (lines 657-665) LANDED with the seated-mob
+     * model: a MOVING RIDEABLE EMPTY cart meeting a non-player non-golem
+     * living body that walks free scoops the body onto the seat
+     * ({@code entity.startRiding(this)}, line 664) — the six conjuncts
+     * read whole below; the push math then runs ANYWAY (the reference's
+     * own order — the consult is no early return, the freshly-seated
+     * rider and its mount still separate that tick, the line-656 gate
+     * having passed before the seat was taken). The LINE-656 GATE
+     * itself — the pusher never the cart's own passenger — is REAL
+     * since this wave (the seated mob never pushes its own mount).</p>
      */
     private void pushVehicleBody(MobEntity pusher,
             net.zaminmc.torch.server.entity.vehicle.VehicleEntity pushed,
@@ -5374,6 +5431,15 @@ public final class MobManager {
             return;
         }
         if (boat) {
+            // Entity.push line 970's second conjunct ({@code
+            // entity.vehicle != this}): the pusher riding THIS boat
+            // refuses the push whole — REAL since Wave SM (the seated
+            // mob never shoves its own hull; the first conjunct's
+            // rider-pair — the other body's passenger never the pusher
+            // — stays vacuous, no body's rider is ever a boat).
+            if (pushed.passengerId() == pusher.entityId()) {
+                return; // the seated walker's own mount
+            }
             // Entity.push — the ordinary mutual law. The riding-pair
             // refusal (line 970) is vacuous here: the engine's mobs
             // never ride, and no body's rider is ever a boat.
@@ -5406,9 +5472,52 @@ public final class MobManager {
             }
             return;
         }
-        // MinecartEntity.push — the cart's own law. The line-656 gate
-        // (the pusher is not the cart's passenger) is vacuous for mobs
-        // today: the engine's mobs never ride.
+        // MinecartEntity.push — the cart's own law. Line 656's gate
+        // ({@code entity != this.rider}): the pusher never the cart's own
+        // passenger — REAL since Wave SM (the seated mob never pushes its
+        // own mount, the whole override refusing before any math).
+        if (pushed.passengerId() == pusher.entityId()) {
+            return; // the seated walker's own mount (line 656)
+        }
+        // Wave SM — THE AUTO-MOUNT CONSULT (MinecartEntity.push lines
+        // 657-665, the re-pin's held tail LANDED with the seated-mob
+        // model): a MOVING RIDEABLE EMPTY cart scoops the crowding living
+        // body onto the seat. The six conjuncts, read whole:
+        // (1) {@code entity instanceof LivingEntity} — the pusher a living
+        //     body (the mob walk's own membership; the PLAYER has its own
+        //     arm and the reference's {@code !(entity instanceof
+        //     PlayerEntity)} refuses it there — the player never rides a
+        //     cart by walking into it);
+        // (2) {@code !(entity instanceof IronGolemEntity)} — the golem
+        //     never rides (line 659);
+        // (3) {@code this.getMinecartType() == RIDEABLE} — the PLAIN cart
+        //     alone (line 660: the chest, the furnace, the TNT, the
+        //     spawner, the hopper and the command block never scoop);
+        // (4) {@code velocityX*velocityX + velocityZ*velocityZ > 0.01} —
+        //     the cart MOVING (line 661: a standing cart never scoops,
+        //     however crowded);
+        // (5) {@code this.rider == null} — the seat EMPTY (line 662);
+        // (6) {@code entity.vehicle == null} — the body walking FREE
+        //     (line 663: a body holding another seat never re-scoops).
+        // The write (line 664): {@code entity.startRiding(this)} — the
+        // vehicle manager's own mount bookkeeping (the seat pairing + the
+        // wire's passenger attach) through the seam. The push math then
+        // runs ANYWAY (the reference's own order — the consult no early
+        // return; the freshly-seated rider and its mount still separate
+        // that tick, the line-656 gate having passed before the seat was
+        // taken — the vanilla quirk kept verbatim).
+        if (!boat
+                && vehicleMount != null
+                && !pusher.dead()
+                && pusher.type() != MobType.IRON_GOLEM
+                && pushed.kind()
+                                       == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.MINECART
+                && pushed.velocityX() * pushed.velocityX()
+                        + pushed.velocityZ() * pushed.velocityZ() > 0.01
+                && !pushed.hasPassenger()
+                && !pusher.seatedInVehicle()) {
+            vehicleMount.mount(pushed, pusher.entityId());
+        }
         double d0 = pusher.position().x() - b.x();
         double d1 = pusher.position().z() - b.z();
         double d2 = d0 * d0 + d1 * d1;

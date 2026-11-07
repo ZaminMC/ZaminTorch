@@ -3352,6 +3352,13 @@ public final class EngineServer implements Server, EngineBridge {
                 // the mobs' and the players' own walks both read the live
                 // vehicle list through this seam).
                 mobs.setVehicleSource(() -> vehicles.all());
+                // Wave SM — THE AUTO-MOUNT SEAM (MinecartEntity.push line
+                // 664's {@code entity.startRiding(this)}): the mob push
+                // walk's scoop consult seats a crowding living body onto
+                // the moving rideable empty cart through the vehicle
+                // manager's own mount bookkeeping (the seat pairing + the
+                // wire's passenger attach).
+                mobs.setVehicleMount(vehicles::mount);
                 // THE VEHICLES' RIDER-FALL DELEGATE (F-RIDER-SPARE — the
                 // same payment walk the mounts' seam carries, the
                 // non-living base's shape: a vehicle has NO fall formula
