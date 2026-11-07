@@ -164,10 +164,24 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         }
     }
 
-    /** The steering input the mounted passenger reports (Steer Vehicle 0x0C). */
-    public record SteerInput(float sideways, float forward, boolean jump, boolean unmount) {
+    /**
+     * The mounted rider's steering input (Steer Vehicle 0x0C): the
+     * sideways/forward floats, the jump bit, the unmount flag — and the
+     * rider's OWN look yaw (the wire's caller carries the player's
+     * rotation; the reference's W-kick consult reads the rider's yaw,
+     * never the cart's). The 4-arg form leaves the look unspecified
+     * (NaN) — the cart's own facing stands in, the direct-feed seats'
+     * documented stand-in.
+     */
+    public record SteerInput(float sideways, float forward, boolean jump,
+                             boolean unmount, float riderYaw) {
         public static final SteerInput NEUTRAL =
-                new SteerInput(0.0f, 0.0f, false, false);
+                new SteerInput(0.0f, 0.0f, false, false, 0.0f);
+
+        /** The look-unspecified form: the cart's own facing stands in. */
+        public SteerInput(float sideways, float forward, boolean jump, boolean unmount) {
+            this(sideways, forward, jump, unmount, Float.NaN);
+        }
     }
 
     private final int entityId;

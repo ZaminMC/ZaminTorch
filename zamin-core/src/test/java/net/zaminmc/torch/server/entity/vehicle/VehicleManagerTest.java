@@ -140,8 +140,30 @@ class VehicleManagerTest {
     void theMinecartRidesItsRailAxisAndCapsTheSpeed() {
         MinecartEntity cart = new MinecartEntity(2, new Position(0.5, 4.06, 0.5), new Random(1));
         cart.setRotation(new Rotation(-90.0f, 0.0f)); // the look points east
+        assertTrue(cart.mount(77), "the rider takes the seat (the kick's own gate)");
         var world = straightRailWorld(0, 200); // a long east-west track
-        for (int i = 0; i < 40; i++) {
+        // THE W-KICK'S OWN LAUNCH (moveOnRail lines 387-399): the first
+        // tick hands the state 0.1 along the rider's look (the move 0.075
+        // under the 0.75 scale), the second tick's 0.0997 still inside the
+        // squared-0.01 band so the kick fires AGAIN (0.1997), and the
+        // third tick coasts — the input gains nothing once rolling.
+        cart.steer(new VehicleEntity.SteerInput(0.0f, 1.0f, false, false));
+        cart.tick(world);
+        assertEquals(0.075, cart.position().x() - 0.5, 1e-9,
+                "the kick-tick move: 0.1 × the 0.75 rider scale");
+        assertEquals(0.1 * 0.997, cart.velocityX(), 1e-9,
+                "the kick's carry damped 0.997");
+        cart.steer(new VehicleEntity.SteerInput(0.0f, 1.0f, false, false));
+        cart.tick(world);
+        assertEquals(0.1997 * 0.75, cart.position().x() - 0.575, 1e-9,
+                "the second kick's move (the squared band still open)");
+        assertEquals(0.1997 * 0.997, cart.velocityX(), 1e-9,
+                "the doubled kick's carry");
+        cart.steer(new VehicleEntity.SteerInput(0.0f, 1.0f, false, false));
+        cart.tick(world);
+        assertEquals(0.1997 * 0.997 * 0.75, cart.position().x() - 0.724775, 1e-9,
+                "the coasting move (no third kick — the input gains nothing)");
+        for (int i = 0; i < 37; i++) {
             cart.steer(new VehicleEntity.SteerInput(0.0f, 1.0f, false, false));
             cart.tick(world);
         }
@@ -149,14 +171,10 @@ class VehicleManagerTest {
         assertEquals(0.5, cart.position().z(), 0.01, "the ride centers on the rail line");
         assertEquals(4.0 + MinecartEntity.RIDE_Y_OFFSET, cart.position().y(), 0.01,
                 "the cart rides just above the rail bed");
-        // The 1:1 law (moveOnRail lines 438-446): the CARRIED STATE rides
-        // the steer-vs-drag equilibrium (the +0.02 drive against the
-        // un-ridden 0.96: 0.02*0.96/0.04 = 0.48) — the state may sit above
-        // the clamp; the POSITION's per-tick advance never exceeds
-        // getMaxSpeed's 0.4.
-        double speed = Math.abs(cart.velocityX());
-        assertTrue(speed > 0.3 && speed < MinecartEntity.RAIL_STATE_CEILING,
-                "the state rides the steer-drag equilibrium: " + speed);
+        // The state after the two-kick launch + the 0.997 coast
+        // (tick 2's carry 0.1997 × 0.997, then ticks 3-40's 38 decays).
+        assertEquals(0.1997 * Math.pow(0.997, 39), Math.abs(cart.velocityX()), 1e-9,
+                "the two-kick launch coasting at 0.997");
         double startX = cart.position().x();
         cart.steer(new VehicleEntity.SteerInput(0.0f, 1.0f, false, false));
         cart.tick(world);
@@ -169,6 +187,7 @@ class VehicleManagerTest {
     void theMinecartTakesTheLCorner() {
         MinecartEntity cart = new MinecartEntity(2, new Position(0.5, 4.06, 0.5), new Random(1));
         cart.setRotation(new Rotation(-90.0f, 0.0f)); // the look points east
+        assertTrue(cart.mount(78), "the rider takes the seat (the kick's own gate)");
         var world = railWorld(0, 4, 4); // the east-west leg turns south at x=3
         for (int i = 0; i < 120; i++) {
             cart.steer(new VehicleEntity.SteerInput(0.0f, 1.0f, false, false));
@@ -182,6 +201,7 @@ class VehicleManagerTest {
     void theTrackEndStopsTheCartDead() {
         MinecartEntity cart = new MinecartEntity(2, new Position(0.5, 4.06, 0.5), new Random(1));
         cart.setRotation(new Rotation(-90.0f, 0.0f));
+        assertTrue(cart.mount(79), "the rider takes the seat (the kick's own gate)");
         var world = straightRailWorld(0, 3); // three rail cells, then nothing
         for (int i = 0; i < 200; i++) {
             cart.steer(new VehicleEntity.SteerInput(0.0f, 1.0f, false, false));

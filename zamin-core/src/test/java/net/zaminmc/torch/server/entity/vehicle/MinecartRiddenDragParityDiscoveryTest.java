@@ -2,6 +2,7 @@ package net.zaminmc.torch.server.entity.vehicle;
 
 import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.util.Position;
+import net.zaminmc.torch.util.Rotation;
 import org.junit.jupiter.api.Test;
 
 import java.util.Random;
@@ -301,5 +302,111 @@ class MinecartRiddenDragParityDiscoveryTest {
         }
         assertEquals(0.3 * Math.pow(0.98, 20), Math.abs(full.velocityX()), 1e-9,
                 "the full hopper cart drags at 0.98 (the cargo's own weight)");
+    }
+
+    // ------------------------------------------------------------------
+    // Seat 6 — the rider's W-kick (moveOnRail lines 387-399)
+    // ------------------------------------------------------------------
+
+    /**
+     * THE W-KICK: a mounted body holding the forward input, from rest
+     * alone (the squared state under 0.01 — the second tick's 0.0997
+     * still inside the band), kicks 0.1 along the RIDER'S OWN LOOK —
+     * the kick-tick move 0.075 (the 0.75 scale), the carry 0.0997, the
+     * second kick 0.1997 — and the ROLLING cart gains NOTHING (the
+     * third tick coasts). The RIDERLESS cart never kicks at all (the
+     * consult reads the rider's own forward speed). RED on the pre-fix
+     * engine: the continuous +0.02 drive fed any steered cart forever,
+     * rider or none — the riderless control ROLLED.
+     */
+    @Test
+    void theRidersWKicksFromRestAlone() {
+        VehicleEntity.WorldQuery plain = railWorld(0, NO_WALL);
+
+        MinecartEntity cart = new MinecartEntity(9813,
+                new Position(5.5, 4.06, 0.5), new Random(23L));
+        assertTrue(cart.mount(4244), "the seat takes the rider");
+        cart.steer(new VehicleEntity.SteerInput(0.0f, 0.98f, false, false, -90.0f));
+        cart.tick(plain);
+        assertEquals(0.075, cart.position().x() - 5.5, 1e-9,
+                "the kick-tick move: 0.1 along the rider's look × 0.75");
+        assertEquals(0.1 * 0.997, cart.velocityX(), 1e-9,
+                "the kick's carry damped 0.997");
+
+        cart.steer(new VehicleEntity.SteerInput(0.0f, 0.98f, false, false, -90.0f));
+        cart.tick(plain);
+        assertEquals(0.1997 * 0.997, cart.velocityX(), 1e-9,
+                "the second kick (the squared band 0.01 still open at 0.0997)");
+
+        cart.steer(new VehicleEntity.SteerInput(0.0f, 0.98f, false, false, -90.0f));
+        cart.tick(plain);
+        assertEquals(0.1997 * 0.997 * 0.997, cart.velocityX(), 1e-9,
+                "the rolling cart gains NOTHING from the input (the coast)");
+
+        // The riderless control: the input never drives an empty cart
+        // (the consult reads the rider's own forward speed — the
+        // instanceof LivingEntity gate).
+        MinecartEntity riderless = new MinecartEntity(9814,
+                new Position(5.5, 4.06, 0.5), new Random(24L));
+        riderless.steer(new VehicleEntity.SteerInput(0.0f, 0.98f, false, false, -90.0f));
+        riderless.tick(plain);
+        assertEquals(0.0, riderless.velocityX(), 1e-9,
+                "a riderless cart never kicks (no rider, no drive)");
+        assertEquals(5.5, riderless.position().x(), 1e-9,
+                "the riderless cart stays at rest");
+    }
+
+    /**
+     * THE KICK'S LOOK IS THE RIDER'S OWN (the reference reads
+     * {@code this.rider.yaw}, never the cart's): a rider looking WEST
+     * kicks the resting cart west — the 5-arg SteerInput's riderYaw
+     * carrying the player's rotation from the wire. RED on the pre-fix
+     * engine: the from-rest direction was the CART'S facing (east).
+     */
+    @Test
+    void theKickReadsTheRidersOwnLook() {
+        VehicleEntity.WorldQuery plain = railWorld(0, NO_WALL);
+        MinecartEntity cart = new MinecartEntity(9815,
+                new Position(5.5, 4.06, 0.5), new Random(25L));
+        cart.setRotation(new Rotation(-90.0f, 0.0f)); // the CART faces east
+        assertTrue(cart.mount(4245), "the seat takes the rider");
+        cart.steer(new VehicleEntity.SteerInput(0.0f, 0.98f, false, false, 90.0f)); // the RIDER looks west
+        cart.tick(plain);
+        assertEquals(-0.075, cart.position().x() - 5.5, 1e-9,
+                "the kick runs along the RIDER's west look, never the cart's east facing");
+        assertEquals(-0.1 * 0.997, cart.velocityX(), 1e-9,
+                "the carry runs west (the rider's own look)");
+    }
+
+    // ------------------------------------------------------------------
+    // Seat 7 — the kick's brake cancel (line 395's flag1 = false)
+    // ------------------------------------------------------------------
+
+    /**
+     * THE BRAKE CANCEL: a kicked cart on an UNPOWERED golden rail never
+     * takes the halving that tick (line 395's {@code flag1 = false}) —
+     * the kick-tick carry 0.0997, never the halved 0.05 × 0.997. RED
+     * on the pre-fix engine: the continuous steer's +0.02 fell under
+     * the brake's 0.03 full-stop band — the cart never moved at all.
+     */
+    @Test
+    void theKickCancelsTheBrakeFlag() {
+        VehicleEntity.WorldQuery brakeRail = railWorld(-1, NO_WALL);
+        MinecartEntity cart = new MinecartEntity(9816,
+                new Position(5.5, 4.06, 0.5), new Random(26L));
+        assertTrue(cart.mount(4246), "the seat takes the rider");
+        cart.steer(new VehicleEntity.SteerInput(0.0f, 0.98f, false, false, -90.0f));
+        cart.tick(brakeRail);
+        assertEquals(0.075, cart.position().x() - 5.5, 1e-9,
+                "the kick-tick move never halved (the brake stood down)");
+        assertEquals(0.1 * 0.997, cart.velocityX(), 1e-9,
+                "the carry whole — the halving never ran (flag1 = false)");
+
+        // The control: an UNKICKED rolling cart still takes the brake
+        // (the cancel arms only on the kick's own tick).
+        cart.setVelocity(0.2, 0.0, 0.0);
+        cart.tick(brakeRail);
+        assertEquals(0.2 * 0.5 * 0.997, cart.velocityX(), 1e-9,
+                "the un-kicked roll still halves on the brake rail");
     }
 }

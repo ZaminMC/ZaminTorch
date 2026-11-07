@@ -9624,23 +9624,130 @@ NATIVE_API_CAPABILITIES.md, WORKLOG.md); the numbers refreshed
 honestly (3,760 automated seats suite-wide per the module census;
 the parity row's 3,300+ engine seats).
 
-NEXT WORK (re-pinned after VC + SM + the F-EX retirement, in order):
-the push family's standing tails are CLOSED whole (the AUTO-MOUNT
-landed with SM; the cart-cart blend and the vehicles' own walks with
-VC) — the remaining named rows: the flank walk's steal-poll cadence
-(the engine's 20-tick form of the selector's every-tick canStart
-consult — a documented adaptation, the verifier's row when the
-census reaches it); the verifier's PRs when they open (none at this
-session's close); the CI census watches (the PanicFlee wounded-cow
-flake and the WolfCollarDye one-off parallel flake — the documented
-watch family); the vanilla-grade census's next family pick when the
-verifier's rows land — the seated-mob model's own tails now open as
-fresh census rows (the seated mob's goal behaviors: the panic
-flee's velocity churn under the freeze, the zombie's seated
-targeting, the villager's seated breeding consults — each the
-verifier's three-pass discipline before any engine change; the
-minecart's ridden drag — the reference's ridden-body velocity triple
-the seat now carries).
+NEXT WORK (re-pinned after RD + RK, in order): the minecart roll-law
+family is CLOSED whole (the ridden drag, the rider's 0.75 move scale,
+the state/move split, the wall launch, the inventory drags, the
+activator gate with RD; the W-kick, the brake cancel, the rider's own
+look with RK) — the remaining named rows: the flank walk's steal-poll
+cadence (the engine's 20-tick form of the selector's every-tick
+canStart consult — a documented adaptation, the verifier's row when
+the census reaches it); the verifier's PRs when they open (none at
+this session's close); the CI census watches (the PanicFlee
+wounded-cow flake, the WolfCollarDye one-off, the HuntScanBounds
+endermite-feud parallel flake and the protocol lane's two
+load-flakes — SurvivalFlow's drop-settle await and DonkeyChest's
+open-window await, both green solo — the documented watch family);
+the vanilla-grade census's next family pick when the verifier's rows
+land — the seated mob's goal behaviors stay the verifier's three-pass
+rows (the panic flee's velocity churn under the freeze, the zombie's
+seated targeting, the villager's seated breeding consults); NEW
+CENSUS ROWS this session's source pass opened on the roll family's
+own remaining tails (each the reference's own law, each the engine's
+geometry model the blocker): THE ASCENDING-SLOPE ROLL (moveOnRail
+lines 359-371's ±0.0078125 axis arms + the d14 slope trim lines
+456-468 — the engine's railAxisAt flattens the ascents to their axis,
+the slope law needs the ascending-rail geometry model); THE
+RAIL-CENTER INTERPOLATION (the d18 walk lines 416-437 — the
+mid-rail-axis position interpolation vs the engine's cell-center
+snap, the geometry adaptation); THE OFF-RAIL WALK'S OWN 1:1
+(moveOffRail lines 320-337 — the ±getMaxSpeed clamp on the move, the
+0.5 ground drag, the 0.95 air drag, the gravity INSIDE the move vs
+the engine's 0.98-pre-multiplied Y and the unconditional 0.5); THE
+BOAT'S OWN STEER MODEL (the ridden boat's W-key paddling — the boat
+family's own law, untouched by the cart's kick row); THE
+PERPENDICULAR-LOOK KICK EDGE (the axis model's documented fold — the
+reference's 2-D kick on a perpendicular look drifts the cart a
+half-tick before the projection re-points it, the engine refuses the
+kick whole).
+
+WAVE RD + RK LANDED (2026-11-08, the roll-law session — the re-pin's
+"ridden-body velocity triple" row whole, plus the W-kick row the
+drag's own source pass surfaced): each law read from the reference's
+moveOnRail/applySlowdown 1:1. RD (commit adb0bd0f): (1) THE DRAG
+TRIPLE (applySlowdown lines 497-506) at the reference's own call
+site (line 454, AFTER the move — the per-tick move runs at the
+un-damped state, the drag lands on the carry alone): a seated rider
+carries 0.997/0.0/0.997, an empty cart 0.96/0.0/0.96 — the pre-fix
+engine carried NO plain-family drag at all (the stale javadoc's
+"historical 0.997" claim never in the code: an abandoned cart rolled
+forever); (2) THE RIDER'S MOVE SCALE (lines 438-441): a ridden cart
+advances at 0.75 of its state; (3) THE STATE/MOVE SPLIT: the head
+reads the 2-D magnitude with the projection's 2.0 ceiling (lines
+381-383) the only state bound, the move clamps at getMaxSpeed (0.4
+plain / 0.2 furnace, lines 313-315 + 443-445) — the pre-fix head's
+hand-rolled 0.3 state cap retired (a booster-saturated state now
+rides above the clamp it moves at); (4) THE BOOST REORDERED to the
+walk's own tail (lines 478-495, after the drag) with THE WALL
+LAUNCH (lines 485-494): the neighbor-solid consult launches away
+from the block at ±0.02, a wall-less rest NEVER launches — the
+pre-fix engine launched every resting cart at 0.06 in the look's
+direction; (5) THE INVENTORY FAMILY: the chest's fullness drag
+migrated to the applySlowdown override (InventoryMinecartEntity lines
+167-173, no rider gate, no super — the override REPLACES the base),
+THE HOPPER CART GAINS IT (the pre-fix hopper inherited the plain
+no-drag 1.0 — an empty hopper cart rolled forever, a full one never
+felt its cargo); (6) THE FURNACE'S applySlowdown OVERRIDE 1:1 (lines
+91-110): the live push damps 0.8 and hands the unit push, the
+pushless coast 0.98, then super — the base rider-gated triple ON TOP;
+the old push tail retired from tickKind (an OFF-RAIL furnace never
+pushes — moveOffRail owns it, the reference's own shape); (7) THE
+PRODUCTION CONSULT'S GOLDEN-ALONE GATE (EngineServer.railPowerAt):
+the flag pair arms only over the GOLDEN family (lines 345-349's
+Blocks.POWERED_RAIL identity) — the ACTIVATOR rail never boosts and
+never brakes (the pre-fix consult fed the boost walk the
+golden/activator pair whole). RK: (8) THE RIDER'S W-KICK (lines
+387-399) — the continuous +0.02 steer drive RETIRED WHOLE: a mounted
+body holding the forward input, from rest alone (the squared state
+under 0.01 — the second tick's 0.0997 still inside the band), kicks
+0.1 along the RIDER'S OWN LOOK (the SteerInput's new riderYaw
+component, the wire passing the player's rotation; the 4-arg
+convenience keeps the cart's own facing for the direct-feed seats),
+and CANCELS the brake flag (line 395's flag1 = false — a kicked cart
+on an unpowered golden rail never halves that tick); a rolling cart
+gains NOTHING from the input (the vanilla W never accelerates a
+moving cart) and a riderless cart never kicks (the pre-fix drive fed
+any steered cart forever, rider or none). SEATS: MinecartRiddenDrag-
+ParityDiscoveryTest 10/0 NEW — RED on the pre-fix engine (verified
+by the no-op patches, each law neutralized in turn): the drag triple
+gates on the seat (0.3×0.96^30 vs 0.3×0.997^30), the abandoned
+cart's dead stop under the from-rest floor, the rider's 0.75 move
+scale with the un-scaled state, the move clamp at 0.4 with the state
+riding above, the wall consult both arms + the wall-less refusal,
+the rolling boost's post-drag placement (0.3×0.96+0.06), the hopper's
+fullness drag (0.995 empty / 0.98 full), the W-kick's two-tick band
+with the riderless refusal, the kick reading the RIDER's look (west
+look, cart facing east), the kick's brake cancel (0.0997 never
+halved) with the un-kicked control still halving;
+ActivatorRailBoostGateParityDiscoveryTest 3/0 NEW (the EngineServer
+boot rig — the golden control proving the feed, the two activator
+gates RED on the pre-fix consult): the powered activator never
+boosts (the plain decay band), the dark activator never brakes. THE
+PROTOCOL LANE'S PRE-EXISTING BREAKAGE ROOT-CAUSED AND RETIRED (the
+strict-read class, not the engine): VehicleIntegrationTest's
+creative-minecart seat failed deterministically since the SM wave's
+AUTO-MOUNT landed (that session never re-ran the protocol module) —
+a shared-world leftover vehicle still rolling meets a wandering
+animal, the 1:1 scoop seats it mid-test, and its attach broadcast
+arrived before the player's own detach, the strict single read
+consuming it; the seat's dismount read now FILTERS for the rider's
+own detach (the mob's scoop the legitimate wire traffic it is); the
+two load-flakes (SurvivalFlow's drop-settle await, DonkeyChest's
+open-window await) re-verified green solo — the watch family's
+protocol members. LANES: the vehicle package green whole (84), the
+entity package green (746 — the mob-AI parallel flakes solo-green:
+PanicFlee x3, HuntScanBounds), the hopper package green, the block
+package green, the root vehicle lanes green, the bukkit module
+green, the api module green, the protocol module 247 (the fixed
+seat; the two load-flakes the watch family); the affected seats
+updated to the new law: the manager's cap test (the two-kick launch
+0.1/0.1997, the 0.997 coast, the 0.4 move clamp), the L-corner and
+track-end seats (the rider gate mounted), the furnace variant test
+(the off-rail no-push, the on-rail push arm's exact composition
+0×0.8+1.0 ×0.96, the 0.2 move clamp with the 0.96 state riding
+above), the family collision's resting pair (the second blend over
+the dragged carry — B's 0.05 damped to 0.048 by its own move before
+the gather read it, A −0.061 / B +0.0586, the reference's own
+composition).
 
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON

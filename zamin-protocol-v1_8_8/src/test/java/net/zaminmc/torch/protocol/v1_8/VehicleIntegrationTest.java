@@ -6,6 +6,7 @@ import org.junit.jupiter.api.TestInstance;
 import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import net.zaminmc.torch.testing.EngineAwaits;
@@ -207,9 +208,26 @@ class VehicleIntegrationTest extends ProtocolTestBase {
                             || after[1] != spawn[2] || after[3] != spawn[4],
                     "the steered cart left its spawn spot");
 
-            // The unmount clears the seat like the boat's.
+            // The unmount clears the seat like the boat's. The read
+            // FILTERS for THIS rider's detach: the shared world's
+            // leftover vehicles may still roll long enough for the
+            // AUTO-MOUNT (MinecartEntity.push lines 657-665 — the
+            // moving rideable empty cart scooping a crowding living
+            // body, 1:1 since Wave SM) to seat a wandering animal on
+            // one mid-test, and its attach broadcast is legitimate
+            // wire traffic the strict single read must skip past.
             client.sendSteerVehicle(0.0f, 0.0f, 2);
-            int[] dismount = client.readAttachEntity(20_000);
+            long seatDeadline = System.currentTimeMillis() + 20_000;
+            int[] dismount = null;
+            while (System.currentTimeMillis() < seatDeadline) {
+                int[] attach = client.readAttachEntity(
+                        seatDeadline - System.currentTimeMillis());
+                if (attach[0] == mount[0] && attach[2] == 0) {
+                    dismount = attach;
+                    break;
+                }
+            }
+            assertNotNull(dismount, "the player's detach arrived");
             assertEquals(0, dismount[2], "the cart seat cleared");
         }
     }

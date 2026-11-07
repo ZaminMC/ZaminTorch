@@ -27,8 +27,13 @@ public class MinecartEntity extends VehicleEntity {
     public static final double CART_WIDTH = 0.98;
     /** The rail top offset: the cart rides just above the rail cell floor. */
     public static final double RIDE_Y_OFFSET = 0.06;
-    /** The steer acceleration per tick on rails (the engine's W-key drive). */
-    public static final double RAIL_ACCELERATION = 0.02;
+    /**
+     * The rider's from-rest W-kick (moveOnRail lines 393-395: the 0.1
+     * handed the state along the rider's own look — the only drive a
+     * cart ever gains from the input; the pre-fix engine's continuous
+     * +0.02 RAIL_ACCELERATION drive retired with the kick's landing).
+     */
+    public static final double RIDER_KICK = 0.1;
     /**
      * The carried state's own ceiling (the reference's rail projection,
      * moveOnRail lines 381-383: {@code d5 > 2.0 → 2.0}) — the ONLY bound
@@ -164,22 +169,53 @@ public class MinecartEntity extends VehicleEntity {
         }
         double direction = velocityAlong >= 0 ? 1.0 : -1.0;
         if (speed < 0.01) {
-            // Starting from rest: the rider's look names the way ahead.
+            // Starting from rest: the direction consult keeps the
+            // travel-facing pick (the yaw bookkeeping and the continues
+            // probe) — the state stays zero, an un-ridden cart never
+            // self-launches (the reference's own answer: no rider, no
+            // kick, no move).
             direction = lookDirection(rail);
             speed = 0.0;
         }
-        // The steer drive (the engine's W-key adaptation — the reference's
-        // own kick is the from-rest 0.1 consult, lines 387-399; the
-        // continuous form stands, ledgered for its own wave).
-        if (input.forward() != 0.0f) {
-            speed += RAIL_ACCELERATION * Math.abs(input.forward());
+        // THE RIDER'S W-KICK (moveOnRail lines 387-399, read 1:1): a
+        // mounted body holding the forward input, from rest alone (the
+        // squared state under 0.01 — the second tick's 0.0997 still
+        // inside the band), kicks 0.1 along the RIDER'S OWN LOOK — and
+        // CANCELS the brake flag (line 395's {@code flag1 = false}: a
+        // kicked cart on an unpowered golden rail never takes the
+        // halving that tick). A rolling cart gains NOTHING from the
+        // input — the vanilla W key never accelerates a moving cart —
+        // and a riderless cart never kicks at all (the consult reads
+        // the rider's own forward speed, {@code this.rider instanceof
+        // LivingEntity} the gate). The pre-fix engine's continuous
+        // +0.02 drive (the W-key adaptation) retired whole: it fed any
+        // steered cart forever, rider or none, rolling or not.
+        boolean brakeCancelled = false;
+        if (hasPassenger() && input.forward() > 0.0f
+                && velocityX() * velocityX() + velocityZ() * velocityZ() < 0.01) {
+            float riderYaw = input.riderYaw();
+            double radians = Math.toRadians(Float.isNaN(riderYaw)
+                    ? rotation().yaw() : riderYaw);
+            double lookAlong = rail == AXIS_X ? -Math.sin(radians) : Math.cos(radians);
+            if (lookAlong != 0.0) {
+                // The signed add onto the axis state (the reference's 2-D
+                // add re-points whole onto the axis at the next
+                // projection — the axis model folds it at the kick
+                // itself; the exactly-perpendicular look never starts
+                // the cart, the axis model's own documented edge).
+                double kicked = velocityAlong + lookAlong * RIDER_KICK;
+                direction = kicked >= 0.0 ? 1.0 : -1.0;
+                speed = Math.abs(kicked);
+            }
+            brakeCancelled = true;
         }
         // THE BRAKE (flag1 — moveOnRail lines 402-414, the consult BEFORE
         // the move): the unpowered golden rail halves the rolling state,
-        // and under the 0.03 band the full stop.
+        // and under the 0.03 band the full stop — unless the kick stood
+        // the flag down this tick (line 395's cancel).
         int railPower = world.railPowerAt(
                 cellX + 0.5, cellY + 0.06, cellZ + 0.5);
-        if (railPower < 0) {
+        if (railPower < 0 && !brakeCancelled) {
             if (speed < BRAKE_STOP_SPEED) {
                 speed = 0.0;
             } else {

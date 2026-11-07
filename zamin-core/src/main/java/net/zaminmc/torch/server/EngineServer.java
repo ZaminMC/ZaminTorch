@@ -18337,7 +18337,8 @@ public final class EngineServer implements Server, EngineBridge {
                         return;
                     }
                     vehicle.steer(new net.zaminmc.torch.server.entity.vehicle.VehicleEntity.SteerInput(
-                            sideways, forward, jump, false));
+                            sideways, forward, jump, false,
+                            player.rotation().yaw()));
                     return;
                 }
             }
