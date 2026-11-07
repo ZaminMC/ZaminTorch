@@ -2439,6 +2439,46 @@ public final class MobEntity implements LivingEntity {
         } else if (verdict > 0.0f) {
             hurt(verdict, bypassesArmor, false);
         }
+        // Wave EK — THE ENVIRONMENTAL KILL'S PENDING PUBLICATION (the find
+        // the PP wave's scoping surfaced): the body-level arms — the fire
+        // clock, the drown, the lava, the void, the wall, the starve, the
+        // snow golem's melt — walk the reference's own takeDamage whole in
+        // the engine (the frame consult, the excess arm's flag law), but
+        // the KILL never reached the manager's publication walk the melee
+        // and magic families ride: no death voice, no status 3, no
+        // MobDeathEvent, no XP burst — the body died through the
+        // death-animation loop's silent remove. The flag records the kill
+        // with its own excess verdict (a kill through the frame's excess
+        // arm dies SILENT — the PP wave's own law, takeDamage lines
+        // 717-723's flag gate); the manager drains it right after the
+        // body's tick and publishes exactly the melee walk's shape.
+        if (dead) {
+            pendingEnvironmentalDeath = true;
+            environmentalDeathExcess = verdict > 0.0f;
+        }
+    }
+
+    /** The environmental kill's pending flag (Wave EK — see hurtThroughFrame). */
+    private boolean pendingEnvironmentalDeath;
+    /** The environmental kill's excess verdict (the silent-death law's flag). */
+    private boolean environmentalDeathExcess;
+
+    /**
+     * Drains the pending environmental death publication (Wave EK): the
+     * manager's tick loop calls this right after the body's own tick —
+     * the reference's die() runs inside the damage walk itself, so the
+     * publication lands the same tick the wound killed.
+     *
+     * @return -1 when no environmental kill stands; else 0 for a fresh
+     * wound's kill (the VOICEFUL publication) or 1 for the excess arm's
+     * (the SILENT form — no death voice, the status 3 alone).
+     */
+    int consumeEnvironmentalDeath() {
+        if (!pendingEnvironmentalDeath) {
+            return -1;
+        }
+        pendingEnvironmentalDeath = false;
+        return environmentalDeathExcess ? 1 : 0;
     }
 
     /**

@@ -1839,6 +1839,20 @@ public final class MobManager {
         while (iterator.hasNext()) {
             MobEntity mob = iterator.next();
 
+            // Wave EK — THE ENVIRONMENTAL KILL'S PUBLICATION (the drain
+            // the loop's own head serves): the body-level arms — the
+            // fire clock, the drown, the lava, the void, the wall, the
+            // starve, the snow golem's melt, the anvil crush — walk the
+            // reference's own takeDamage whole but their kills never
+            // reached the publication walk the melee and magic families
+            // ride: no death voice, no status 3, no MobDeathEvent, no XP
+            // burst. The drain at the head covers the cross-phase kills
+            // (the anvil's crush lands in the block phase, before this
+            // loop); the body's own arms drain at the tick's own site
+            // below (the same-tick publication, the reference's die()
+            // running inside the damage walk itself).
+            publishEnvironmentalDeath(mob);
+
             if (mob.deathAnimationFinished()) {
                 remove(mob, "died"); // mid-walk removal is copy-on-write safe
                 dropLoot(mob); // the loot lands after the body leaves the wire
@@ -1988,6 +2002,11 @@ public final class MobManager {
             // bodies' physics, scans, and pathing read the nether's blocks).
             world.setActiveDimension(mob.dimension());
             boolean moved = mob.tick(night);
+            // Wave EK — the same-tick drain: the body's own environmental
+            // arms (the fire, the drown, the lava, the void, the wall)
+            // killed inside the tick above — the publication lands now,
+            // the reference's own die()-inside-the-damage-walk shape.
+            publishEnvironmentalDeath(mob);
             // The loot-pickup scan (Slice 92 — MobEntity.mobTick lines
             // 339-347, riding AFTER the mob's own tick like the
             // reference's ai-section order): a pickup-armed, non-pinned,
@@ -5629,6 +5648,46 @@ public final class MobManager {
                     vehicle.velocityZ() - d1);
             pusher.setMotion(pusher.motionX() + d0 / 4.0, pusher.motionY(),
                     pusher.motionZ() + d1 / 4.0);
+        }
+    }
+
+    /**
+     * Wave EK — THE ENVIRONMENTAL KILL'S PUBLICATION (the find the PP
+     * wave's scoping surfaced): the body-level {@code hurtThroughFrame}
+     * arms' kills now reach the same publication walk the melee and
+     * magic families ride — the death voice (the flag gate alone: a kill
+     * through the frame's excess arm dies SILENT, the PP wave's own law,
+     * takeDamage lines 717-723), the status 3 (die()'s own
+     * doEntityEvent((byte)3), line 772 — unconditional), the
+     * MobDeathEvent observation (§27.7), and the XP burst — through the
+     * listener the melee path already fires. The death hooks ride beside
+     * (die()'s own family arms): the villager's reputation death (the
+     * environmental arm — a player watching within 16 blocks stops the
+     * mating, the reference's {@code attacker == null} else) and the
+     * golem's own −5 (never — a playerAttacker null skips it, the
+     * pattern-built gate's own shape). The dragon's environmental death
+     * rides its own walk (Slice 64's beginDragonDeath — the standard
+     * publication never runs for the family).
+     */
+    private void publishEnvironmentalDeath(MobEntity mob) {
+        int verdict = mob.consumeEnvironmentalDeath();
+        if (verdict < 0) {
+            return; // no environmental kill stands
+        }
+        if (mob.type() == MobType.ENDER_DRAGON) {
+            mob.beginDragonDeath();
+            return;
+        }
+        if (mob.type() == MobType.VILLAGER) {
+            villagerDeathHook(mob, null, null);
+        } else if (mob.type() == MobType.IRON_GOLEM) {
+            golemDeathHook(mob, null);
+        }
+        for (Listener listener : listeners) {
+            // The excess verdict rides the voiceless form (the flag
+            // gate): a fresh wound's kill publishes VOICEFUL, the frame's
+            // excess arm's kill dies with the animation alone.
+            listener.onMobDied(mob, verdict > 0);
         }
     }
 
