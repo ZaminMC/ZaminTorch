@@ -409,4 +409,92 @@ class MinecartRiddenDragParityDiscoveryTest {
         assertEquals(0.2 * 0.5 * 0.997, cart.velocityX(), 1e-9,
                 "the un-kicked roll still halves on the brake rail");
     }
+
+    // ------------------------------------------------------------------
+    // Seat 8 — the off-rail walk's own law (moveOffRail lines 320-337)
+    // ------------------------------------------------------------------
+
+    /**
+     * THE OFF-RAIL WALK 1:1: the RAW gravity (line 249's −0.04 — the
+     * pre-fix engine's invented pre-multiplied 0.98 retired) and the
+     * AIR 0.95 on all three axes (lines 333-337 — the pre-fix engine's
+     * unconditional 0.5 retired: an airborne cart barely slows now).
+     * RED on the pre-fix engine: the vertical read −0.0392 and the
+     * horizontal collapsed 0.3 × 0.5^10 ≈ 0.0003.
+     */
+    @Test
+    void theOffRailAirWalkCarriesTheRawGravityAndTheAirCoast() {
+        VehicleEntity.WorldQuery air = new VehicleEntity.WorldQuery() {
+            @Override public boolean isSolid(double x, double y, double z) {
+                return false; // no ground anywhere: the airborne walk
+            }
+        };
+        MinecartEntity cart = new MinecartEntity(9817,
+                new Position(5.5, 64.06, 0.5), new Random(27L));
+        cart.setVelocity(0.3, 0.0, 0.0);
+        cart.tick(air);
+        assertEquals(-0.04 * 0.95, cart.velocityY(), 1e-9,
+                "the raw gravity (−0.04) then the air 0.95 on the"
+                        + " vertical too (lines 333-337) — never the"
+                        + " pre-fix pre-multiplied 0.98's −0.0392");
+        assertEquals(0.3 * 0.95, cart.velocityX(), 1e-9,
+                "the air coast (lines 333-337: the 0.95, never the"
+                        + " unconditional 0.5)");
+        for (int i = 0; i < 9; i++) {
+            cart.tick(air);
+        }
+        assertEquals(0.3 * Math.pow(0.95, 10), cart.velocityX(), 1e-9,
+                "the airborne cart keeps coasting at 0.95 per tick");
+    }
+
+    /**
+     * THE OFF-RAIL CLAMP + THE GROUNDED 0.5: a cart whose state sits
+     * above getMaxSpeed (0.96) is clamped to 0.4 on the horizontal
+     * (lines 321-323 — the clamp WRITES the state), and a GROUNDED
+     * cart halves all three PRE-move (lines 324-328) — the position
+     * advancing at the halved value. RED on the pre-fix engine: the
+     * state rode 0.96 un-clamped and the grounded move ran the whole
+     * 0.3 (the halving landed after).
+     */
+    @Test
+    void theOffRailClampAndTheGroundedHalving() {
+        // The clamp over the air.
+        VehicleEntity.WorldQuery air = new VehicleEntity.WorldQuery() {
+            @Override public boolean isSolid(double x, double y, double z) {
+                return false;
+            }
+        };
+        MinecartEntity flying = new MinecartEntity(9818,
+                new Position(5.5, 64.06, 0.5), new Random(28L));
+        flying.setVelocity(0.96, 0.0, 0.0);
+        flying.tick(air);
+        assertEquals(0.4 * 0.95, flying.velocityX(), 1e-9,
+                "the off-rail clamp writes the state (0.4), the air 0.95"
+                        + " after");
+
+        // The grounded halving PRE-move: the ground at y=4, the cart
+        // resting on it (the carried onGround consult).
+        VehicleEntity.WorldQuery ground = new VehicleEntity.WorldQuery() {
+            @Override public boolean isSolid(double x, double y, double z) {
+                return y < 4.0;
+            }
+        };
+        MinecartEntity resting = new MinecartEntity(9819,
+                new Position(5.5, 4.35, 0.5), new Random(29L));
+        // Rest the cart first (the carried onGround from a landing).
+        resting.setVelocity(0.0, -0.1, 0.0);
+        resting.tick(ground);
+        assertTrue(resting.onGround(), "the cart landed");
+        // The grounded roll: 0.3 halved PRE-move — the position advance
+        // 0.15, the state carrying 0.15 (no air drag on the ground).
+        resting.setVelocity(0.3, 0.0, 0.0);
+        double before = resting.position().x();
+        resting.tick(ground);
+        assertEquals(0.15, resting.position().x() - before, 1e-9,
+                "the grounded move runs the halved value (the 0.5"
+                        + " PRE-move, lines 324-328)");
+        assertEquals(0.15, resting.velocityX(), 1e-9,
+                "the grounded carry keeps the halved state (no further"
+                        + " drag on the ground)");
+    }
 }

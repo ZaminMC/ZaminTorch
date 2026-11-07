@@ -42,8 +42,10 @@ public class MinecartEntity extends VehicleEntity {
      * on the state the wire and the pushes read.
      */
     public static final double RAIL_STATE_CEILING = 2.0;
-    /** Off-rail drag (the historical ground friction). */
-    public static final double OFF_RAIL_DRAG = 0.5;
+    /** The off-rail grounded drag (moveOffRail line 326: the 0.5). */
+    public static final double GROUND_DRAG = 0.5;
+    /** The off-rail air drag (moveOffRail line 335: the 0.95). */
+    public static final double AIR_DRAG = 0.95;
     // The powered-rail walk (Slice 38 — the reference's own numbers:
     // MinecartEntity.moveAlongTrack line 482's 0.06 boost, getMaxSpeed's
     // 0.4 on-rail move clamp, lines 402-414's brake — under 0.03 the full
@@ -353,19 +355,46 @@ public class MinecartEntity extends VehicleEntity {
         return 0.0;
     }
 
-    /** The off-rail tail: gravity + heavy drag, the boat's land rules. */
+    /**
+     * The off-rail tail (moveOffRail lines 320-337, 1:1 over the engine's
+     * solver application): the tick head's RAW gravity (MinecartEntity.tick
+     * line 249's −0.04 — the engine's invented pre-multiplied 0.98 on the
+     * vertical retired), the ±getMaxSpeed clamp on the horizontal (lines
+     * 321-323 — the same 0.4/0.2 family the on-rail move clamps at, the
+     * clamp writing the STATE whole), the GROUNDED 0.5 on all three axes
+     * PRE-move (lines 324-328 — the carried onGround consult, the heavy
+     * land friction), the move itself, and the AIR 0.95 POST-move on all
+     * three (lines 333-337 — the pre-fix engine's unconditional 0.5
+     * retired: an airborne cart coasts at 0.95, a grounded one pays the
+     * pre-move halving alone).
+     */
     private void tickOffRail(Position at) {
-        setVelocity(velocityX(), (velocityY() - GRAVITY_PER_TICK) * 0.98, velocityZ());
-        // THE SWEPT-BOX APPLICATION (the physics-solver slice): the
-        // cart's own Entity.move — the 0.98 box (the reference's own
-        // setSize) clipped against every collision box its swept shape
-        // touches, the landing the box's own footprint — when the query
-        // provides the collision surface.
+        // The tick head's gravity (line 249): the raw −0.04, no drag.
+        setVelocity(velocityX(), velocityY() - GRAVITY_PER_TICK, velocityZ());
+        // Lines 321-323: the ±getMaxSpeed clamp on the horizontal (the
+        // state itself clamped — the reference writes the fields).
+        double max = getMaxSpeedOnRail();
+        setVelocity(Math.max(-max, Math.min(max, velocityX())),
+                velocityY(), Math.max(-max, Math.min(max, velocityZ())));
+        // Lines 324-328: the GROUNDED 0.5 on all three — the carried
+        // onGround consult (the last landing's own state).
+        if (onGround()) {
+            setVelocity(velocityX() * GROUND_DRAG, velocityY() * GROUND_DRAG,
+                    velocityZ() * GROUND_DRAG);
+        }
+        // THE MOVE — the solver application when the query provides the
+        // collision surface (the commit, the onGround, and the clipped-
+        // axis zeroing inside), the manual walk otherwise.
         net.zaminmc.torch.server.physics.EntityMoveSolver.Result swept =
                 solverMove(query, HALF_HEIGHT, CART_WIDTH,
                         velocityX(), velocityY(), velocityZ());
         if (swept != null) {
-            decay(OFF_RAIL_DRAG);
+            // Lines 333-337: the AIR 0.95 on all three (the post-move
+            // onGround consult — a landed cart pays nothing further).
+            if (!onGround()) {
+                setVelocity(velocityX() * AIR_DRAG, velocityY() * AIR_DRAG,
+                        velocityZ() * AIR_DRAG);
+            }
             return;
         }
         double newX = at.x() + velocityX();
@@ -377,7 +406,10 @@ public class MinecartEntity extends VehicleEntity {
             setVelocity(velocityX(), 0.0, velocityZ());
             grounded = true;
         }
-        decay(OFF_RAIL_DRAG);
+        if (!grounded) {
+            setVelocity(velocityX() * AIR_DRAG, velocityY() * AIR_DRAG,
+                    velocityZ() * AIR_DRAG);
+        }
         commit(newX, newY, newZ, grounded);
     }
 
