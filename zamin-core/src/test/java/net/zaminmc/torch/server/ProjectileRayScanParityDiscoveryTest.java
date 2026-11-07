@@ -283,7 +283,17 @@ class ProjectileRayScanParityDiscoveryTest {
         await(() -> BuiltinBlocks.STONE.equals(world.getBlock(
                         new BlockPosition(LANE_X, 21, 10))),
                 "the thin wall stands");
-        MobEntity cow = spawnCowAt(LANE_X + 0.5, 11.2);
+        // The cow stands CLEAR of the thin wall's cell band (the hull
+        // [z-0.45, z+0.45] fully past the wall's east face at z=11):
+        // Wave HF's immediate-first-wound law (the retired
+        // first-wound-a-window-deep divergence closed, a437f25d) means a
+        // hull overlapping the wall's cell suffocates on the FIRST tick —
+        // the bench's old 11.2 spawn put the hull's west quarter INSIDE
+        // the wall's cell [10, 11) and passed only while the first wound
+        // waited a window deep, past the seat's read. The engine is 1:1
+        // (vanilla never ejects an overlapping body — it suffocates); the
+        // spawn is the bench's own vanilla-validity to fix.
+        MobEntity cow = spawnCowAt(LANE_X + 0.5, 11.7);
         ProjectileEntity arrow = launchArrowAt(LANE_X + 0.5, 8.8, 2.0);
 
         await(() -> {
