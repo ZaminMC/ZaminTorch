@@ -9414,6 +9414,122 @@ pre-existing on clean develop 6e623153 by a clean-checkout probe
 this session — still the verifier's row); the vanilla-grade
 census's next family pick when the verifier's rows land.
 
+THE RE-PIN'S FOUR ROWS LANDED WHOLE (2026-11-07, the PX + G2 + EK +
+FR batch): (1) WAVE PX (commit 69fc95d4) — THE PUSH FAMILY'S
+ADJACENT CARRIERS: the PLAYER ARM of every living body's push walk
+(the reference's gather over world.getEntities carries the players,
+PlayerEntity.mobTick line 455 running the shared push block through
+super — the engine's mob walk now gathering the playing
+non-spectator sessions with the player's own 0.6x1.8 box STRICT
+both sides, the mutual push 1:1, and THE NO-WIRE LAW the reference's
+own tracker shape dictates: the pushed player's velocity add lands
+on the SESSION'S MOTION STORE alone — the vanilla wire NEVER
+carries the push to the pushed player's own client (the player's
+tracker rides syncVelocity=false, EntityMap line 95's three-arg
+form, and addVelocity never marks damaged — the only player
+velocity publication is the damage walk's flag; the re-pin's
+"knockback packet form" corrected by the reference's own source —
+the store feeds the knockback halving and the movement clamp, the
+visible push is the client's own physics); THE PLAYER'S OWN WALK
+(the walking player gathers the mobs, the other players, the carts
+and the boats — the walking-through-animals shove — the walk itself
+carrying NO spectator gate in the reference, the vanilla quirk kept
+verbatim: a spectating player still shoves the mobs it drifts
+through; the walk rides BEFORE the dead-skip in the body tick —
+the push block carries no isDead gate, the PP wave's own law); THE
+VEHICLE ARM — the carts and boats (the two isPushable-true
+non-living families) join every walk: the BOAT rides Entity.push's
+ordinary mutual law with the passenger gate, the CART rides
+MinecartEntity.push's WHOLESALE override (the
+squared-horizontal-distance form with the 1.0E-4 floor, the
+0.1-then-0.5 scale, the cart pushed away FULL and the pushing body
+pushed away at QUARTER, NO rider gates on either side); the rider
+refusals that name the player all carried. SEATS:
+PlayerVehiclePushParityDiscoveryTest 6/0. (2) WAVE G2 (commit
+c5a11b31) — THE GOLEM'S FLANK WALK (GoToEntityTargetGoal over
+IronGolemEntity line 47's band-2 registration): when the direct
+melee route is DEAD — MeleeAttackGoal.canStart line 57's findPath
+null, which for the engine's partial-path A* means the PURE LOCAL
+MINIMUM alone (PathFinder.buildPath's pathnode == start arm — the
+wall-face-with-target-dead-ahead geometry) — the golem walks to a
+position on the TARGET'S OWN SIDE picked by the toward-target
+half-plane form of TargetFinder.getTargetAwayFromPosition (the
+decompiler name's red herring kept honest: the away-FROM-POSITION
+offset is start − mob, so the half-plane filter keeps the
+candidates TOWARD the given position — the MCP family's own
+MoveTowardsTarget law; the re-pin's "AWAY from the target" reading
+corrected by the reference's own math); the claim runs at the
+ctor's 0.9 speed over the 0.25 movement base (MovementControl
+.tick's setSpeed(speed × attribute) multiplier law — 0.225
+blocks/tick), the STEAL POLL probing the direct route mid-claim
+every 20 flank ticks (the engine's cadence form of the selector's
+every-tick canStart consult); THE CLAIM-HOLD LAW (MeleeAttackGoal's
+own running state over the golem's pauseWhenMobIdle=true): once a
+direct route has EVER stood for a living target the melee goal
+CLAIMS AND HOLDS — shouldContinue's only consult for the golem is
+isValidGoalTarget(target cell), the village-radius check,
+PathFinderMobEntity lines 46-48, TRUE for a village-less body — so
+the flank never re-arms under a held claim (the vanilla golem
+stands at the wall's local minimum forever after the chase's first
+claim); the claim releases on no target, the census's refusals, or
+the village band. SEATS: GolemFlankWalkParityDiscoveryTest 3/0.
+(3) WAVE EK (commit fff96aeb) — THE ENVIRONMENTAL KILLS' DEATH
+PUBLICATION (the PP scoping's find closed): the body-level
+hurtThroughFrame arms — the fire clock, the drown, the lava, the
+void, the wall, the starve, the snow golem's melt, the anvil crush
+— walk the reference's takeDamage whole but their kills never
+reached the publication walk the melee and magic families ride (no
+death voice, no status 3, no MobDeathEvent, no XP burst — the
+silent remove). The publication now lands through the same listener
+the melee path fires: the pending flag on the body (with the excess
+verdict — a kill through the frame's excess arm dies SILENT, the PP
+wave's own flag-gate law), the SAME-TICK drain after the body's own
+tick (the reference's die()-inside-the-damage-walk shape), the HEAD
+drain at the loop's iteration head (the cross-phase kills — the
+anvil's crush lands in the block phase), and the death hooks
+(the villager's environmental else — a player watching within 16
+blocks stops the mating; the golem's −5 never — a null
+playerAttacker skips it; the dragon rides its own walk). SEATS:
+EnvironmentalDeathPublicationParityDiscoveryTest 4/0. (4) WAVE FR
+(commit c8920759) — THE FIRE-RESISTANT SITTING PET'S VERB CORNER:
+the reference's takeDamage OVERRIDE clears the sit verb at its HEAD
+(WolfEntity line 265 / OcelotEntity line 154), BEFORE the super's
+gates — the FIRE_RESISTANCE consult included (LivingEntity lines
+645-647): a fire-resistant pet in fire or lava RISES while the wound
+itself is refused. The engine's fire family consulted the resistance
+BEFORE the wound walk — the pet SAT THROUGH ITS OWN BURNING. The fix:
+the standSitVerbDown helper called at the head of both fire-family
+consult sites (the burn clock's cadence arm — the timer now resets
+at 20 regardless of the resistance, the reference's every-20-ticks
+call shape — and the lava walk's wound arm), beside the shared frame
+walk's own head. SEATS: FireResistantSitVerbParityDiscoveryTest 3/0.
+LANES: the entity package green whole across all four waves (the
+WolfCollarDye one-off parallel flake re-verified green solo x5 and
+green on the package rerun — the documented CI-watch family), the
+tameable/golem/vehicle/mount/environmental/protocol lanes green.
+
+NEXT WORK (re-pinned after PX + G2 + EK + FR, in order): the push
+family's remaining named tails — the AUTO-MOUNT (MinecartEntity.push
+lines 660-667, a moving rideable cart scooping a non-player
+non-golem living body onto the seat) held NOT-REACHABLE until the
+engine's mobs can ride (the seated-mob model the makesSteps gate's
+own javadoc names as absent — the mob-rides-vehicle body state, the
+seat-follow's AI freeze, the dismount-on-break); the CART-CART
+BLEND (MinecartEntity.push lines 687-723, the momentum blend when
+one cart pushes another — the furnace asymmetry, the 0.8 dot-product
+gate) and the VEHICLE FAMILY'S OWN collision walks (MinecartEntity
+.tick's entity-collision family, BoatEntity's boat-boat push — the
+vehicles pushing entities themselves, never the living gather's
+pushed direction); the flank walk's steal-poll cadence (the engine's
+20-tick form of the selector's every-tick canStart consult — a
+documented adaptation, the verifier's row when the census reaches
+it); the verifier's PRs when they open (none at this session's
+close); the CI census watches (the PanicFlee wounded-cow flake and
+the WolfCollarDye one-off parallel flake — both re-verified
+pre-existing/green-solo, the documented watch family); the
+vanilla-grade census's next family pick when the verifier's rows
+land.
+
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
 full-power row walk the ACTING world's players (the un-dimensioned
