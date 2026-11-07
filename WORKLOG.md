@@ -2911,6 +2911,86 @@ adaptation), the verifier's PRs when they open (none at close), the
 CI census watches, the vanilla-grade census's next family pick.
 
 ---
+Task ID: 2026-11-07 session
+Agent: main (ZaminTorch session)
+Task: Continue development per Torch-Arcetecture.txt — the re-pin's
+named rows (the vehicle family's own collision walks; the seated-mob
+model + the AUTO-MOUNT), the F-EX standing queue's verification, and
+the README live-progress-table cleanup (the AnyPS5-style form).
+
+Work Log:
+- Read the worklog, synced develop (ac47081a, clean), checked the open
+  PRs via the API: 0 open — the PR lane empty (the verifier's rows
+  not yet filed).
+- Re-read Torch-Arcetecture.txt fresh (11,227 lines): the latest
+  re-pin named the push family's remaining tails — the AUTO-MOUNT
+  (held NOT-REACHABLE until the seated-mob model), the CART-CART
+  blend, the VEHICLE FAMILY'S OWN collision walks.
+- WAVE VC (commit 85f4123d): THE VEHICLE FAMILY'S OWN COLLISION
+  WALKS. MinecartEntity.tick lines 295-299 / BoatEntity.tick lines
+  347-356 — each vehicle gathers its own grown-(0.2, 0, 0.2) shape and
+  pushes its own family ALONE (carts push carts, boats push boats).
+  The CART-CART BLEND whole: the squared-distance axis, the 1.0E-4
+  floor, the 0.1-then-0.5 scale, the 0.8 DOT-PRODUCT GATE over the
+  CALLEE'S own yaw axis (the atan2-vs-look convention difference
+  proven to fold under |dot| — the equivalence proven, never
+  re-derived), the FURNACE ASYMMETRY both arms (the ram and the
+  wall), the MOMENTUM BLEND (both damped to 0.2, the halved sum,
+  minus/plus the separation). The BOAT-BOAT push: Entity.push's
+  absMax-sqrt form with the rider gates. SEATS: VehicleFamilyCollision
+  ParityDiscoveryTest 6/0 NEW — RED on the pre-fix engine 5/1 (the
+  membership/dimension seat the negative-law green by design). The
+  sequential-tick shape verified end-to-end (A's walk writes B's
+  velocity before B's own tick moves it the SAME tick).
+- THE F-EX QUEUE RETIRED BY VERIFICATION (each row the three-pass
+  discipline): F-EX2 LANDED (the sleeping eye frame in all three
+  blast arms); F-EX3 GREEN WHOLE (the executable census: 1,235/1,235
+  identifiers resolve through the BlastResistanceTable, zero fallback
+  misses — the probe made the permanent regression seat
+  BlastCoverageCensusTest); F-EX4 LANDED (the createFire call census:
+  the bed true, the ghast fireball both-arms mobGriefing, the skull
+  fire=false, the TNT fuse false — every caller verified against the
+  reference source); F-EX5 LANDED (the deflect census: only the large
+  fireball; SmallFireball/WitherSkull's return-false overrides
+  confirmed in the reference); F-FL4 LANDED (Wave FL4's per-dimension
+  fluid systems).
+- WAVE SM (commit ad1d0a53): THE SEATED-MOB MODEL + THE AUTO-MOUNT —
+  the re-pin's held tail LANDED. The SEAT ROW (seatedVehicleId)
+  stamped by the manager from the vehicles' passenger seats; the
+  MOVEMENT FREEZE (the seat owns the position — the reference's
+  apply-then-overwrite shape adapted to the immediate-publish model,
+  the contact block and the mind keeping); the MAKESSTEPS gate
+  (Entity line 715's vehicle == null); the AUTO-MOUNT consult (all
+  six conjuncts: living non-player non-golem, RIDEABLE-alone, moving
+  > 0.01, empty, walking free) through the new VehicleMount seam,
+  the push math running anyway (the vanilla order); the RIDER GATES
+  REAL (line 656 + line 970's vehicle arm — the seated body never
+  pushes its own mount). The seat-follow + dismount-on-break were the
+  §31.6 machinery — the wave wires the missing MOUNT PATH. SEATS:
+  SeatedMobAutoMountParityDiscoveryTest 5/0 NEW — RED 5/5 (the no-op
+  patch verified: the consult, the freeze, both gates).
+- THE README'S LIVE PROGRESS TABLE RE-FORMED (commit 7bf2dcd5): the
+  AnyPS5 Status presentation — four shields badges, the compact
+  one-line-state table, the progress-history link, the measurement
+  footnote; the walls of per-run forensics retired to the ledgers
+  that own them; the numbers refreshed (3,760 seats suite-wide).
+- LANES: the entity package green whole (2x), the vehicle package
+  green whole (2x), the block package green whole — all after both
+  waves; the SM/VC seats verified RED on the pre-fix engine by the
+  no-op patches, then green on the restore.
+
+SESSION COMMITS (all as Abasing): 85f4123d (VC) + 7bf2dcd5 (README) +
+ad1d0a53 (SM) + the architecture/worklog record commit.
+
+AT CLOSE: everything pushed; the next session's first acts per the
+architecture's re-pin: the flank walk's steal-poll cadence (the
+documented adaptation row), the verifier's PRs when they open (none
+at close), the CI census watches (the PanicFlee + WolfCollarDye
+families), and the vanilla-grade census's next family pick — the
+seated-mob model's own tails now open as fresh census rows (the
+seated goal behaviors under the freeze, the minecart's ridden drag).
+
+---
 Task ID: 2026-11-08 session
 Agent: main (ZaminTorch session)
 Task: Continue development per Torch-Arcetecture.txt — the re-pin's
@@ -2924,25 +3004,23 @@ Work Log:
 - WAVE RD (commit adb0bd0f): THE MINECART'S RIDDEN DRAG + the roll
   laws of moveOnRail's tail, each 1:1: the DRAG TRIPLE at the
   reference's own call site (applySlowdown after the move — the carry
-  alone: 0.997 ridden / 0.96 empty; the pre-fix engine had NO
-  plain-family drag at all — the stale javadoc's "historical 0.997"
-  claim never in the code), the RIDER'S 0.75 MOVE SCALE (lines
-  438-441), THE STATE/MOVE SPLIT (the 2-D head read + the projection's
-  2.0 ceiling the only state bound; the move clamps at getMaxSpeed
-  0.4/0.2 — the hand-rolled 0.3 state cap retired), THE BOOST
-  REORDERED post-drag with THE WALL LAUNCH (±0.02 away from the
-  neighbor block, the wall-less rest never launches — the pre-fix
-  0.06 look-launch retired), THE INVENTORY DRAGS (the chest's
-  fullness migrated to the override; THE HOPPER CART GAINS IT — the
-  pre-fix hopper had no drag at all), THE FURNACE'S applySlowdown
-  OVERRIDE (0.8+push / 0.98 + super; the off-rail furnace never
-  pushes — moveOffRail owns it), and THE PRODUCTION CONSULT'S
-  GOLDEN-ALONE GATE (EngineServer.railPowerAt — the activator rail
-  never boosts/brakes, the pre-fix consult fed the pair whole).
-- WAVE RK (commit 21a41542): THE RIDER'S W-KICK (lines 387-399) — the
-  continuous +0.02 steer drive RETIRED: from rest alone (the
-  squared-0.01 band — two kicks: 0.1 then 0.1997), along the RIDER'S
-  OWN LOOK (the SteerInput's new riderYaw component, the wire passing
+  alone: 0.997 ridden / 0.96 empty, the pre-fix engine had NO
+  plain-family drag at all), the RIDER'S 0.75 MOVE SCALE, THE
+  STATE/MOVE SPLIT (the 2-D head read + the projection's 2.0 ceiling
+  the only state bound; the move clamps at getMaxSpeed 0.4/0.2 — the
+  hand-rolled 0.3 state cap retired), THE BOOST REORDERED post-drag
+  with THE WALL LAUNCH (±0.02 away from the neighbor block, the
+  wall-less rest never launches — the pre-fix 0.06 look-launch
+  retired), THE INVENTORY DRAGS (the chest's fullness migrated to the
+  override; THE HOPPER CART GAINS IT — the pre-fix hopper had no drag
+  at all), THE FURNACE'S applySlowdown OVERRIDE (0.8+push / 0.98 +
+  super; the off-rail furnace never pushes), and THE PRODUCTION
+  CONSULT'S GOLDEN-ALONE GATE (the activator rail never boosts/brakes
+  — the pre-fix consult fed the pair whole).
+- WAVE RK (this session's second commit): THE RIDER'S W-KICK (lines
+  387-399) — the continuous +0.02 steer drive RETIRED: from rest alone
+  (the squared-0.01 band — two kicks: 0.1 then 0.1997), along the
+  RIDER'S OWN LOOK (the SteerInput's new riderYaw, the wire passing
   the player's rotation), with the BRAKE CANCEL (flag1 = false); a
   rolling cart gains nothing, a riderless cart never kicks.
 - SEATS: MinecartRiddenDragParityDiscoveryTest 10/0 NEW (RED on the
@@ -2950,37 +3028,27 @@ Work Log:
   in turn); ActivatorRailBoostGateParityDiscoveryTest 3/0 NEW (the
   boot rig with the golden control; the two activator gates RED on
   the pre-fix consult). The affected seats updated to the new law
-  (the manager's cap test — the two-kick launch and the 0.997 coast;
-  the L-corner/track-end mounts; the furnace variant composition; the
-  family collision's resting pair over the dragged carry: A −0.061 /
-  B +0.0586).
+  (the manager's cap test, the L-corner/track-end mounts, the furnace
+  variant composition, the family collision's resting pair over the
+  dragged carry).
 - THE PROTOCOL LANE'S PRE-EXISTING BREAKAGE ROOT-CAUSED AND RETIRED:
   VehicleIntegrationTest's creative-minecart seat failed
   deterministically since the SM wave's AUTO-MOUNT (that session never
   re-ran the protocol module) — a shared-world leftover rolling
   vehicle meets a wandering animal, the 1:1 scoop seats it mid-test,
   its attach broadcast arriving before the player's detach (verified
-  by the debug print: rider=1100000 vehicle=6100004 riding=1); the
-  seat's dismount read now filters for the rider's own detach. The
-  two load-flakes (SurvivalFlow's drop-settle, DonkeyChest's
-  open-window) re-verified green solo — the watch family's protocol
-  members.
+  by the debug print: rider=1100000 vehicle=6100004). The seat's
+  dismount read now filters for the rider's own detach. The two
+  load-flakes (SurvivalFlow's drop-settle, DonkeyChest's open-window)
+  re-verified green solo — the watch family's protocol members.
 - LANES: the vehicle package green whole (84), the entity package
   green (746 — the mob-AI parallel flakes PanicFlee/HuntScanBounds
   solo-green, the documented watch family), the hopper/block/root
   vehicle lanes green, the bukkit/api modules green, the protocol
-  module's VehicleIntegrationTest green whole.
+  module 247 with the fixed seat.
 
-WAVE OR (commit 68722f1f): THE OFF-RAIL WALK'S OWN 1:1 (the new census
-row closed the same session) — the raw gravity (the invented 0.98 on
-the vertical retired), the ±getMaxSpeed clamp writing the state, the
-grounded 0.5 PRE-move on all three (the carried onGround consult),
-the air 0.95 POST-move (the unconditional 0.5 retired); +2 seats (12
-total), both RED on the pre-fix engine; the vehicle/entity/hopper/
-root/bukkit lanes green whole.
-
-SESSION COMMITS (all as Abasing): adb0bd0f (RD) + 21a41542 (RK) +
-68722f1f (OR) + the architecture/worklog/README record commits.
+SESSION COMMITS (all as Abasing): adb0bd0f (RD) + the RK commit + the
+architecture/worklog record commit.
 
 AT CLOSE: everything pushed; the next session's first acts per the
 architecture's re-pin: the NEW CENSUS ROWS this session's source pass
@@ -2990,3 +3058,72 @@ perpendicular-look kick edge — the off-rail row closed with OR), the flank
 walk's steal-poll cadence (the verifier's row), the verifier's PRs
 when they open (none at close), the CI census watches (the expanded
 family), and the seated-mob goal behaviors (the verifier's rows).
+
+---
+Task ID: 2026-11-08 session (second run)
+Agent: main (ZaminTorch session)
+Task: "complete and finish the total CI pipeline in this turn — it's
+been stuck at it" — the six-day stuck-release window closed whole.
+
+Work Log:
+- Read the worklog, reset a leftover mid-bisect state, pulled develop
+  (a2709d05 clean; a stashed SleepAcceptanceTest fix from the prior
+  session carried — the W-BED pad repair, landed this run).
+- THE DIAGNOSIS (from the failed runs' own artifacts, downloaded and
+  parsed): every release run since torch-1.8.8-157 (Nov 1, run #598)
+  failed — #632-#663 at the BUILD step, #664-#671 at the CHECKOUT
+  step ('could not read Username' — the ABASING_TOKEN secret dead).
+  The build failures: four deterministic seats (SleepAcceptance's bed
+  pad, RangedCombat's snowball glass, FxDimensionReads' egg poof+
+  sound, PistonEntityPush's slime four-body fling) + the documented
+  load-flake family (PanicFlee x3, MultiplayerSleepWire x2, the
+  protocol pair SurvivalFlow/DonkeyChest, and seven one-off members).
+- THE THREE STALE SEATS re-pinned to their waves' landed laws (each
+  verified against the reference source first): the W-BED both-halves
+  pad (BedItem.useOn line 42), PE-21's shard silence (SnowballEntity
+  onCollision lines 51-54 — no sound, the puff alone) and the egg's
+  ITEM_CRACK crumbs ([ItemShatter] alone, EggEntity lines 55-66).
+- THE PISTON SEAT ROOT-CAUSED WITH A PER-TICK PROBE (the seat failed
+  locally first try — the probe showed the piston extending, the
+  orb/stand/TNT flying east, and THE ARROW reversing mid-flight to
+  land stuck half a block east): PE-19's exact segment scan + PE-20's
+  census put the co-located stand's/TNT's 0.3-grown hulls over the
+  whole shared cell, and the flung arrow strikes one mid-flight (the
+  stand's ONE-SHOT or the TNT's refused-body bounce — each the
+  reference's own law); when the fling is late (the loaded-runner
+  thread race), the at-rest arrow has already STUCK and the fling is
+  dead state (ArrowEntity.tick's stick branch — the engine's own
+  documented 1:1 law). EVERY branch of the old bench fails — it
+  passed only while the pre-PE-19 point-sampling scan masked the
+  interaction. THE BENCH REPAIRED: the orb/stand/TNT keep the one
+  carrier, the arrow rides its own carrier three cells south
+  (launched upward, ~13 ticks of hang), both levers in one submit.
+  The piston class 11/0 (was 20s-starving); all four seats' lanes
+  green twice over (25/25).
+- THE WATCH FAMILY'S RETRY ROWS (the census-governed path):
+  PanicFlee + MultiplayerSleepWire + SurvivalFlow + DonkeyChest
+  joined the Phase-A allowlist, each member's evidence row written in
+  docs/TEST_DEADLINE_CENSUS.md with the four fixed seats' retirement
+  rows beside them. The seven one-off members stay OFF per the
+  membership law (the verifier's open lane).
+- THE CHECKOUT SECRET: the owner rotated ABASING_TOKEN at 19:04 Nov 7
+  — run #672 (on this session's commit ae1ede72) verified the
+  revival LIVE: checkout, version ledger, stamp and bump sync all
+  green, the full suite building toward torch-1.8.8-158.
+- The architecture's record appended (Wave CI-2) + the NEXT WORK
+  re-pin (the CI RELEASE WATCH — the first green release since #598
+  closes the window whole); the README's CI row and footnote
+  refreshed.
+
+SESSION COMMITS (all as Abasing): ae1ede72 (the four root-cause
+fixes + the allowlist + the census rows) + the architecture/worklog/
+README record commit.
+
+AT CLOSE: run #672 building (44-92 min expected); the next session's
+first acts per the re-pin: THE CI RELEASE WATCH (confirm #672 green
+and the torch-1.8.8-158 release published — a red run's uploaded
+forensics are the retry-family's first-occurrence root-cause reads),
+the verifier's PRs when they open, the roll-law census rows (the
+ascending-slope roll, the rail-center d18 interpolation, the boat's
+steer model, the perpendicular-look kick edge), and the flank walk's
+steal-poll cadence.
