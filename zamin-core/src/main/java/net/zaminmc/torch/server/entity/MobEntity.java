@@ -4330,6 +4330,25 @@ public final class MobEntity implements LivingEntity {
     private static final int GOLEM_DAMAGE_SPREAD = 15;
     /** The launch the landed golem hit gives (velocityY += 0.4F). */
     private static final double GOLEM_LAUNCH_Y = 0.4;
+    /**
+     * The golem's flank-walk band pair (GoToEntityTargetGoal.canStart
+     * line 35: {@code getTargetAwayFromPosition(entity, 16, 7, targetPos)}
+     * — the toward-target half-plane pick over the 16/7 candidate band).
+     */
+    private static final int GOLEM_FLANK_HORIZONTAL = 16;
+    private static final int GOLEM_FLANK_VERTICAL = 7;
+    /**
+     * The flank walk's speed (the ctor's 0.9, IronGolemEntity line 47 —
+     * MovementControl.tick's multiplier law: {@code setSpeed(speed ×
+     * attribute)}, the goal parameter over the 0.25 movement base).
+     */
+    private static final double GOLEM_FLANK_SPEED = 0.9;
+    /**
+     * The flank claim's steal poll (the engine's cadence form of the
+     * selector's every-tick MeleeAttackGoal.canStart consult while the
+     * band-2 claim runs — one direct-route probe every 20 ticks).
+     */
+    private static final int GOLEM_FLANK_STEAL_INTERVAL = 20;
     /** The snow golem's volley cadence (ProjectileAttackGoal's interval 20). */
     private static final int SNOW_GOLEM_SHOT_INTERVAL = 20;
     /** The snow golem's volley range (ProjectileAttackGoal's 10.0F). */
@@ -4339,6 +4358,37 @@ public final class MobEntity implements LivingEntity {
 
     /** The golem's live mob target (the golem family's own hunt state). */
     private MobEntity golemTarget;
+    /**
+     * THE FLANK CLAIM (Wave G2 — GoToEntityTargetGoal's own live state,
+     * IronGolemEntity line 47's band-2 registration): armed when the
+     * direct melee route fails (MeleeAttackGoal.canStart line 57's
+     * findPath null — the unreachable target), the claim holds the
+     * picked cell's route for its own run (shouldContinue lines 43-45:
+     * the navigation never done, the target alive, the 32 band) and
+     * ends at the route's completion — the selector's next pass
+     * re-consulting the melee route (the steal shape).
+     */
+    private boolean golemFlankLive;
+    /**
+     * The flank claim's steal poll clock (the engine's cadence form of
+     * the selector's every-tick canStart consult — one direct-route
+     * probe every {@link #GOLEM_FLANK_STEAL_INTERVAL} flank ticks).
+     */
+    private int golemFlankStealCooldown;
+    /**
+     * THE MELEE GOAL'S OWN RUNNING STATE (Wave G2 — MeleeAttackGoal's
+     * claim law over the golem's {@code pauseWhenMobIdle = true}):
+     * once a direct route stands at a selector pass, the goal CLAIMS
+     * and HOLDS while the target lives — shouldContinue's only consult
+     * for the golem is {@code isValidGoalTarget(target cell)} (the
+     * village-radius check, PathFinderMobEntity lines 46-48 — TRUE for
+     * a village-less body whatever stands) — so the flank NEVER
+     * re-arms after the chase's first claim; the flank arms only from
+     * the pure local minimum the chase never claimed at (the null
+     * route's {@code pathnode == start} arm). The claim releases when
+     * no target stands or the village band refuses.
+     */
+    private boolean golemMeleeClaimHeld;
     /** The snow golem's volley clock. */
     private int snowGolemShotCooldown;
     /** Set when the iron golem's swing lands this tick; consumed by the manager. */
@@ -4431,6 +4481,12 @@ public final class MobEntity implements LivingEntity {
                 }
             }
             if (golemTarget == null) {
+                // The melee goal's claim and the flank's release with the
+                // target family (shouldContinue's isAlive gate — no target
+                // stands, both goals stop; the selector's next pass starts
+                // fresh claims).
+                golemMeleeClaimHeld = false;
+                golemFlankLive = false;
                 return; // the stroll cycle (the goal layer's default)
             }
             // shouldContinue's own gates (lines 44-66): the target's
@@ -4440,6 +4496,8 @@ public final class MobEntity implements LivingEntity {
             if (sameTeamAs(golemTarget)
                     || squaredDistanceTo(golemTarget) > followRange() * followRange()) {
                 golemTarget = null;
+                golemMeleeClaimHeld = false;
+                golemFlankLive = false;
                 return;
             }
             chaseTarget = golemTarget.position();
@@ -4451,9 +4509,77 @@ public final class MobEntity implements LivingEntity {
         yaw = angleTo(dx, dz);
         headYaw = yaw;
         if (horizontal > GOLEM_MELEE_RANGE) {
+            // MeleeAttackGoal.shouldContinue's village band (the golem's
+            // pauseWhenMobIdle arm — isValidGoalTarget over the cached
+            // radius, PathFinderMobEntity lines 46-48): a VILLAGE golem's
+            // melee claim releases when the target's cell leaves the
+            // cached band (the flank claim ignores the band — its own
+            // shouldContinue carries no village consult).
+            if (golemMeleeClaimHeld && villageRadius >= 0.0f) {
+                long band = (long) villageRadius * (long) villageRadius;
+                if (cellSquaredDistance((int) Math.floor(chaseTarget.x()),
+                        (int) Math.floor(chaseTarget.y()),
+                        (int) Math.floor(chaseTarget.z()),
+                        villageCenterX, villageCenterY, villageCenterZ) >= band) {
+                    golemMeleeClaimHeld = false;
+                }
+            }
+            // Wave G2 — THE FLANK CLAIM'S LIVE WINDOW (GoToEntityTarget
+            // Goal.shouldContinue, lines 43-45): the picked route's own
+            // run — the navigation never done, the target alive (the
+            // resolution above guaranteed it), the 32 band. The claim
+            // ends at the route's completion (the selector's next pass
+            // re-consults the melee route) or the band's edge, and the
+            // STEAL POLL probes the direct route mid-claim (the engine's
+            // cadence form of the selector's every-tick canStart
+            // consult: the moment a direct path opens, the chase takes
+            // the body back).
+            if (golemFlankLive) {
+                double squared = dx * dx + dy * dy + dz * dz;
+                if (navigation.isDone()
+                        || squared > GOLEM_HUNT_RANGE * GOLEM_HUNT_RANGE) {
+                    golemFlankLive = false; // stop(): the claim ends
+                } else {
+                    // The steal poll: one direct-route probe every
+                    // GOLEM_FLANK_STEAL_INTERVAL flank ticks.
+                    if (--golemFlankStealCooldown <= 0) {
+                        golemFlankStealCooldown = GOLEM_FLANK_STEAL_INTERVAL;
+                        if (navigation.findPath(chaseTarget.x(), chaseTarget.y(),
+                                chaseTarget.z()) != null) {
+                            golemFlankLive = false; // the steal: the chase claims
+                        }
+                    }
+                    if (golemFlankLive) {
+                        tickGolemFlankRoute();
+                        return; // the flank route owns this tick's MOVE
+                    }
+                }
+            }
+            // Band 1 (MeleeAttackGoal): the chase — the route's own
+            // repath cycle carries the findPath verdict (canStart line
+            // 57), and when the verdict is DEAD (no route to the target
+            // exists), BAND 2 CONSULTS (GoToEntityTargetGoal.canStart):
+            // the toward-target pick over the 16/7 band, the claim arming
+            // on a found cell — the route starting the SAME tick (the
+            // selector's own pass shape: canStart and start land in one
+            // pass, the movement follows the new goal's route at once).
+            // THE CLAIM-HOLD LAW: the melee goal, once it has EVER found
+            // a route this target's life, HOLDS the MOVE control — its
+            // shouldContinue for the golem is the village-validity
+            // consult alone (pauseWhenMobIdle's isValidGoalTarget,
+            // PathFinderMobEntity lines 46-48) — so the flank never
+            // re-arms under a held claim; the flank arms only from the
+            // pure local minimum the chase never claimed at.
             mode = Mode.CHASE;
             tickPathFollowing(chaseTarget);
+            if (navigation.getPath() != null) {
+                golemMeleeClaimHeld = true; // the melee goal's claim
+            } else if (!golemMeleeClaimHeld
+                    && !golemFlankLive && armGolemFlankWalk(chaseTarget)) {
+                tickGolemFlankRoute();
+            }
         } else {
+            golemFlankLive = false; // the melee window: the claim stands down
             mode = Mode.IDLE;
             clearPath();
             // MeleeAttackGoal's cadence: the swing lands when the cooldown
@@ -4463,6 +4589,53 @@ public final class MobEntity implements LivingEntity {
                 pendingMeleeAttack = true;
                 pendingGolemSwing = true;
             }
+        }
+    }
+
+    /**
+     * Wave G2 — THE FLANK WALK'S ARM (GoToEntityTargetGoal.canStart
+     * lines 30-41 + start line 62): the melee route dead (no path to
+     * the target), the golem walks to a position on the TARGET'S OWN
+     * SIDE picked by the toward-target half-plane form of
+     * TargetFinder.getTargetAwayFromPosition (line 35's 16/7 band — the
+     * decompiler name's red herring kept honest: the away-FROM-POSITION
+     * offset is {@code start − mob}, so the half-plane filter keeps the
+     * candidates that lie TOWARD the given position — the golem flanks
+     * toward its target through favor-picked cells, the MCP family's
+     * own MoveTowardsTarget law; the AWAY half-plane belongs to the
+     * getTargetAwayFromENTITY form the flee family rides, whose offset
+     * is the mirrored {@code mob − start}). start()'s moveTo walks the
+     * picked cell at the goal's 0.9.
+     *
+     * @return whether the claim armed (canStart's true — the pick found)
+     */
+    private boolean armGolemFlankWalk(Position chaseTarget) {
+        Position pick = targetFinderPickAway(GOLEM_FLANK_HORIZONTAL, GOLEM_FLANK_VERTICAL,
+                chaseTarget.x() - position.x(), chaseTarget.z() - position.z());
+        if (pick == null) {
+            return false; // canStart false: ten candidates, none in the half-plane
+        }
+        golemFlankLive = true;
+        golemFlankStealCooldown = GOLEM_FLANK_STEAL_INTERVAL;
+        navigation.moveTo(pick.x(), pick.y(), pick.z(), GOLEM_FLANK_SPEED);
+        return true;
+    }
+
+    /**
+     * The flank route's own tick (GoToEntityTargetGoal holds the MOVE
+     * control — setControls(1) — for the claim's whole run): the goal's
+     * 0.9 speed over the walk base and the route's own heading.
+     */
+    private void tickGolemFlankRoute() {
+        mode = Mode.CHASE;
+        goalWalkSpeed = GOLEM_FLANK_SPEED; // the ctor's 0.9 (IronGolemEntity line 47)
+        navigation.tick();
+        if (navigation.hasTarget) {
+            pathYaw = angleTo(navigation.currentTargetX - position.x(),
+                    navigation.currentTargetZ - position.z());
+            pathYawValid = true;
+        } else {
+            pathYawValid = false;
         }
     }
 
