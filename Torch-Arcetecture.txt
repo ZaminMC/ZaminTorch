@@ -9624,11 +9624,13 @@ NATIVE_API_CAPABILITIES.md, WORKLOG.md); the numbers refreshed
 honestly (3,760 automated seats suite-wide per the module census;
 the parity row's 3,300+ engine seats).
 
-NEXT WORK (re-pinned after RD + RK, in order): the minecart roll-law
-family is CLOSED whole (the ridden drag, the rider's 0.75 move scale,
-the state/move split, the wall launch, the inventory drags, the
-activator gate with RD; the W-kick, the brake cancel, the rider's own
-look with RK) — the remaining named rows: the flank walk's steal-poll
+NEXT WORK (re-pinned after RD + RK + OR, in order): the minecart
+roll-law family is CLOSED whole (the ridden drag, the rider's 0.75
+move scale, the state/move split, the wall launch, the inventory
+drags, the activator gate with RD; the W-kick, the brake cancel, the
+rider's own look with RK; the off-rail walk's raw gravity, the
+±getMaxSpeed clamp, the grounded 0.5 pre-move and the air 0.95 with
+OR) — the remaining named rows: the flank walk's steal-poll
 cadence (the engine's 20-tick form of the selector's every-tick
 canStart consult — a documented adaptation, the verifier's row when
 the census reaches it); the verifier's PRs when they open (none at
@@ -9649,16 +9651,28 @@ lines 359-371's ±0.0078125 axis arms + the d14 slope trim lines
 the slope law needs the ascending-rail geometry model); THE
 RAIL-CENTER INTERPOLATION (the d18 walk lines 416-437 — the
 mid-rail-axis position interpolation vs the engine's cell-center
-snap, the geometry adaptation); THE OFF-RAIL WALK'S OWN 1:1
-(moveOffRail lines 320-337 — the ±getMaxSpeed clamp on the move, the
-0.5 ground drag, the 0.95 air drag, the gravity INSIDE the move vs
-the engine's 0.98-pre-multiplied Y and the unconditional 0.5); THE
+snap, the geometry adaptation); THE
 BOAT'S OWN STEER MODEL (the ridden boat's W-key paddling — the boat
 family's own law, untouched by the cart's kick row); THE
 PERPENDICULAR-LOOK KICK EDGE (the axis model's documented fold — the
 reference's 2-D kick on a perpendicular look drifts the cart a
 half-tick before the projection re-points it, the engine refuses the
 kick whole).
+
+WAVE OR LANDED (2026-11-08, commit 68722f1f — the off-rail census row
+the RD/RK source pass opened, closed the same session): moveOffRail
+lines 320-337 read whole — the RAW gravity (tick line 249's −0.04,
+the engine's invented pre-multiplied 0.98 on the vertical retired),
+the ±getMaxSpeed clamp WRITING the state (lines 321-323), the
+GROUNDED 0.5 on all three PRE-move (lines 324-328 — the carried
+onGround consult, the position advancing at the halved value), and
+the AIR 0.95 POST-move on all three (lines 333-337 — the pre-fix
+engine's unconditional 0.5 retired: an airborne cart coasts, the
+vertical carrying the air drag too). SEATS: MinecartRiddenDrag-
+ParityDiscoveryTest +2 (12 total), both RED on the pre-fix engine
+(the no-op patch verified); LANES: the vehicle package (86), the
+entity package, the hopper package, the root vehicle lanes, and the
+bukkit module green whole.
 
 WAVE RD + RK LANDED (2026-11-08, the roll-law session — the re-pin's
 "ridden-body velocity triple" row whole, plus the W-kick row the

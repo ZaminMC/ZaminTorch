@@ -2971,14 +2971,22 @@ Work Log:
   vehicle lanes green, the bukkit/api modules green, the protocol
   module's VehicleIntegrationTest green whole.
 
-SESSION COMMITS (all as Abasing): adb0bd0f (RD) + 21a41542 (RK) + the
-architecture/worklog/README record commit.
+WAVE OR (commit 68722f1f): THE OFF-RAIL WALK'S OWN 1:1 (the new census
+row closed the same session) — the raw gravity (the invented 0.98 on
+the vertical retired), the ±getMaxSpeed clamp writing the state, the
+grounded 0.5 PRE-move on all three (the carried onGround consult),
+the air 0.95 POST-move (the unconditional 0.5 retired); +2 seats (12
+total), both RED on the pre-fix engine; the vehicle/entity/hopper/
+root/bukkit lanes green whole.
+
+SESSION COMMITS (all as Abasing): adb0bd0f (RD) + 21a41542 (RK) +
+68722f1f (OR) + the architecture/worklog/README record commits.
 
 AT CLOSE: everything pushed; the next session's first acts per the
 architecture's re-pin: the NEW CENSUS ROWS this session's source pass
 opened (the ascending-slope roll — the geometry model the blocker;
-the rail-center d18 interpolation; the off-rail walk's own 1:1; the
-boat's steer model; the perpendicular-look kick edge), the flank
+the rail-center d18 interpolation; the boat's steer model; the
+perpendicular-look kick edge — the off-rail row closed with OR), the flank
 walk's steal-poll cadence (the verifier's row), the verifier's PRs
 when they open (none at close), the CI census watches (the expanded
 family), and the seated-mob goal behaviors (the verifier's rows).
