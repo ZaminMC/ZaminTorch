@@ -2909,3 +2909,76 @@ dismount-on-break; the CART-CART blend and the vehicle family's own
 collision walks), the flank walk's steal-poll cadence (the documented
 adaptation), the verifier's PRs when they open (none at close), the
 CI census watches, the vanilla-grade census's next family pick.
+
+---
+Task ID: 2026-11-08 session
+Agent: main (ZaminTorch session)
+Task: Continue development per Torch-Arcetecture.txt — the re-pin's
+ridden-drag row (the reference's ridden-body velocity triple the seat
+now carries) + the W-kick row the source pass surfaced, plus the
+protocol lane's pre-existing minecart-seat breakage.
+
+Work Log:
+- Read the worklog, synced develop (290b3f35, clean), checked the open
+  PRs via the API: 0 open — the verifier's rows not yet filed.
+- WAVE RD (commit adb0bd0f): THE MINECART'S RIDDEN DRAG + the roll
+  laws of moveOnRail's tail, each 1:1: the DRAG TRIPLE at the
+  reference's own call site (applySlowdown after the move — the carry
+  alone: 0.997 ridden / 0.96 empty; the pre-fix engine had NO
+  plain-family drag at all — the stale javadoc's "historical 0.997"
+  claim never in the code), the RIDER'S 0.75 MOVE SCALE (lines
+  438-441), THE STATE/MOVE SPLIT (the 2-D head read + the projection's
+  2.0 ceiling the only state bound; the move clamps at getMaxSpeed
+  0.4/0.2 — the hand-rolled 0.3 state cap retired), THE BOOST
+  REORDERED post-drag with THE WALL LAUNCH (±0.02 away from the
+  neighbor block, the wall-less rest never launches — the pre-fix
+  0.06 look-launch retired), THE INVENTORY DRAGS (the chest's
+  fullness migrated to the override; THE HOPPER CART GAINS IT — the
+  pre-fix hopper had no drag at all), THE FURNACE'S applySlowdown
+  OVERRIDE (0.8+push / 0.98 + super; the off-rail furnace never
+  pushes — moveOffRail owns it), and THE PRODUCTION CONSULT'S
+  GOLDEN-ALONE GATE (EngineServer.railPowerAt — the activator rail
+  never boosts/brakes, the pre-fix consult fed the pair whole).
+- WAVE RK (commit 21a41542): THE RIDER'S W-KICK (lines 387-399) — the
+  continuous +0.02 steer drive RETIRED: from rest alone (the
+  squared-0.01 band — two kicks: 0.1 then 0.1997), along the RIDER'S
+  OWN LOOK (the SteerInput's new riderYaw component, the wire passing
+  the player's rotation), with the BRAKE CANCEL (flag1 = false); a
+  rolling cart gains nothing, a riderless cart never kicks.
+- SEATS: MinecartRiddenDragParityDiscoveryTest 10/0 NEW (RED on the
+  pre-fix engine verified by the no-op patches, each law neutralized
+  in turn); ActivatorRailBoostGateParityDiscoveryTest 3/0 NEW (the
+  boot rig with the golden control; the two activator gates RED on
+  the pre-fix consult). The affected seats updated to the new law
+  (the manager's cap test — the two-kick launch and the 0.997 coast;
+  the L-corner/track-end mounts; the furnace variant composition; the
+  family collision's resting pair over the dragged carry: A −0.061 /
+  B +0.0586).
+- THE PROTOCOL LANE'S PRE-EXISTING BREAKAGE ROOT-CAUSED AND RETIRED:
+  VehicleIntegrationTest's creative-minecart seat failed
+  deterministically since the SM wave's AUTO-MOUNT (that session never
+  re-ran the protocol module) — a shared-world leftover rolling
+  vehicle meets a wandering animal, the 1:1 scoop seats it mid-test,
+  its attach broadcast arriving before the player's detach (verified
+  by the debug print: rider=1100000 vehicle=6100004 riding=1); the
+  seat's dismount read now filters for the rider's own detach. The
+  two load-flakes (SurvivalFlow's drop-settle, DonkeyChest's
+  open-window) re-verified green solo — the watch family's protocol
+  members.
+- LANES: the vehicle package green whole (84), the entity package
+  green (746 — the mob-AI parallel flakes PanicFlee/HuntScanBounds
+  solo-green, the documented watch family), the hopper/block/root
+  vehicle lanes green, the bukkit/api modules green, the protocol
+  module's VehicleIntegrationTest green whole.
+
+SESSION COMMITS (all as Abasing): adb0bd0f (RD) + 21a41542 (RK) + the
+architecture/worklog/README record commit.
+
+AT CLOSE: everything pushed; the next session's first acts per the
+architecture's re-pin: the NEW CENSUS ROWS this session's source pass
+opened (the ascending-slope roll — the geometry model the blocker;
+the rail-center d18 interpolation; the off-rail walk's own 1:1; the
+boat's steer model; the perpendicular-look kick edge), the flank
+walk's steal-poll cadence (the verifier's row), the verifier's PRs
+when they open (none at close), the CI census watches (the expanded
+family), and the seated-mob goal behaviors (the verifier's rows).
