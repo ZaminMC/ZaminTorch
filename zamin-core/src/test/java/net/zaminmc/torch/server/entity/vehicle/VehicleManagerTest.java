@@ -140,7 +140,7 @@ class VehicleManagerTest {
     void theMinecartRidesItsRailAxisAndCapsTheSpeed() {
         MinecartEntity cart = new MinecartEntity(2, new Position(0.5, 4.06, 0.5), new Random(1));
         cart.setRotation(new Rotation(-90.0f, 0.0f)); // the look points east
-        var world = straightRailWorld(0, 6); // a straight east-west track
+        var world = straightRailWorld(0, 200); // a long east-west track
         for (int i = 0; i < 40; i++) {
             cart.steer(new VehicleEntity.SteerInput(0.0f, 1.0f, false, false));
             cart.tick(world);
@@ -149,8 +149,20 @@ class VehicleManagerTest {
         assertEquals(0.5, cart.position().z(), 0.01, "the ride centers on the rail line");
         assertEquals(4.0 + MinecartEntity.RIDE_Y_OFFSET, cart.position().y(), 0.01,
                 "the cart rides just above the rail bed");
+        // The 1:1 law (moveOnRail lines 438-446): the CARRIED STATE rides
+        // the steer-vs-drag equilibrium (the +0.02 drive against the
+        // un-ridden 0.96: 0.02*0.96/0.04 = 0.48) — the state may sit above
+        // the clamp; the POSITION's per-tick advance never exceeds
+        // getMaxSpeed's 0.4.
         double speed = Math.abs(cart.velocityX());
-        assertTrue(speed <= MinecartEntity.RAIL_SPEED_CAP + 1e-9, "the cap holds: " + speed);
+        assertTrue(speed > 0.3 && speed < MinecartEntity.RAIL_STATE_CEILING,
+                "the state rides the steer-drag equilibrium: " + speed);
+        double startX = cart.position().x();
+        cart.steer(new VehicleEntity.SteerInput(0.0f, 1.0f, false, false));
+        cart.tick(world);
+        double advance = cart.position().x() - startX;
+        assertTrue(advance <= MinecartEntity.MAX_SPEED_ON_RAIL + 1e-9,
+                "the move clamps at getMaxSpeed's 0.4: " + advance);
     }
 
     @Test

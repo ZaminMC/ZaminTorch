@@ -21807,8 +21807,13 @@ public final class EngineServer implements Server, EngineBridge {
             // the overworld's same-coordinate rails).
             BlockType rail = activeVehicleWorld().getBlock(vehicleCellAt(x, y, z));
             String family = net.zaminmc.torch.server.block.RailBlocks.familyOf(rail);
-            if (family == null || family.equals("detector_rail")) {
-                return 0; // the detector family emits, it never boosts
+            // THE GOLDEN RAIL ALONE (moveOnRail lines 345-349: the flag
+            // pair arms only over Blocks.POWERED_RAIL — the ACTIVATOR
+            // rail never boosts and never brakes, its powered bit feeds
+            // the onActivatorRail consult alone; the detector family
+            // emits, it never boosts).
+            if (!"golden_rail".equals(family)) {
+                return 0;
             }
             return net.zaminmc.torch.server.block.RailBlocks.isPowered(rail) ? 1 : -1;
         }

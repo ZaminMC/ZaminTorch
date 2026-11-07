@@ -27,20 +27,46 @@ public class MinecartEntity extends VehicleEntity {
     public static final double CART_WIDTH = 0.98;
     /** The rail top offset: the cart rides just above the rail cell floor. */
     public static final double RIDE_Y_OFFSET = 0.06;
-    /** The steer acceleration per tick on rails. */
+    /** The steer acceleration per tick on rails (the engine's W-key drive). */
     public static final double RAIL_ACCELERATION = 0.02;
-    /** The historical uncoupled top speed on flat rails. */
-    public static final double RAIL_SPEED_CAP = 0.3;
+    /**
+     * The carried state's own ceiling (the reference's rail projection,
+     * moveOnRail lines 381-383: {@code d5 > 2.0 → 2.0}) — the ONLY bound
+     * on the velocity state; the position's per-tick advance clamps at
+     * {@link #getMaxSpeedOnRail()} at the walk's own tail instead, never
+     * on the state the wire and the pushes read.
+     */
+    public static final double RAIL_STATE_CEILING = 2.0;
     /** Off-rail drag (the historical ground friction). */
     public static final double OFF_RAIL_DRAG = 0.5;
     // The powered-rail walk (Slice 38 — the reference's own numbers:
-    // MinecartEntity.moveAlongTrack line 477's 0.06 boost, getMaxSpeed's
-    // 0.4 on-rail cap, lines 428-437's brake — under 0.03 the full stop,
-    // over it the 0.5 halving).
-    /** The powered golden/activator rail's boost per tick. */
+    // MinecartEntity.moveAlongTrack line 482's 0.06 boost, getMaxSpeed's
+    // 0.4 on-rail move clamp, lines 402-414's brake — under 0.03 the full
+    // stop, over it the 0.5 halving, lines 485-494's wall launch ±0.02).
+    /** The powered golden rail's boost per tick (line 482's 0.06). */
     public static final double POWERED_RAIL_BOOST = 0.06;
-    /** The reference's on-rail getMaxSpeed cap. */
-    public static final double POWERED_RAIL_CAP = 0.4;
+    /** The powered golden rail's from-rest wall launch (lines 485-494). */
+    public static final double POWERED_RAIL_LAUNCH = 0.02;
+    /**
+     * The rider's move scale (moveOnRail lines 438-441): a ridden cart
+     * advances at 0.75 of its velocity state each tick — the seat's own
+     * law, landed with the seated-mob model's drag row.
+     */
+    public static final double RIDER_MOVE_SCALE = 0.75;
+    /**
+     * The ridden drag (applySlowdown line 498 — the velocity triple
+     * {@code 0.997 / 0.0 / 0.997} a seated rider carries: the cart keeps
+     * its roll, the reference's own "a ridden cart barely slows").
+     */
+    public static final double RIDDEN_DRAG = 0.997;
+    /**
+     * The un-ridden drag (applySlowdown line 503 — the empty cart's
+     * {@code 0.96 / 0.0 / 0.96}: an abandoned cart grinds to a dead
+     * stop within the tick-count of a vanilla redstone clock's lag).
+     */
+    public static final double UNRIDDEN_DRAG = 0.96;
+    /** The plain family's on-rail move clamp (getMaxSpeed line 314: 0.4). */
+    public static final double MAX_SPEED_ON_RAIL = 0.4;
     /** The unpowered golden rail's full-stop band. */
     public static final double BRAKE_STOP_SPEED = 0.03;
     /** The unpowered golden rail's halving brake. */
@@ -74,13 +100,33 @@ public class MinecartEntity extends VehicleEntity {
     }
 
     /**
-     * The on-rail velocity multiplier the kind applies every tick (the
-     * reference's {@code applySlowdown} — 1.0 for the plain cart whose
-     * own walk keeps the historical {@code 0.997}); the chest variant
-     * overrides with the fullness drag.
+     * The on-rail move clamp (getMaxSpeed lines 313-315: the plain
+     * family's 0.4): the position's per-tick advance — the carried
+     * velocity state is NEVER clamped by it (the reference's clamp
+     * lands on {@code move(d22, 0, d23)}'s arguments alone, so a
+     * booster-saturated state rides above the clamp it moves at).
+     * The furnace variant overrides with its own 0.2.
      */
-    protected double railDragFactor() {
-        return 1.0;
+    protected double getMaxSpeedOnRail() {
+        return MAX_SPEED_ON_RAIL;
+    }
+
+    /**
+     * The drag on the carried velocity (the reference's own
+     * {@code applySlowdown} — moveOnRail line 454's call site, AFTER the
+     * move): the RIDER-GATED triple, {@code 0.997 / 0.0 / 0.997} when a
+     * body holds the seat and {@code 0.96 / 0.0 / 0.96} when the cart
+     * runs empty (MinecartEntity.applySlowdown lines 497-506) — an
+     * abandoned cart stops dead in a few dozen ticks while a ridden one
+     * keeps its roll; the Y arm zeroes the vertical the rail walk left.
+     * The inventory family (the chest and hopper carts) overrides with
+     * the fullness walk — NO rider gate, the reference's own override
+     * replaces the base whole; the furnace's override runs its push arm
+     * and then THIS triple on top (its {@code super.applySlowdown()}).
+     */
+    protected void applySlowdown() {
+        double drag = hasPassenger() ? RIDDEN_DRAG : UNRIDDEN_DRAG;
+        setVelocity(velocityX() * drag, velocityY() * 0.0, velocityZ() * drag);
     }
 
     /** The piston push (VIII13): the cart's own solver walk with the cart box. */
@@ -104,44 +150,49 @@ public class MinecartEntity extends VehicleEntity {
         int cellZ = (int) Math.floor(at.z());
         int cellY = (int) Math.floor(at.y() + 0.4); // the rail's own cell
 
-        // Speed and direction along the rail axis.
+        // THE STATE (the reference's velocity field): the rail projection
+        // (moveOnRail lines 379-386) reads the 2-D magnitude — a diagonal
+        // push folds its whole magnitude onto the travel axis — with the
+        // ceiling 2.0 (lines 381-383) the only bound. The direction rides
+        // the axis component's sign; the zero-component edge (a purely
+        // perpendicular push) falls to the look pick below — the engine's
+        // documented adaptation for the reference's canonical-shape unit.
         double velocityAlong = rail == AXIS_X ? velocityX() : velocityZ();
-        double speed = Math.min(Math.abs(velocityAlong), RAIL_SPEED_CAP);
+        double speed = Math.sqrt(velocityX() * velocityX() + velocityZ() * velocityZ());
+        if (speed > RAIL_STATE_CEILING) {
+            speed = RAIL_STATE_CEILING;
+        }
         double direction = velocityAlong >= 0 ? 1.0 : -1.0;
         if (speed < 0.01) {
             // Starting from rest: the rider's look names the way ahead.
             direction = lookDirection(rail);
             speed = 0.0;
         }
+        // The steer drive (the engine's W-key adaptation — the reference's
+        // own kick is the from-rest 0.1 consult, lines 387-399; the
+        // continuous form stands, ledgered for its own wave).
         if (input.forward() != 0.0f) {
-            speed = Math.min(speed + RAIL_ACCELERATION * Math.abs(input.forward()), RAIL_SPEED_CAP);
+            speed += RAIL_ACCELERATION * Math.abs(input.forward());
         }
-        // The powered-rail walk (Slice 38 — MinecartEntity.moveAlongTrack
-        // lines 345-349, 477-494): the powered golden/activator rail adds
-        // the 0.06 boost along the travel (capped at the reference's own
-        // 0.4 getMaxSpeed); the unpowered golden rail is the BRAKE — under
-        // 0.03 the cart stops dead, over it the velocity halves.
+        // THE BRAKE (flag1 — moveOnRail lines 402-414, the consult BEFORE
+        // the move): the unpowered golden rail halves the rolling state,
+        // and under the 0.03 band the full stop.
         int railPower = world.railPowerAt(
                 cellX + 0.5, cellY + 0.06, cellZ + 0.5);
-        if (railPower > 0) {
-            if (speed > 0.01) {
-                speed = Math.min(speed + POWERED_RAIL_BOOST, POWERED_RAIL_CAP);
-            } else {
-                // From rest on a powered rail: the shape's own kick
-                // (lines 481-494 — the east-west/north-south launch arms).
-                speed = Math.min(POWERED_RAIL_BOOST, POWERED_RAIL_CAP);
-            }
-        } else if (railPower < 0) {
+        if (railPower < 0) {
             if (speed < BRAKE_STOP_SPEED) {
                 speed = 0.0;
             } else {
                 speed *= BRAKE_FACTOR;
             }
         }
-        // The kind's own drag (the reference's applySlowdown runs after the
-        // move; our speed-carry model applies the same factor to the next
-        // tick's carried speed).
-        speed *= railDragFactor();
+
+        // THE MOVE (moveOnRail lines 438-446): the rider's 0.75 scale on
+        // the state, then the getMaxSpeed clamp — the position's per-tick
+        // advance, never the carried state (a booster-saturated cart
+        // rides above the clamp it moves at).
+        double moveScale = hasPassenger() ? RIDER_MOVE_SCALE : 1.0;
+        double moveMagnitude = Math.min(speed * moveScale, getMaxSpeedOnRail());
 
         // The next cell on the axis: a rail continues it; otherwise an
         // L-corner turns onto the perpendicular rail, or the track ends.
@@ -153,7 +204,7 @@ public class MinecartEntity extends VehicleEntity {
         int travel = rail;
         double moved;
         if (continues) {
-            moved = speed * direction;
+            moved = moveMagnitude * direction;
             if (rail == AXIS_X) {
                 nx = at.x() + moved;
                 nz = cellZ + 0.5;
@@ -167,7 +218,7 @@ public class MinecartEntity extends VehicleEntity {
                 // The corner: snap to the cell center, then head across.
                 travel = rail == AXIS_X ? AXIS_Z : AXIS_X;
                 direction = crossDelta;
-                moved = speed * direction;
+                moved = moveMagnitude * direction;
                 if (travel == AXIS_X) {
                     nx = cellX + 0.5 + moved;
                     nz = cellZ + 0.5;
@@ -187,12 +238,13 @@ public class MinecartEntity extends VehicleEntity {
             }
         }
 
-        // The velocity bookkeeping rides the travel axis; the cart's yaw
-        // faces the travel (the observer-facing heading).
+        // THE CARRY — the UN-clamped state rides the travel axis (the
+        // reference's velocity field keeps the projection's own
+        // magnitude; the move clamp never touches it).
         if (travel == AXIS_X) {
-            setVelocity(moved, 0.0, 0.0);
+            setVelocity(speed * direction, 0.0, 0.0);
         } else {
-            setVelocity(0.0, 0.0, moved);
+            setVelocity(0.0, 0.0, speed * direction);
         }
         lastAxis = travel;
         // The cart's yaw faces the travel (the observer-facing heading);
@@ -206,6 +258,63 @@ public class MinecartEntity extends VehicleEntity {
         }
         // Flat rails: the body rides the rail cell's floor + the offset.
         commit(nx, cellY + RIDE_Y_OFFSET, nz, true);
+
+        // THE DRAG (the reference's own call site — moveOnRail line 454,
+        // AFTER the move): the rider-gated triple lands on the CARRY
+        // alone — this tick's move already ran at the un-damped state.
+        applySlowdown();
+
+        // THE BOOST (flag — moveOnRail lines 478-495, the consult AFTER
+        // the drag, the walk's own tail): the powered golden rail adds
+        // 0.06 along the rolling direction (the post-drag state, so the
+        // addition rides un-decayed into the next tick's projection);
+        // from rest the WALL-SIDE LAUNCH — the neighbor-solid consult,
+        // the cart rolls away from the block behind it at ±0.02, and a
+        // wall-less rest never launches at all (the vanilla powered
+        // rail holds a resting cart until a block stands behind it).
+        if (railPower > 0) {
+            double rolling = Math.sqrt(velocityX() * velocityX() + velocityZ() * velocityZ());
+            if (rolling > 0.01) {
+                setVelocity(
+                        velocityX() + velocityX() / rolling * POWERED_RAIL_BOOST,
+                        velocityY(),
+                        velocityZ() + velocityZ() / rolling * POWERED_RAIL_BOOST);
+            } else {
+                double launch = wallLaunch(world, cellX, cellY, cellZ, rail);
+                if (rail == AXIS_X) {
+                    setVelocity(launch, 0.0, 0.0);
+                } else {
+                    setVelocity(0.0, 0.0, launch);
+                }
+            }
+        }
+    }
+
+    /**
+     * The powered rail's from-rest launch (moveOnRail lines 485-494): the
+     * neighbor-solid consult on the travel axis — the west wall launches
+     * east (+0.02), the east wall west; the north wall south, the south
+     * wall north; no wall, no launch. The consult is the block-level
+     * solid (the reference's own {@code getBlockState(pos.west())
+     * .getBlock().isSolid()}), the engine's WorldQuery point form.
+     */
+    private double wallLaunch(WorldQuery world, int cellX, int cellY, int cellZ, int rail) {
+        if (rail == AXIS_X) {
+            if (world.isSolid(cellX - 1 + 0.5, cellY + 0.5, cellZ + 0.5)) {
+                return POWERED_RAIL_LAUNCH; // the west wall: launch east
+            }
+            if (world.isSolid(cellX + 1 + 0.5, cellY + 0.5, cellZ + 0.5)) {
+                return -POWERED_RAIL_LAUNCH; // the east wall: launch west
+            }
+        } else {
+            if (world.isSolid(cellX + 0.5, cellY + 0.5, cellZ - 1 + 0.5)) {
+                return POWERED_RAIL_LAUNCH; // the north wall: launch south
+            }
+            if (world.isSolid(cellX + 0.5, cellY + 0.5, cellZ + 1 + 0.5)) {
+                return -POWERED_RAIL_LAUNCH; // the south wall: launch north
+            }
+        }
+        return 0.0;
     }
 
     /** The off-rail tail: gravity + heavy drag, the boat's land rules. */

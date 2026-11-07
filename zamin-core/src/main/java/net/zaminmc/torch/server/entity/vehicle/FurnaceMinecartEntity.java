@@ -48,6 +48,40 @@ public class FurnaceMinecartEntity extends MinecartEntity
         return 2;
     }
 
+    /**
+     * The furnace's own on-rail move clamp (getMaxSpeed lines 59-61:
+     * 0.2 — every other cart moves at 0.4): the fueled pusher rolls at
+     * a tenth of the plain family's 0.4-saturated state.
+     */
+    @Override
+    protected double getMaxSpeedOnRail() {
+        return FURNACE_MAX_SPEED;
+    }
+
+    /**
+     * The furnace's own drag (applySlowdown lines 91-110, 1:1): a live
+     * push damps the carried velocity to 0.8 and hands it the push
+     * vector's whole unit (the coal-fed ram); no push (the empty tank
+     * or the anti-reverse zero) coasts at 0.98 — and then the BASE
+     * rider-gated triple rides on top ({@code super.applySlowdown()},
+     * the reference's own call). The push re-normalizes here (the
+     * reference's own double walk — moveOnRail's scale arm is inert
+     * under this re-normalize, kept verbatim).
+     */
+    @Override
+    protected void applySlowdown() {
+        double squared = pushX * pushX + pushZ * pushZ;
+        if (squared > 1.0E-4) {
+            double length = Math.sqrt(squared);
+            pushX /= length;
+            pushZ /= length;
+            setVelocity(velocityX() * 0.8 + pushX, 0.0, velocityZ() * 0.8 + pushZ);
+        } else {
+            setVelocity(velocityX() * 0.98, 0.0, velocityZ() * 0.98);
+        }
+        super.applySlowdown();
+    }
+
     /** @return the remaining fuel ticks. */
     public int fuel() {
         return fuel;
@@ -133,19 +167,10 @@ public class FurnaceMinecartEntity extends MinecartEntity
             }
         }
         super.tickKind(world);
-        // The push's own acceleration (applySlowdown lines 92-105): the
-        // fueled cart gains the push vector's full magnitude each tick on
-        // the rail (the plain 0.98 coast when unfueled is the family's
-        // own drag, already applied by the base walk).
-        if (fuel > 0 && pushX * pushX + pushZ * pushZ > 1.0E-4) {
-            double alongX = velocityX() + pushX;
-            double alongZ = velocityZ() + pushZ;
-            double speed = Math.sqrt(alongX * alongX + alongZ * alongZ);
-            if (speed > FURNACE_MAX_SPEED) {
-                alongX = alongX / speed * FURNACE_MAX_SPEED;
-                alongZ = alongZ / speed * FURNACE_MAX_SPEED;
-            }
-            setVelocity(alongX, velocityY(), alongZ);
-        }
+        // The reference's own walk order keeps the push arm INSIDE
+        // applySlowdown (the override above) — the fueled ram and the
+        // 0.98 coast both ride the on-rail drag call site alone; the
+        // off-rail furnace never pushes (moveOffRail owns the gravity
+        // walk, the reference's own shape).
     }
 }

@@ -79,6 +79,23 @@ public class HopperMinecartEntity extends MinecartEntity {
         return 5;
     }
 
+    /**
+     * The fullness drag (InventoryMinecartEntity.applySlowdown lines
+     * 167-173 — the hopper cart EXTENDS the inventory family in the
+     * reference, its five slots the same walk the chest cart's 27 run):
+     * {@code 15 - InventoryMenu.getAnalogSignal(this)} grown into
+     * {@code 0.98 + i * 0.001} — an empty hopper cart multiplies 0.995,
+     * a full one 0.98. The override REPLACES the base whole (no
+     * {@code super} call, no rider gate — the reference's own shape).
+     */
+    @Override
+    protected void applySlowdown() {
+        int signal = net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
+                hopper.snapshotSlots(), 64);
+        double drag = 0.98 + (15 - signal) * 0.001;
+        setVelocity(velocityX() * drag, velocityY() * 0.0, velocityZ() * drag);
+    }
+
     /** The container (the 5 slots — the window, the transfers, the spill). */
     public HopperBlockEntity hopper() {
         return hopper;

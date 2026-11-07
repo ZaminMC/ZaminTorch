@@ -107,12 +107,16 @@ class VehicleFamilyCollisionParityDiscoveryTest {
         manager.tick();
 
         // A's walk then B's walk (the list order = the spawn order):
-        // the momentum blend twice, B's own move between them.
-        assertEquals(-0.06, a.velocityZ(), 1e-9,
-                "the trailing-body's arm: 0.05*0.2 - 0.05 (the doubled"
-                        + " blend over the sequential tick)");
-        assertEquals(0.06, b.velocityZ(), 1e-9,
-                "the leading-body's arm: 0.05*0.2 + 0.05");
+        // the momentum blend twice, B's own move between them — and B's
+        // own move DRAGS its carry before the second blend reads it
+        // (applySlowdown ×0.96 lands inside B's rail walk, the gather
+        // after it — the reference's own composition).
+        assertEquals(-0.061, a.velocityZ(), 1e-9,
+                "the trailing-body's arm: -0.05*0.2 + (-0.001 - 0.05)"
+                        + " — the second blend over the dragged carry"
+                        + " (B's 0.05 damped to 0.048 by its own move)");
+        assertEquals(0.0586, b.velocityZ(), 1e-9,
+                "the leading-body's arm: 0.048*0.2 + (-0.001 + 0.05)");
         assertEquals(10.0, a.position().z(), 1e-9,
                 "A never moved (its tick read the pre-blend zero)");
         assertEquals(10.55, b.position().z(), 1e-9,

@@ -115,15 +115,47 @@ class MinecartVariantsTest {
         assertTrue(cart.pushX() > 0.0, "the push rolls away from the player");
         assertEquals(0.0, cart.pushZ(), 1e-9, "the aim is purely east");
 
+        // The push arm rides the ON-RAIL drag call site alone (applySlowdown
+        // lines 91-110 — the reference's moveOnRail owns it; an OFF-RAIL
+        // furnace never pushes, moveOffRail's gravity walk the only law).
         cart.tick(EMPTY_WORLD);
         assertEquals(3599, cart.fuel(), "the fuel burns one per tick");
-        assertTrue(cart.velocityX() > 0.0, "the push carries the cart east");
-        assertTrue(Math.abs(cart.velocityX()) <= FurnaceMinecartEntity.FURNACE_MAX_SPEED + 1e-9,
-                "the furnace's own 0.2 cap");
+        assertEquals(0.0, cart.velocityX(), 1e-9,
+                "the off-rail furnace never pushes (moveOffRail owns it)");
+
+        // The on-rail push: an endless east-west track at the cart's bed.
+        VehicleEntity.WorldQuery rail = new VehicleEntity.WorldQuery() {
+            @Override public boolean isSolid(double x, double y, double z) {
+                return y < 64.0;
+            }
+
+            @Override public int railAxisAt(double x, double y, double z) {
+                if (y < 63.9 || y > 65.0) {
+                    return -1;
+                }
+                return (int) Math.floor(z) == 10 ? 1 : -1;
+            }
+        };
+        double xBefore = cart.position().x();
+        cart.tick(rail);
+        // The first on-rail tick from rest: the move is zero (the state
+        // was zero at the walk's head), and the push arm hands the carry
+        // the whole unit push damped by the un-ridden base drag:
+        // 0 * 0.8 + 1.0, then * 0.96 = 0.96.
+        assertEquals(xBefore, cart.position().x(), 1e-9,
+                "the from-rest move is zero");
+        assertEquals(0.96, cart.velocityX(), 1e-9,
+                "the push arm: the unit push, the 0.8 ram, the base 0.96");
+        cart.tick(rail);
+        // The rolling move clamps at the furnace's own getMaxSpeed 0.2 —
+        // the state above it (0.96) rides on (the reference's clamp is
+        // the move's alone).
+        assertEquals(0.2, cart.position().x() - xBefore, 1e-9,
+                "the furnace's rolling move clamps at 0.2 (getMaxSpeed)");
 
         // The burn-out: the tank empties, the lit flag drops, the push zeroes.
         for (int i = 0; i < FurnaceMinecartEntity.COAL_FUEL_TICKS; i++) {
-            cart.tick(EMPTY_WORLD);
+            cart.tick(rail);
         }
         assertEquals(0, cart.fuel(), "the tank emptied");
         assertFalse(cart.lit(), "the lit flag dropped");

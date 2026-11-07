@@ -45,13 +45,17 @@ public final class ChestMinecartEntity extends MinecartEntity {
      * The fullness drag (InventoryMinecartEntity.applySlowdown lines
      * 167-173): {@code 15 - InventoryMenu.getAnalogSignal(this)} grown into
      * {@code 0.98 + i * 0.001} — an empty cart multiplies 0.995, a full one
-     * 0.98 (the fuller the chest, the heavier the ride).
+     * 0.98 (the fuller the chest, the heavier the ride). The override
+     * REPLACES the base whole (no {@code super} call, no rider gate —
+     * the reference's own shape: the inventory family's cargo is the
+     * only drag it knows).
      */
     @Override
-    protected double railDragFactor() {
+    protected void applySlowdown() {
         int signal = net.zaminmc.torch.server.redstone.RedstoneSystem.containerFullness(
                 chest.snapshotSlots(), 64);
-        return 0.98 + (15 - signal) * 0.001;
+        double drag = 0.98 + (15 - signal) * 0.001;
+        setVelocity(velocityX() * drag, velocityY() * 0.0, velocityZ() * drag);
     }
 
     /**

@@ -134,9 +134,13 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
 
         /**
          * @return the point's cell's powered-rail walk (Slice 38 —
-         * MinecartEntity.moveAlongTrack lines 345-349 + 477-494): 1 the
-         * powered golden/activator boost, -1 the unpowered brake, 0 plain
-         * track (the plain rail and the detector family never boost).
+         * MinecartEntity.moveOnRail lines 345-349 + 478-495): 1 the
+         * powered GOLDEN rail's boost, -1 the unpowered golden rail's
+         * brake, 0 everything else (the plain rail, the detector
+         * family, and the ACTIVATOR rail — the reference's flag pair
+         * arms only over Blocks.POWERED_RAIL, so the activator never
+         * boosts and never brakes, its powered bit feeding the
+         * onActivatorRail consult alone).
          */
         default int railPowerAt(double x, double y, double z) {
             return 0;
