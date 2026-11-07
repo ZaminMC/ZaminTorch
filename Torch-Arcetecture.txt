@@ -9530,6 +9530,118 @@ pre-existing/green-solo, the documented watch family); the
 vanilla-grade census's next family pick when the verifier's rows
 land.
 
+THE 2026-11-07 SESSION (Waves VC + SM + the F-EX queue retired, the
+README's live progress table re-formed):
+
+(1) WAVE VC (commit 85f4123d) — THE VEHICLE FAMILY'S OWN COLLISION
+WALKS, the re-pin's named row whole: MinecartEntity.tick lines
+295-299 and BoatEntity.tick lines 347-356 — each vehicle gathers the
+bodies in its OWN shape grown (0.2, 0.0, 0.2) — the cart's
+setSize(0.98, 0.7), the boat's setSize(1.5, 0.6) — and pushes the
+members of its own family ALONE through the entity.push(this) call
+shape (the cart pushes CARTS, the boat pushes BOATS, never the
+living bodies — the living gather pushes the vehicles, the PX wave's
+reverse direction); the gather strict-intersecting both sides, same
+dimension alone, the walker's own passenger excluded (the line-296
+gate), dead bodies never gathering. THE CART-CART BLEND (Minecart-
+Entity.push lines 652-734, the PX wave's named tail): the squared-
+distance axis with the 1.0E-4 floor, the euclidean re-normalization,
+the 1/d2 cap, the 0.1-then-0.5 scale, THE 0.8 DOT-PRODUCT GATE over
+the CALLEE'S OWN YAW AXIS (the reference's atan2-convention axis
+form and the engine's look-convention axis differ by a negation the
+absolute value folds — the equivalence proven in the javadoc, never
+a re-derivation; the crosswise pair never touches however the boxes
+overlap), THE FURNACE ASYMMETRY both arms (the coal-fed pusher rams
+— the other body damped to 0.2 and handed the furnace's WHOLE
+velocity, the furnace keeping 0.95; the furnace callee stands as a
+wall that stops the runner dead), and THE MOMENTUM BLEND (both damped
+to 0.2, both handed the halved momentum sum, the callee minus the
+separation and the initiator plus it); NO rider gates on the blend
+(an occupied cart still takes it — the vanilla quirk the boat's
+gates refuse). THE BOAT-BOAT PUSH (Entity.push lines 969-1005,
+BoatEntity overriding nothing): the absMax-sqrt form with the 0.05
+scale (the vector NOT unit after the normalization — the pure-axis
+0.2 offset gives the sqrt(0.2)*0.05 impulse), each side's OWN rider
+gate. SEATS: VehicleFamilyCollisionParityDiscoveryTest 6/0 NEW —
+RED on the pre-fix engine 5/1 (the membership/dimension seat the
+negative-law green by design).
+
+(2) WAVE SM (commit ad1d0a53) — THE SEATED-MOB MODEL + THE AUTO-
+MOUNT, the re-pin's held tail LANDED whole: the SEAT ROW on the body
+(the reference's this.vehicle) stamped by the manager at the tick
+head from the vehicles' own passenger seats; the MOVEMENT FREEZE (a
+seated body integrates no motion of its own — the reference's
+apply-then-overwrite shape adapted to the engine's immediate-publish
+model, the contact block and the mind keeping at the seat position);
+the MAKESSTEPS GATE (Entity line 715's vehicle == null — the seated
+body makes no steps, the journey is the vehicle's); the AUTO-MOUNT
+CONSULT (MinecartEntity.push lines 657-665, all six conjuncts read
+whole — living non-player non-golem, RIDEABLE-alone kind, moving
+(> 0.01), empty seat, walking free) through the new VehicleMount
+seam, THE PUSH MATH RUNNING ANYWAY after the scoop (the reference's
+own order — the consult no early return); the RIDER GATES REAL
+(line 656's pusher-never-the-cart's-passenger and Entity.push line
+970's vehicle arm — the seated body never pushes its own mount); the
+seat-follow and the dismount-on-break the §31.6 retirement's own
+machinery (the mob-rider teleport to the per-family seat anchor, the
+broken vehicle's seat opening with the exit placement) — the wave
+wires the missing half, the MOUNT PATH. SEATS: SeatedMobAutoMount-
+ParityDiscoveryTest 5/0 NEW — RED on the pre-fix engine 5/5 (the
+no-op patch verified).
+
+(3) THE F-EX QUEUE RETIRED BY VERIFICATION (the standing audit's
+named rows, each the three-pass discipline this session): F-EX2 (the
+sleeping eye-height frame in the blast's knockback) — LANDED, the
+player arm carrying the 0.2 sleeping frame with the sneak's −0.08
+composed, the mob arm the per-family eyeHeightForQuery, the vehicle
+arm height*0.85; F-EX3 (the BlastResistanceTable coverage census) —
+GREEN WHOLE: 1,235/1,235 registered identifiers resolve through the
+table, ZERO fallback misses (the executable census probe made the
+permanent regression seat BlastCoverageCensusTest — any future block
+registration that forgets its row fails the seat); F-EX4 (the
+createFire call census) — LANDED: the bed's wrong-world blast
+createFire=true (BedBlock line 79), the ghast fireball's ONE flag
+consult answering BOTH arms (fire and destruction ride mobGriefing
+together, FireballEntity.onHit line 33), the wither skull fire=false
+with grief=mobGriefing (WitherSkullEntity line 83), the TNT-fuse
+fire=false (World.explode's six-arg form) — every caller verified
+against the reference source; F-EX5 (the punch deflection's skull
+exclusion) — LANDED: only the ghast's LARGE fireball inherits the
+re-aim arm, SmallFireballEntity lines 61-63 and WitherSkullEntity
+lines 92-94 both overriding takeDamage with return false (the
+overrides confirmed in the reference source); F-FL4 (the nether/End
+fluid simulation) — LANDED by the earlier Wave FL4 (the per-dimension
+fluid systems, netherFluidSystem/endFluidSystem each over its own
+FluidWorld with the nether's no-sky and water-vaporizing laws).
+
+(4) THE README'S LIVE PROGRESS TABLE RE-FORMED (commit 7bf2dcd5, the
+AnyPS5 Status presentation): four shields badges + the compact
+one-line-state table + the progress-history link + the measurement
+footnote — the per-run CI forensics and per-slice landing histories
+that had accreted inside the table cells retired to the records that
+own them (this file's §22/§29, VANILLA_1_8_8_COMPATIBILITY.md,
+NATIVE_API_CAPABILITIES.md, WORKLOG.md); the numbers refreshed
+honestly (3,760 automated seats suite-wide per the module census;
+the parity row's 3,300+ engine seats).
+
+NEXT WORK (re-pinned after VC + SM + the F-EX retirement, in order):
+the push family's standing tails are CLOSED whole (the AUTO-MOUNT
+landed with SM; the cart-cart blend and the vehicles' own walks with
+VC) — the remaining named rows: the flank walk's steal-poll cadence
+(the engine's 20-tick form of the selector's every-tick canStart
+consult — a documented adaptation, the verifier's row when the
+census reaches it); the verifier's PRs when they open (none at this
+session's close); the CI census watches (the PanicFlee wounded-cow
+flake and the WolfCollarDye one-off parallel flake — the documented
+watch family); the vanilla-grade census's next family pick when the
+verifier's rows land — the seated-mob model's own tails now open as
+fresh census rows (the seated mob's goal behaviors: the panic
+flee's velocity churn under the freeze, the zombie's seated
+targeting, the villager's seated breeding consults — each the
+verifier's three-pass discipline before any engine change; the
+minecart's ridden drag — the reference's ridden-body velocity triple
+the seat now carries).
+
 VT-033'S ADJACENT TAILS LANDED (2026-11-02, commit d96f4a2a — #146's
 review-note ledger retired): the WITHER FALL's kill row and the BEACON
 full-power row walk the ACTING world's players (the un-dimensioned

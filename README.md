@@ -41,7 +41,7 @@ architecture, decisions and milestones.
 
 [Progress history](WORKLOG.md)
 
-<sub>Every row's estimate is measured against its own ledger — the wave/section named in the row — not a feeling; percentages move as work lands and a row leaves the table at 100%. The landed record behind these numbers lives in [`Torch-Arcetecture.txt`](Torch-Arcetecture.txt) §22/§29, [`VANILLA_1_8_8_COMPATIBILITY.md`](VANILLA_1_8_8_COMPATIBILITY.md), [`NATIVE_API_CAPABILITIES.md`](NATIVE_API_CAPABILITIES.md) and [`WORKLOG.md`](WORKLOG.md). Last full re-verification of the table: 2026-10-31 (the FL4-F10 redstone world-binding wave + the parity PR wave #101/#102/#104); latest landing: 2026-11-07 (Wave VC — the vehicle family's own collision walks).</sub>
+<sub>Every row's estimate is measured against its own ledger — the wave/section named in the row — not a feeling; percentages move as work lands and a row leaves the table at 100%. The landed record behind these numbers lives in [`Torch-Arcetecture.txt`](Torch-Arcetecture.txt) §22/§29, [`VANILLA_1_8_8_COMPATIBILITY.md`](VANILLA_1_8_8_COMPATIBILITY.md), [`NATIVE_API_CAPABILITIES.md`](NATIVE_API_CAPABILITIES.md) and [`WORKLOG.md`](WORKLOG.md). Last full re-verification of the table: 2026-10-31 (the FL4-F10 redstone world-binding wave + the parity PR wave #101/#102/#104); latest landing: 2026-11-07 (Waves VC + SM — the vehicle family's own collision walks + the seated-mob model and the AUTO-MOUNT).</sub>
 
 ## Downloading a dev build (no build tools needed)
 
