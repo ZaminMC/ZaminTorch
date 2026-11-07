@@ -3346,6 +3346,12 @@ public final class EngineServer implements Server, EngineBridge {
                         VEHICLE_ID_BASE);
                 this.vehicleManager = vehicles;
                 vehicles.setEventBus(eventBus); // §27.7: the public vehicle spawn gate
+                // Wave PX — THE PUSH WALK'S VEHICLE ARM (the reference's
+                // gather over world.getEntities: the isPushable-true cart
+                // and boat families join every living body's push walk —
+                // the mobs' and the players' own walks both read the live
+                // vehicle list through this seam).
+                mobs.setVehicleSource(() -> vehicles.all());
                 // THE VEHICLES' RIDER-FALL DELEGATE (F-RIDER-SPARE — the
                 // same payment walk the mounts' seam carries, the
                 // non-living base's shape: a vehicle has NO fall formula
@@ -7643,6 +7649,21 @@ public final class EngineServer implements Server, EngineBridge {
             // dead-skip below).
             session.stats().increment(
                     net.zaminmc.torch.server.stat.EngineStats.MINUTES_PLAYED, 1);
+            // Wave PX — THE PLAYER'S OWN PUSH WALK (PlayerEntity.mobTick
+            // line 455 → super.mobTick() → the shared push block closing
+            // the travel section): the walking player gathers the
+            // pushable bodies in its own grown-0.2 box and separates from
+            // them mutually — the mob-mob scope's adjacent carrier the
+            // PP wave never reached. The walk rides BEFORE the dead-skip:
+            // the push block carries NO isDead gate in the reference
+            // (LivingEntity.mobTick's dead arm zeroes the INPUTS alone,
+            // the block at the method's close runs for the death-screen
+            // body too — the PP wave's own mob-side law, the player's
+            // own walk the same shape).
+            MobManager pushMobs = mobManager;
+            if (pushMobs != null) {
+                pushMobs.tickPlayerPushCollisions(session, players.all());
+            }
             if (session.dead()) {
                 continue;
             }

@@ -748,6 +748,23 @@ public final class MobManager {
      */
     private volatile DimensionCrossing dimensionCrossing;
 
+    /**
+     * Wave PX — the push walk's vehicle source (the engine's live
+     * carts/boats, the reference's world.getEntities membership the
+     * mob-mob scope never carried): null until the engine wires it,
+     * in which case the gather walks the mob family alone exactly as
+     * the pre-PX engine did. Tick-lane only (the push walk's own
+     * read).
+     */
+    private volatile java.util.function.Supplier<List<
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity>> vehicleSource;
+
+    /** Wires the push walk's vehicle source (the engine's own boot). */
+    public void setVehicleSource(java.util.function.Supplier<List<
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity>> source) {
+        this.vehicleSource = java.util.Objects.requireNonNull(source, "source");
+    }
+
     /** Wires the crossing service (the engine's own boot). */
     public void setDimensionCrossing(DimensionCrossing dimensionCrossing) {
         this.dimensionCrossing = java.util.Objects.requireNonNull(
@@ -1845,7 +1862,7 @@ public final class MobManager {
                 // arm at line 1434 zeroes the INPUTS alone): a dying body
                 // still pushes its neighbours apart through the whole
                 // death animation, exactly as vanilla.
-                tickPushCollisions(mob);
+                tickPushCollisions(mob, players);
                 continue;
             }
 
@@ -1980,7 +1997,7 @@ public final class MobManager {
             // .mobTick's "push" block, the LAST section of the reference's
             // own order — ai, jump, travel, PUSH): every body separates
             // from its crowding neighbours after its own movement lands.
-            tickPushCollisions(mob);
+            tickPushCollisions(mob, players);
             if (wasPriming != mob.fuseActive()) {
                 for (Listener listener : listeners) {
                     listener.onMobFuseChanged(mob, mob.fuseActive());
@@ -5063,7 +5080,7 @@ public final class MobManager {
      * The filter pair: NOT_SPECTATOR (every mob passes — no mob
      * spectates) and isPushable.</p>
      */
-    private void tickPushCollisions(MobEntity pusher) {
+    private void tickPushCollisions(MobEntity pusher, Iterable<PlayerSession> players) {
         if (pusher.type() == MobType.BAT
                 || pusher.type() == MobType.ENDER_DRAGON) {
             return; // the two empty-carrier families
@@ -5094,6 +5111,24 @@ public final class MobManager {
                 continue;
             }
             pushBody(pusher, other);
+        }
+        // Wave PX — THE PLAYER ARM (the reference's gather over
+        // world.getEntities: the players are living bodies — the same
+        // walk's own membership, PlayerEntity.mobTick line 455 running
+        // the shared push block through super).
+        for (PlayerSession player : players) {
+            pushPlayerBody(pusher, player, minX, maxX, minY, maxY, minZ, maxZ);
+        }
+        // Wave PX — THE VEHICLE ARM (MinecartEntity.isPushable line 107
+        // and BoatEntity line 63 both answer true — the carts and boats
+        // join every living body's gather).
+        java.util.function.Supplier<List<net.zaminmc.torch.server.entity.vehicle.VehicleEntity>>
+                vehicles = vehicleSource;
+        if (vehicles != null) {
+            for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                    : vehicles.get()) {
+                pushVehicleBody(pusher, vehicle, minX, maxX, minY, maxY, minZ, maxZ);
+            }
         }
     }
 
@@ -5179,6 +5214,421 @@ public final class MobManager {
         }
         if (!pusher.hasRider()) {
             pusher.addVelocity(d0, 0.0, d1);
+        }
+    }
+
+    /**
+     * Wave PX — THE PLAYER ARM of the living push walk (the reference's
+     * gather over {@code world.getEntities}: the players are living
+     * bodies, PlayerEntity.mobTick line 455 running the shared push
+     * block through {@code super.mobTick()} — a mob's walk gathers the
+     * players around it exactly as it gathers its mob neighbours).
+     *
+     * <p>THE FILTER PAIR (the gather's own predicate, LivingEntity line
+     * 1480-1484): NOT_SPECTATOR (EntityFilter line 27 — the spectating
+     * player never joins anyone's gather) and isPushable (the player's
+     * LivingEntity inheritance, line 1599's {@code !removed} — the
+     * engine's PLAYING membership is the same law; the death-screen
+     * body is not removed, it still separates). The candidate's own box
+     * is PlayerEntity's {@code setSize(0.6F, 1.8F)} (line 424),
+     * intersecting the pusher's grown box STRICT both sides.</p>
+     *
+     * <p>THE PUSH ITSELF is Entity.push's ordinary mutual law (the
+     * player overrides nothing) with one engine-side law of its own:
+     * the pushed player's velocity add lands on the SESSION'S MOTION
+     * STORE alone — the vanilla wire NEVER carries the push to the
+     * pushed player's own client (the player's tracker rides
+     * {@code syncVelocity = false}, EntityMap line 95's three-arg form,
+     * and {@code addVelocity} never marks {@code damaged} — the only
+     * player velocity publication is the damage walk's flag, line 692's
+     * gate). The store feeds the knockback halving (applyKnockback line
+     * 786's {@code velocityX /= 2}) and the movement clamp's threshold
+     * (ServerPlayNetworkHandler line 300's d14) — the visible push is
+     * the client's own physics, exactly the vanilla split.</p>
+     */
+    private void pushPlayerBody(MobEntity pusher, PlayerSession pushed,
+            double minX, double maxX, double minY, double maxY,
+            double minZ, double maxZ) {
+        if (pushed.state() != net.zaminmc.torch.entity.PlayerState.PLAYING) {
+            return; // !removed — the engine's list membership law
+        }
+        if (pushed.gamemode() == net.zaminmc.torch.GameMode.SPECTATOR) {
+            return; // EntityFilter.NOT_SPECTATOR (line 27)
+        }
+        if (pushed.dimension() != pusher.dimension()) {
+            return; // this world's bodies alone
+        }
+        // The candidate's OWN box (PlayerEntity.setSize line 424:
+        // 0.6 wide, 1.8 tall) against the grown box, STRICT both sides.
+        Position b = pushed.position();
+        if (!(b.x() + 0.3 > minX && b.x() - 0.3 < maxX
+                && b.y() + 1.8 > minY && b.y() < maxY
+                && b.z() + 0.3 > minZ && b.z() - 0.3 < maxZ)) {
+            return;
+        }
+        // Entity.push line 970 — the riding pair: the player riding the
+        // pusher never pushes it (entity.rider != this fails).
+        if (pusher.hasRider() && pusher.riderId() == pushed.engineEntityId()) {
+            return;
+        }
+        double d0 = pusher.position().x() - b.x();
+        double d1 = pusher.position().z() - b.z();
+        double d2 = Math.abs(d0) > Math.abs(d1) ? Math.abs(d0) : Math.abs(d1);
+        if (d2 < 0.01) {
+            return;
+        }
+        d2 = Math.sqrt(d2);
+        d0 /= d2;
+        d1 /= d2;
+        double d3 = 1.0 / d2;
+        if (d3 > 1.0) {
+            d3 = 1.0;
+        }
+        d0 *= d3;
+        d1 *= d3;
+        d0 *= 0.05;
+        d1 *= 0.05;
+        // The pushed player's arm (line 995's gate is vacuous — no body
+        // ever rides a player): the session's motion store alone, the
+        // vanilla no-wire law (the seat's own javadoc above).
+        pushed.setMotion(pushed.motionX() - d0, pushed.motionY(),
+                pushed.motionZ() - d1);
+        // The pusher's own arm (lines 998-1000): a ridden body never
+        // moves out from under its rider.
+        if (!pusher.hasRider()) {
+            pusher.addVelocity(d0, 0.0, d1);
+        }
+    }
+
+    /**
+     * Wave PX — THE VEHICLE ARM of the living push walk: the carts and
+     * the boats are the reference's two isPushable-true non-living
+     * families (MinecartEntity line 107 / BoatEntity line 63), gathered
+     * by every living body's walk. The two bodies carry DIFFERENT push
+     * laws — the reference's own split this wave reads whole:
+     *
+     * <p>THE BOAT (Entity.push, unmodified): the ordinary mutual law —
+     * the absMax-normalized axis, the sqrt re-normalization, the 1/d2
+     * cap, the 0.05 scale, and each side's own rider gate (a boat with
+     * a passenger never moves out from under it, line 995; the pushing
+     * mob's own rider gate, line 998).</p>
+     *
+     * <p>THE CART (MinecartEntity.push lines 649-734, a WHOLESALE
+     * override): the squared-horizontal-distance form (line 668's
+     * {@code d0*d0 + d1*d1} with the 1.0E-4 floor — never the absMax
+     * pair), the normalize, the 1/d2 cap, the cart's own 0.1 scale
+     * halved to 0.05 (the pushSpeedReduction no-op kept out — the
+     * field is never set non-zero in the reference), then the else arm
+     * (lines 724-726): the cart pushed away FULL, the pushing mob
+     * pushed away at QUARTER — and NO rider gates on either side (the
+     * override replaces Entity.push wholesale; a ridden cart still
+     * drifts under crowding). The cart-cart blend (lines 687-723)
+     * belongs to the VEHICLE family's own walk — the mob's gather
+     * never carries it (the pusher is never a cart here). The
+     * AUTO-MOUNT consult (lines 660-667, a moving rideable cart
+     * scooping a non-player non-golem living body onto the seat) is
+     * NOT-REACHABLE until the engine's mobs can ride: the seated-mob
+     * model the makesSteps gate's own javadoc names as absent — held
+     * as this wave's named tail.</p>
+     */
+    private void pushVehicleBody(MobEntity pusher,
+            net.zaminmc.torch.server.entity.vehicle.VehicleEntity pushed,
+            double minX, double maxX, double minY, double maxY,
+            double minZ, double maxZ) {
+        if (pushed.dead()) {
+            return; // the dying vehicle never joins the gather
+        }
+        if (pushed.dimension() != pusher.dimension()) {
+            return; // this world's bodies alone
+        }
+        boolean boat = pushed.kind()
+                == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT;
+        // The candidate's OWN box (MinecartEntity.setSize(0.98F, 0.7F)
+        // line 59 / BoatEntity.setSize(1.5F, 0.6F) line 37) against the
+        // grown box, STRICT both sides.
+        double half = boat ? 0.75 : 0.49;
+        double height = boat ? 0.6 : 0.7;
+        Position b = pushed.position();
+        if (!(b.x() + half > minX && b.x() - half < maxX
+                && b.y() + height > minY && b.y() < maxY
+                && b.z() + half > minZ && b.z() - half < maxZ)) {
+            return;
+        }
+        if (boat) {
+            // Entity.push — the ordinary mutual law. The riding-pair
+            // refusal (line 970) is vacuous here: the engine's mobs
+            // never ride, and no body's rider is ever a boat.
+            double d0 = pusher.position().x() - b.x();
+            double d1 = pusher.position().z() - b.z();
+            double d2 = Math.abs(d0) > Math.abs(d1) ? Math.abs(d0) : Math.abs(d1);
+            if (d2 < 0.01) {
+                return;
+            }
+            d2 = Math.sqrt(d2);
+            d0 /= d2;
+            d1 /= d2;
+            double d3 = 1.0 / d2;
+            if (d3 > 1.0) {
+                d3 = 1.0;
+            }
+            d0 *= d3;
+            d1 *= d3;
+            d0 *= 0.05;
+            d1 *= 0.05;
+            // Line 995: a boat with a passenger never moves out from
+            // under it.
+            if (!pushed.hasPassenger()) {
+                pushed.setVelocity(pushed.velocityX() - d0,
+                        pushed.velocityY(), pushed.velocityZ() - d1);
+            }
+            // Line 998: the pusher's own rider gate.
+            if (!pusher.hasRider()) {
+                pusher.addVelocity(d0, 0.0, d1);
+            }
+            return;
+        }
+        // MinecartEntity.push — the cart's own law. The line-656 gate
+        // (the pusher is not the cart's passenger) is vacuous for mobs
+        // today: the engine's mobs never ride.
+        double d0 = pusher.position().x() - b.x();
+        double d1 = pusher.position().z() - b.z();
+        double d2 = d0 * d0 + d1 * d1;
+        if (d2 < 1.0E-4) {
+            return; // the squared-distance floor (line 669)
+        }
+        d2 = Math.sqrt(d2);
+        d0 /= d2;
+        d1 /= d2;
+        double d3 = 1.0 / d2;
+        if (d3 > 1.0) {
+            d3 = 1.0;
+        }
+        d0 *= d3;
+        d1 *= d3;
+        d0 *= 0.1;
+        d1 *= 0.1;
+        d0 *= 0.5;
+        d1 *= 0.5;
+        // The else arm (lines 724-726): the cart pushed away full, the
+        // pushing mob pushed away at quarter — no rider gates.
+        pushed.setVelocity(pushed.velocityX() - d0, pushed.velocityY(),
+                pushed.velocityZ() - d1);
+        pusher.addVelocity(d0 / 4.0, 0.0, d1 / 4.0);
+    }
+
+    /**
+     * Wave PX — THE PLAYER'S OWN PUSH WALK (PlayerEntity.mobTick line
+     * 455 → super.mobTick() → the shared push block): the walking
+     * player gathers the pushable bodies in its own grown-0.2 box and
+     * separates from them mutually — the walking-through-animals shove
+     * the mob-mob scope never carried. The walk itself carries NO
+     * spectator gate in the reference (the block runs for every living
+     * body — a spectating player still shoves the mobs it drifts
+     * through, the vanilla quirk kept verbatim); the CANDIDATES carry
+     * the NOT_SPECTATOR filter alone.
+     *
+     * <p>The pair laws by candidate family: a MOB or another PLAYER
+     * rides Entity.push's ordinary mutual law (the player's own arm is
+     * the motion store, never a wire — see {@link #pushPlayerBody}); a
+     * BOAT rides the same law with the boat's passenger gate; a CART
+     * rides MinecartEntity.push's own form — the player excluded from
+     * the auto-mount consult (line 661's {@code !(entity instanceof
+     * PlayerEntity)}), the cart pushed away full, the player pushed
+     * away at quarter. The rider refusals that name the player: a rider
+     * never pushes its own mount (the mob it rides — Entity.push line
+     * 970; the cart it rides — MinecartEntity.push line 656; the boat
+     * it rides — Entity.push line 970's vehicle arm).</p>
+     *
+     * <p>Engine-side the walk rides the body tick (the reference's own
+     * placement: the push block closes the travel section of the
+     * living tick, PlayerEntity.mobTick's super call).</p>
+     */
+    public void tickPlayerPushCollisions(PlayerSession pusher,
+            Iterable<PlayerSession> players) {
+        if (pusher.state() != net.zaminmc.torch.entity.PlayerState.PLAYING) {
+            return; // the removed body never walks
+        }
+        // The gather box: the player's own 0.6x1.8 shape grown
+        // (0.2, 0.0, 0.2).
+        Position at = pusher.position();
+        double minX = at.x() - 0.5;
+        double maxX = at.x() + 0.5;
+        double minY = at.y();
+        double maxY = at.y() + 1.8;
+        double minZ = at.z() - 0.5;
+        double maxZ = at.z() + 0.5;
+        for (MobEntity mob : mobs) {
+            if (mob.dimension() != pusher.dimension()) {
+                continue; // this world's bodies alone
+            }
+            if (!isPushable(mob)) {
+                continue; // the gather's isPushable filter
+            }
+            double oHalf = mob.type().width / 2.0;
+            Position b = mob.position();
+            if (!(b.x() + oHalf > minX && b.x() - oHalf < maxX
+                    && b.y() + mob.type().height > minY && b.y() < maxY
+                    && b.z() + oHalf > minZ && b.z() - oHalf < maxZ)) {
+                continue;
+            }
+            // Entity.push line 970 — the riding pair: the player riding
+            // this mob never pushes it (entity.rider != this fails).
+            if (mob.hasRider() && mob.riderId() == pusher.engineEntityId()) {
+                continue;
+            }
+            double d0 = at.x() - b.x();
+            double d1 = at.z() - b.z();
+            double d2 = Math.abs(d0) > Math.abs(d1) ? Math.abs(d0) : Math.abs(d1);
+            if (d2 < 0.01) {
+                continue;
+            }
+            d2 = Math.sqrt(d2);
+            d0 /= d2;
+            d1 /= d2;
+            double d3 = 1.0 / d2;
+            if (d3 > 1.0) {
+                d3 = 1.0;
+            }
+            d0 *= d3;
+            d1 *= d3;
+            d0 *= 0.05;
+            d1 *= 0.05;
+            // The pushed mob's arm (line 995): a ridden body never moves
+            // out from under its rider.
+            if (!mob.hasRider()) {
+                mob.addVelocity(-d0, 0.0, -d1);
+            }
+            // The pushing player's arm (line 998's gate vacuous — no body
+            // ever rides a player): the motion store alone.
+            pusher.setMotion(pusher.motionX() + d0, pusher.motionY(),
+                    pusher.motionZ() + d1);
+        }
+        for (PlayerSession other : players) {
+            if (other == pusher
+                    || other.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
+                    || other.gamemode() == net.zaminmc.torch.GameMode.SPECTATOR) {
+                continue; // NOT_SPECTATOR + !removed, never the walker itself
+            }
+            if (other.dimension() != pusher.dimension()) {
+                continue;
+            }
+            Position b = other.position();
+            if (!(b.x() + 0.3 > minX && b.x() - 0.3 < maxX
+                    && b.y() + 1.8 > minY && b.y() < maxY
+                    && b.z() + 0.3 > minZ && b.z() - 0.3 < maxZ)) {
+                continue;
+            }
+            // The riding-pair refusal is vacuous player-to-player (no
+            // body's rider is ever a player, no player rides a player).
+            double d0 = at.x() - b.x();
+            double d1 = at.z() - b.z();
+            double d2 = Math.abs(d0) > Math.abs(d1) ? Math.abs(d0) : Math.abs(d1);
+            if (d2 < 0.01) {
+                continue;
+            }
+            d2 = Math.sqrt(d2);
+            d0 /= d2;
+            d1 /= d2;
+            double d3 = 1.0 / d2;
+            if (d3 > 1.0) {
+                d3 = 1.0;
+            }
+            d0 *= d3;
+            d1 *= d3;
+            d0 *= 0.05;
+            d1 *= 0.05;
+            // Both arms' gates vacuous: the motion stores alone, both
+            // sides (the pushed candidate and the pushing walker).
+            other.setMotion(other.motionX() - d0, other.motionY(),
+                    other.motionZ() - d1);
+            pusher.setMotion(pusher.motionX() + d0, pusher.motionY(),
+                    pusher.motionZ() + d1);
+        }
+        java.util.function.Supplier<List<net.zaminmc.torch.server.entity.vehicle.VehicleEntity>>
+                vehicles = vehicleSource;
+        if (vehicles == null) {
+            return;
+        }
+        for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle
+                : vehicles.get()) {
+            if (vehicle.dead() || vehicle.dimension() != pusher.dimension()) {
+                continue;
+            }
+            boolean boat = vehicle.kind()
+                    == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT;
+            double half = boat ? 0.75 : 0.49;
+            double height = boat ? 0.6 : 0.7;
+            Position b = vehicle.position();
+            if (!(b.x() + half > minX && b.x() - half < maxX
+                    && b.y() + height > minY && b.y() < maxY
+                    && b.z() + half > minZ && b.z() - half < maxZ)) {
+                continue;
+            }
+            if (boat) {
+                // Entity.push line 970's vehicle arm: the player riding
+                // THIS boat never pushes it (entity.vehicle != this fails).
+                if (vehicle.passengerId() == pusher.engineEntityId()) {
+                    continue;
+                }
+                double d0 = at.x() - b.x();
+                double d1 = at.z() - b.z();
+                double d2 = Math.abs(d0) > Math.abs(d1) ? Math.abs(d0) : Math.abs(d1);
+                if (d2 < 0.01) {
+                    continue;
+                }
+                d2 = Math.sqrt(d2);
+                d0 /= d2;
+                d1 /= d2;
+                double d3 = 1.0 / d2;
+                if (d3 > 1.0) {
+                    d3 = 1.0;
+                }
+                d0 *= d3;
+                d1 *= d3;
+                d0 *= 0.05;
+                d1 *= 0.05;
+                // Line 995: a boat with a passenger never moves.
+                if (!vehicle.hasPassenger()) {
+                    vehicle.setVelocity(vehicle.velocityX() - d0,
+                            vehicle.velocityY(), vehicle.velocityZ() - d1);
+                }
+                // The pushing player's arm: the motion store alone.
+                pusher.setMotion(pusher.motionX() + d0, pusher.motionY(),
+                        pusher.motionZ() + d1);
+                continue;
+            }
+            // MinecartEntity.push line 656: the player riding THIS cart
+            // never pushes it (entity != this.rider fails).
+            if (vehicle.passengerId() == pusher.engineEntityId()) {
+                continue;
+            }
+            // The auto-mount consult excludes the player outright (line
+            // 661's instanceof gate) — the push math alone remains.
+            double d0 = at.x() - b.x();
+            double d1 = at.z() - b.z();
+            double d2 = d0 * d0 + d1 * d1;
+            if (d2 < 1.0E-4) {
+                continue;
+            }
+            d2 = Math.sqrt(d2);
+            d0 /= d2;
+            d1 /= d2;
+            double d3 = 1.0 / d2;
+            if (d3 > 1.0) {
+                d3 = 1.0;
+            }
+            d0 *= d3;
+            d1 *= d3;
+            d0 *= 0.1;
+            d1 *= 0.1;
+            d0 *= 0.5;
+            d1 *= 0.5;
+            // The else arm: the cart pushed away full, the pushing
+            // player pushed away at quarter (the motion store).
+            vehicle.setVelocity(vehicle.velocityX() - d0, vehicle.velocityY(),
+                    vehicle.velocityZ() - d1);
+            pusher.setMotion(pusher.motionX() + d0 / 4.0, pusher.motionY(),
+                    pusher.motionZ() + d1 / 4.0);
         }
     }
 
