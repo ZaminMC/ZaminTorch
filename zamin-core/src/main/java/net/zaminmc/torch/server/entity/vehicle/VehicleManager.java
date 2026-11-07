@@ -818,6 +818,18 @@ public final class VehicleManager {
                 }
                 vehicle.spendFall();
             }
+            // Wave VC — THE VEHICLE FAMILY'S OWN COLLISION WALK (the
+            // reference's in-tick placement: the walk closes the travel
+            // section of the body's own tick — MinecartEntity.tick lines
+            // 295-299 / BoatEntity.tick lines 347-356, after the move and
+            // the yaw, before the rider consult): each vehicle gathers
+            // the bodies in its OWN shape grown (0.2, 0.0, 0.2) and
+            // pushes the members of its own family alone — the cart
+            // pushes CARTS (the blend), the boat pushes BOATS (the
+            // ordinary mutual law), never the living bodies (the living
+            // gather pushes the vehicles — the PX wave's own law, the
+            // reverse direction).
+            tickVehicleCollisions(vehicle);
             // The fire-source contact walk (Slice 78 — Entity.java lines
             // 635-651, the move() fire arm): the body inside a fire-source
             // cell (the fire block, the lava cells — containsFireSource's
@@ -906,6 +918,260 @@ public final class VehicleManager {
                     listener.onVehicleMoved(vehicle);
                 }
             }
+        }
+    }
+
+    /**
+     * Wave VC — THE VEHICLE FAMILY'S OWN COLLISION WALK (the re-pin's
+     * named row, the reference's per-family tick arms read 1:1):
+     * MinecartEntity.tick lines 295-299 — the cart gathers the entities
+     * in {@code this.getShape().grown(0.2F, 0.0, 0.2F)} and calls
+     * {@code entity.push(this)} on every {@code entity != this.rider}
+     * that isPushable and {@code instanceof MinecartEntity} — CARTS
+     * ALONE; BoatEntity.tick lines 347-356 — the same gather over the
+     * boat's own grown shape with {@code instanceof BoatEntity} — BOATS
+     * ALONE. The living bodies NEVER join these walks: in the reference
+     * the vehicles never push the living gather's members from their
+     * own tick (the living bodies push the vehicles through THEIR walk —
+     * the PX wave's own direction; the AUTO-MOUNT consult aside, held
+     * NOT-REACHABLE below).
+     *
+     * <p>The gather box: the body's own reference shape — the cart's
+     * {@code setSize(0.98F, 0.7F)} (line 59), the boat's
+     * {@code setSize(1.5F, 0.6F)} (BoatEntity line 37) — grown
+     * (0.2, 0.0, 0.2) horizontally, NEVER vertically (the grown-0.0
+     * vertical band: two carts on the same rail line always overlap;
+     * the vertically stacked corner — a cart falling past another —
+     * rides the engine's centered-box anchor, the documented
+     * adaptation), the candidate's own box against it STRICT both sides
+     * (Box.intersects — exactly touching never intersecting, the PX
+     * gather's own form). Same dimension alone (each vanilla World is
+     * one dimension — the gather never crosses). The own-rider
+     * exclusion ({@code entity != this.rider}) carried at the gather:
+     * the walker's own passenger never joins (vacuous for the family
+     * pair — a passenger is a living body — but the reference's own
+     * gate, kept verbatim). isPushable answers true for both families
+     * (MinecartEntity line 107 / BoatEntity line 63) — the consult is a
+     * formality, documented.</p>
+     *
+     * <p>Each cart's walk invokes the OTHER cart's push with itself the
+     * parameter ({@code entity.push(this)} — the callee/pusher split
+     * the blend's own laws read); the pair interacts TWICE per tick
+     * (the walker's walk and the candidate's own walk — the vanilla
+     * doubling, the same shape the PX seats pinned for the living
+     * pair).</p>
+     */
+    void tickVehicleCollisions(VehicleEntity vehicle) {
+        boolean cart = vehicle instanceof MinecartEntity;
+        // The reference's own shapes: the cart 0.98x0.7, the boat
+        // 1.5x0.6 — the half-widths and heights the gather carries.
+        double halfWidth = cart ? 0.49 : 0.75;
+        double height = cart ? 0.7 : 0.6;
+        Position at = vehicle.position();
+        double minX = at.x() - halfWidth - 0.2;
+        double maxX = at.x() + halfWidth + 0.2;
+        double minY = at.y();
+        double maxY = at.y() + height;
+        double minZ = at.z() - halfWidth - 0.2;
+        double maxZ = at.z() + halfWidth + 0.2;
+        for (VehicleEntity other : vehicles) {
+            if (other == vehicle || other.dead()) {
+                continue; // never self; a removed body never gathers
+            }
+            if (other.dimension() != vehicle.dimension()) {
+                continue; // this world's bodies alone
+            }
+            if ((other instanceof MinecartEntity) != cart) {
+                continue; // the family membership gate (the instanceof consult)
+            }
+            if (other.entityId() == vehicle.passengerId()) {
+                continue; // the walker's own rider (line 296's own gate)
+            }
+            // The candidate's own box against the grown box, STRICT both
+            // sides (Box.intersects).
+            double oHalf = cart ? 0.49 : 0.75;
+            double oHeight = cart ? 0.7 : 0.6;
+            Position b = other.position();
+            if (!(b.x() + oHalf > minX && b.x() - oHalf < maxX
+                    && b.y() + oHeight > minY && b.y() < maxY
+                    && b.z() + oHalf > minZ && b.z() - oHalf < maxZ)) {
+                continue;
+            }
+            if (cart) {
+                pushCartPair((MinecartEntity) other, (MinecartEntity) vehicle);
+            } else {
+                pushBoatPair((BoatEntity) other, (BoatEntity) vehicle);
+            }
+        }
+    }
+
+    /**
+     * Wave VC — THE CART-CART BLEND (MinecartEntity.push lines 652-734,
+     * the callee = the pushed cart {@code this}, the initiator = the
+     * walking cart {@code entity} — the {@code entity.push(this)} call
+     * shape): the reference's WHOLESALE override, the arm the PX wave
+     * left named. Each law read from the source:
+     *
+     * <p>(1) THE COMMON AXIS (lines 667-686): {@code d0/d1} the
+     * initiator-minus-callee horizontal offset, the SQUARED-distance
+     * form with the 1.0E-4 floor (never the absMax pair the living law
+     * rides), the euclidean re-normalization, the 1/d2 cap at 1.0, the
+     * 0.1 scale, the pushSpeedReduction multiplier (0.0 for every body
+     * in 1.8.8 — the field no family sets, the no-op kept out, the PX
+     * wave's own form), then the 0.5 halving.</p>
+     *
+     * <p>(2) THE 0.8 DOT-PRODUCT GATE (lines 687-698): the horizontal
+     * offset from callee to initiator, normalized, must sit within
+     * ~37 degrees of the CALLEE'S OWN YAW AXIS — {@code |dot| >= 0.8}
+     * passes, anything less RETURNS WHOLE (the side-by-side pair on
+     * parallel tracks never touches, whatever the box overlap). The
+     * reference's yaw is the atan2 math angle of the reversed travel
+     * ({@code fastAtan2(-dz, -dx)}, line 281 — east 180, south -90);
+     * the engine's cart yaw is the look convention (east -90) — the two
+     * differ by exactly 270 degrees, and the reference's axis form
+     * {@code (cos(yaw), sin(yaw))} over its convention is the NEGATION
+     * of the engine's look axis {@code (-sin(yaw), cos(yaw))} over
+     * ours, so under the absolute value the two forms give the IDENTICAL
+     * verdict — the engine's look axis carried here, the equivalence
+     * proven, never a re-derivation.</p>
+     *
+     * <p>(3) THE FURNACE ASYMMETRY (lines 700-715): a FURNACE cart
+     * never blends — it RAMS. The furnace initiator hands its whole
+     * velocity to the damped callee (0.2) and keeps 0.95 of its own;
+     * the furnace callee hands its whole velocity to the damped
+     * initiator and keeps 0.95. The furnace cart is the coal-fed pusher
+     * the vanilla rail yards ride: it shunts the dead carts along,
+     * barely slowing.</p>
+     *
+     * <p>(4) THE MOMENTUM BLEND (lines 716-725): same-furnace-ness
+     * pairs (both or neither) — the momentum sum halved, both bodies
+     * damped to 0.2, the callee handed the average MINUS the separation
+     * impulse, the initiator the average PLUS it: the trailing cart
+     * pays, the leading cart gains, the pair converging on the shared
+     * momentum while it separates.</p>
+     *
+     * <p>The AUTO-MOUNT consult (lines 657-665) sits at the head of the
+     * reference's override — a moving rideable empty cart scooping a
+     * non-player non-golem living body onto the seat — and stays HELD
+     * NOT-REACHABLE: the engine's mobs never ride (the seated-mob model
+     * the makesSteps gate's own javadoc names as absent — the
+     * mob-rides-vehicle body state, the seat-follow's AI freeze, the
+     * dismount-on-break), the re-pin's own named tail. NO rider gates
+     * on the blend itself (the reference writes both bodies' velocities
+     * outright — an occupied cart still blends, the vanilla quirk).</p>
+     */
+    private void pushCartPair(MinecartEntity callee, MinecartEntity initiator) {
+        // The common axis (lines 667-686).
+        double d0 = initiator.position().x() - callee.position().x();
+        double d1 = initiator.position().z() - callee.position().z();
+        double d2 = d0 * d0 + d1 * d1;
+        if (d2 < 1.0E-4) {
+            return; // the squared-distance floor (line 670's >= 1.0E-4F gate)
+        }
+        d2 = Math.sqrt(d2);
+        d0 /= d2;
+        d1 /= d2;
+        double d3 = 1.0 / d2;
+        if (d3 > 1.0) {
+            d3 = 1.0;
+        }
+        d0 *= d3 * 0.1 * 0.5;
+        d1 *= d3 * 0.1 * 0.5;
+        // The 0.8 dot gate (lines 687-698) — the callee's own yaw axis
+        // (the engine's look form; the equivalence proven in the
+        // javadoc above).
+        double ox = initiator.position().x() - callee.position().x();
+        double oz = initiator.position().z() - callee.position().z();
+        double oLen = Math.sqrt(ox * ox + oz * oz);
+        if (oLen > 0.0) {
+            ox /= oLen;
+            oz /= oLen;
+        }
+        double yawRad = Math.toRadians(callee.rotation().yaw());
+        double ax = -Math.sin(yawRad);
+        double az = Math.cos(yawRad);
+        if (Math.abs(ox * ax + oz * az) < 0.8) {
+            return; // the crosswise pair never touches (parallel tracks)
+        }
+        // The velocity reads BEFORE any write (the reference's arms read
+        // the other body's velocity un-scaled — the order the whole
+        // blend's arithmetic rides).
+        double calleeVx = callee.velocityX();
+        double calleeVz = callee.velocityZ();
+        double initVx = initiator.velocityX();
+        double initVz = initiator.velocityZ();
+        boolean initFurnace = initiator instanceof FurnaceMinecartEntity;
+        boolean calleeFurnace = callee instanceof FurnaceMinecartEntity;
+        if (initFurnace && !calleeFurnace) {
+            // Lines 702-708: the FURNACE INITIATOR rams — the callee
+            // damped to 0.2 then handed the initiator's WHOLE velocity
+            // minus the separation, the initiator keeping 0.95.
+            callee.setVelocity(calleeVx * 0.2 + (initVx - d0),
+                    callee.velocityY(), calleeVz * 0.2 + (initVz - d1));
+            initiator.setVelocity(initVx * 0.95, initiator.velocityY(),
+                    initVz * 0.95);
+        } else if (calleeFurnace && !initFurnace) {
+            // Lines 709-715: the FURNACE CALLEE deflects — the initiator
+            // damped to 0.2 then handed the callee's WHOLE velocity plus
+            // the separation, the callee keeping 0.95.
+            initiator.setVelocity(initVx * 0.2 + (calleeVx + d0),
+                    initiator.velocityY(), initVz * 0.2 + (calleeVz + d1));
+            callee.setVelocity(calleeVx * 0.95, callee.velocityY(),
+                    calleeVz * 0.95);
+        } else {
+            // Lines 716-725: THE MOMENTUM BLEND — the sum halved, both
+            // damped to 0.2, the callee minus the separation, the
+            // initiator plus it.
+            double avgVx = (initVx + calleeVx) / 2.0;
+            double avgVz = (initVz + calleeVz) / 2.0;
+            callee.setVelocity(calleeVx * 0.2 + (avgVx - d0),
+                    callee.velocityY(), calleeVz * 0.2 + (avgVz - d1));
+            initiator.setVelocity(initVx * 0.2 + (avgVx + d0),
+                    initiator.velocityY(), initVz * 0.2 + (avgVz + d1));
+        }
+    }
+
+    /**
+     * Wave VC — THE BOAT-BOAT PUSH (BoatEntity.tick lines 347-356 →
+     * {@code entity.push(this)} → Entity.push lines 969-1005, BoatEntity
+     * overriding nothing): the ordinary mutual law the living family
+     * rides — the ABSOLUTE-MAX form (never the cart's squared pair),
+     * the 0.01 floor, the sqrt re-normalization over the absMax (the
+     * vector NOT unit after it — the vanilla quirk: a pure-axis 0.2
+     * offset normalizes to sqrt(0.2), giving the sqrt(0.2)*0.05
+     * impulse), the 1/d2 cap at 1.0, the 0.05 scale — and EACH SIDE'S
+     * OWN RIDER GATE (lines 995-1001): a boat with a passenger never
+     * moves out from under it, however crowded (the line-995 gate the
+     * PX wave pinned from the living side; here the boats' own walk).
+     * The riding-pair gate (line 971) is vacuous for a boat pair (a
+     * boat's rider is never a boat); the noClip gates (line 972) never
+     * arm for the engine's vehicles.
+     */
+    private void pushBoatPair(BoatEntity callee, BoatEntity initiator) {
+        double d0 = initiator.position().x() - callee.position().x();
+        double d1 = initiator.position().z() - callee.position().z();
+        double d2 = Math.abs(d0) > Math.abs(d1) ? Math.abs(d0) : Math.abs(d1);
+        if (d2 < 0.01) {
+            return; // the absMax floor (line 975)
+        }
+        d2 = Math.sqrt(d2);
+        d0 /= d2;
+        d1 /= d2;
+        double d3 = 1.0 / d2;
+        if (d3 > 1.0) {
+            d3 = 1.0;
+        }
+        d0 *= d3 * 0.05;
+        d1 *= d3 * 0.05;
+        // Each side's own rider gate: a boat with a passenger never
+        // moves (lines 995-1001).
+        if (!callee.hasPassenger()) {
+            callee.setVelocity(callee.velocityX() - d0, callee.velocityY(),
+                    callee.velocityZ() - d1);
+        }
+        if (!initiator.hasPassenger()) {
+            initiator.setVelocity(initiator.velocityX() + d0,
+                    initiator.velocityY(), initiator.velocityZ() + d1);
         }
     }
 
