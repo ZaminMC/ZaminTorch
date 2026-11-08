@@ -10097,6 +10097,17 @@ drinking witch's MOVEMENT_SPEED is EXACTLY ZERO — every walk input
 dies whole for the 33-tick window (the walkSpeed consult answers 0.0
 while the flag stands), the modifier removed at the completion.
 
+THE WITCH'S SPEED-CLASS ALIGNMENT (the census's own closing tail,
+WitchEntity.initAttributes line 83 + SkeletonEntity line 66 — BOTH
+register the SAME 0.25 MOVEMENT_SPEED base, both walking their
+ProjectileAttackGoal approach at the goal's own 1.0): the witch's
+engine walkSpeed aligned to the skeleton's calibrated 0.038 — the
+retired 0.03 walked her 21% slower than her speed-class twin
+(skeleton 0.684 vs witch 0.540 over the nineteen pre-stand approach
+ticks). SEAT: the twins-cover-the-same-ground seat (+1, the class 9
+NEW total), RED on the no-op patch (the 0.03 form's gap), GREEN on
+the alignment.
+
 SEATS: ProjectileAttackGoalParityDiscoveryTest 8 NEW — the first-shot
 arm + the distance-scaled cadence (the looses at ticks 47/91/135, the
 46-then-44 windows at the measured separations), the stand band's
