@@ -9624,47 +9624,128 @@ NATIVE_API_CAPABILITIES.md, WORKLOG.md); the numbers refreshed
 honestly (3,760 automated seats suite-wide per the module census;
 the parity row's 3,300+ engine seats).
 
-NEXT WORK (re-pinned after RD + RK + OR + CI-2, in order): the
-minecart roll-law family is CLOSED whole (the ridden drag, the
-rider's 0.75 move scale, the state/move split, the wall launch, the
-inventory drags, the activator gate with RD; the W-kick, the brake
-cancel, the rider's own look with RK; the off-rail walk's raw
-gravity, the ±getMaxSpeed clamp, the grounded 0.5 pre-move and the
-air 0.95 with OR) — THE STUCK-RELEASE WINDOW IS CLOSED (Wave CI-2:
-the checkout blockage verified revived on run #672, the four
-deterministic build failures root-caused and fixed, the watch
-family's retry rows landed) — the remaining named rows: the flank
-walk's steal-poll cadence (the engine's 20-tick form of the
-selector's every-tick canStart consult — a documented adaptation,
-the verifier's row when the census reaches it); the verifier's PRs
-when they open (none at this session's close); THE CI RELEASE WATCH
-(run #672 building toward torch-1.8.8-158 — the first green release
-since #598 closes the window whole; the retry-covered watch family
-PanicFlee/MultiplayerSleepWire/SurvivalFlow/DonkeyChest each gets
-its first-occurrence root-cause read from the uploaded forensics
-per the census law, and the one-off members — SpawnEgg,
-CauldronAcceptance, BedPlacementFloor's control, DyeFamily,
-PistonBreakDrop, ArmorStandSystem's ladder walk,
-BedPairFacingResolution — stay the verifier's open lane); the
-vanilla-grade census's next family pick when the verifier's rows
-land — the seated mob's goal behaviors stay the verifier's three-pass
-rows (the panic flee's velocity churn under the freeze, the zombie's
-seated targeting, the villager's seated breeding consults); NEW
-CENSUS ROWS this session's source pass opened on the roll family's
-own remaining tails (each the reference's own law, each the engine's
-geometry model the blocker): THE ASCENDING-SLOPE ROLL (moveOnRail
-lines 359-371's ±0.0078125 axis arms + the d14 slope trim lines
-456-468 — the engine's railAxisAt flattens the ascents to their axis,
-the slope law needs the ascending-rail geometry model); THE
-RAIL-CENTER INTERPOLATION (the d18 walk lines 416-437 — the
-mid-rail-axis position interpolation vs the engine's cell-center
-snap, the geometry adaptation); THE
-BOAT'S OWN STEER MODEL (the ridden boat's W-key paddling — the boat
-family's own law, untouched by the cart's kick row); THE
-PERPENDICULAR-LOOK KICK EDGE (the axis model's documented fold — the
-reference's 2-D kick on a perpendicular look drifts the cart a
-half-tick before the projection re-points it, the engine refuses the
-kick whole).
+WAVES SL + BS LANDED (2026-11-08, commit ef5597e8 — the roll
+family's remaining tails + the boat's own steer, the re-pin's four
+named census rows closed whole): THE SHAPE MODEL — the rail walk
+reads the reference's own rail-shape band whole (railShapeAt over
+RailBlocks.familyShapeOf, the default the flat shape so every stub
+track keeps its semantics): the four ASCENT shapes walk (the
+±0.0078125 climb arm pre-projection, the interpolated ride height —
+a full cell's rise across the ascent's cell measured from the low
+face, the d14 grade trim (the tick's altitude change × 0.05 onto the
+dragged state, BOTH sides read the snap — a just-coupled body
+carries no spurious grade), the two-band rail search (the cart's own
+y-cell, the cell below preferred — the slope's high end rides a full
+cell above the ascent's own cell), the shape-aware continuation (the
+exit level +1 toward the high face, the down-step an ascent one
+below whose high face looks back), and the ASCENT EXEMPT from the
+flat from-rest floor (the arm from rest IS the slide — a cart placed
+on an ascent rolls down)); the four CURVE shapes walk (the d18
+interpolation: the position projects onto the curve's end-to-end
+diagonal and advances along it, the velocity IS the diagonal, the
+exit crossing re-points the full magnitude to the pure leg — the
+pre-shape walk read every curve as a dead cell, so the placement's
+own corner tracks were unwalkable whole); THE PERPENDICULAR-LOOK
+KICK (the 2-D add whole: the look's perpendicular bulk folds onto
+the travel axis at the projection, the full 0.1 magnitude — the
+pre-fix engine refused the kick whole); the junction fold preserved
+(ANY rail at the exit level continues the advance — the body rolls
+into the perpendicular cell, the next tick's projection folds the
+velocity with the un-flipped d4 the default direction). THE BOAT'S
+OWN STEER MODEL (the family's own law, untouched by the cart's kick
+row): the paddling drive the momentum's speedBoost × forward × 0.05
+along f = the rider's own yaw − sideways × 90° (the continuous law,
+W ahead and S astern alike, the LivingEntity rider gate — a
+riderless hull never paddles), the momentum's own ramp 0.07→0.35 on
+the /35 curve with the floor clamp (the reference's 0.0 first-tick
+start included — the decay arm from zero lifts to the idle whole),
+the 0.35 horizontal cap (the 0.25 land cap retired), the glide drag
+0.99/0.95 (the invented 0.85/0.6 retired), the grounded halving 0.5
+pre-move, the raw land gravity −0.04 (the pre-multiplied ×0.98
+retired), and THE CRASH (the pre-move speed over 0.2975 into a
+horizontal collision breaks the hull — crashBreak outside the damage
+walk's i-frame, the manager's dead sweep carrying the removal). THE
+STALE SEATS UPDATED TO THE LANDED LAWS: the furnace cart's placement
+rides mid-cell (the swapped-world sequence's off-rail fall would
+drop a floor-level body below the reference's coupling band whole —
+the old y+0.4 probe's overreach retired with the two-band search),
+the boat float seat mounts its rider, and the protocol's boat steer
+window spans the momentum's own 35-tick ramp (the reference's drive
+builds on the ramp, never the pre-fix impulse's 0.14/tick), the
+pool-settle's vertical moves drained until a horizontal move names
+the steer. SEATS: MinecartSlopeRollParityDiscoveryTest 8/0 NEW (the
+climb's whole composition, the descent's aid, the interpolation +
+the from-rest slide, the high-face crossing, the perpendicular kick,
+the curve's diagonal + its exit re-point, the engine-built hill over
+the real EngineServer) + BoatSteerParityDiscoveryTest 7/0 NEW (the
+momentum's first steps + the floor clamp, the ramp/decay mirror, the
+cap, the backward paddle + the strafed heading, the riderless glide,
+the crash band, the raw gravity) — each law verified RED on the
+neutralized engine by the no-op patches (the arm 4 seats, the trim
+3, the interpolation 2, the curve 2, the kick fold 1, the momentum
+2, the drag 4). LANES: the vehicle package 101/101 green whole, the
+related batch (the push, seated-mob, armorstand, spawn-stamp,
+detector-rail, rail-blocks, rail-placement, hopper, anvil,
+drop-stamp lanes) green, the protocol module green, the
+bukkit/api/transport modules green.
+
+THE CI RELEASE WATCH CLOSED (run #676 green on c17e1325): torch-
+1.8.8-158 PUBLISHED (the jar + the server zip, 22:48 Nov 7) — the
+first green release since #598 (Nov 1), the six-day stuck-release
+window closed whole. The never-cancel law's supersession chain
+(#675 cancelled into #676) carried the full-fix tree to the release
+exactly as pinned.
+
+NEW CENSUS ROWS this session's source pass opened (the verifier's
+lane, each the reference's own law the engine's landed model folds
+away): THE TRACK-END RUN-OFF (the reference's dead-end rail never
+halts the body — the move carries it past the last cell, the
+cell-change re-point redirects the full magnitude, and the off-rail
+fall takes it; the engine's walk stops dead at the cell centre —
+the OR wave's own seats pin the halt); THE BOAT'S 5-SLICE BUOYANCY
+(the hull's box sliced into five vertical bands, the water fraction
+d0 steering the ±0.04 bob and the fully-submerged float-up +0.007 —
+the engine's zero-vertical water rest the landed approximation); THE
+BOAT'S HEADING LAW (the yaw follows the MOVEMENT (atan2 of the
+displacement) clamped ±20°/tick — never the rider's look; the
+engine's followRiderLook the landed adaptation with its own seat);
+THE BOAT'S DEATH DROPS (the reference's break drops 3 planks + 2
+sticks — never the boat item; the engine's dropVehicleItem hands the
+boat item, the crash and the damage break alike); THE BOAT'S
+SNOW/LILY BREAKING (the 4-corner × 2-band consult removing snow
+layers and breaking lily pads under the hull); THE CART'S YAW
+CONVENTION (the reference's fastAtan2(d2, d0) over the NEGATED
+displacement — the engine's look-convention ±90/0/180 a constant
+90° rotation away; the wire's rendering the open question).
+
+NEXT WORK (re-pinned after RD + RK + OR + CI-2 + SL + BS, in order):
+the minecart roll-law family is CLOSED WHOLE THROUGH THE SHAPES (the
+ridden drag, the rider's 0.75 move scale, the state/move split, the
+wall launch, the inventory drags, the activator gate with RD; the
+W-kick, the brake cancel, the rider's own look with RK; the off-rail
+walk's raw gravity, the ±getMaxSpeed clamp, the grounded 0.5
+pre-move and the air 0.95 with OR; the ascent arms, the interpolated
+ride height, the d14 grade trim, the two-band rail search and the
+curve diagonals with SL; the perpendicular-look kick fold with SL;
+the boat's own paddling/momentum/cap/drag/crash with BS — the
+re-pin's four named census rows CLOSED) and THE RELEASE PIPELINE IS
+GREEN (torch-1.8.8-158 published, the six-day window closed) — the
+remaining named rows: the verifier's PRs when they open (none at
+this session's close); the flank walk's steal-poll cadence (the
+engine's 20-tick form of the selector's every-tick canStart consult
+— a documented adaptation, the verifier's row when the census
+reaches it); the vanilla-grade census's next family pick when the
+verifier's rows land — the seated mob's goal behaviors stay the
+verifier's three-pass rows (the panic flee's velocity churn under
+the freeze, the zombie's seated targeting, the villager's seated
+breeding consults); THE SL+BS SESSION'S OWN SIX NEW CENSUS ROWS (the
+track-end run-off, the boat's 5-slice buoyancy, the boat's heading
+law, the boat's death drops, the boat's snow/lily breaking, the
+cart's yaw convention — each named in the record above, the
+verifier's three-pass lane); THE CI WATCH (the release pipeline
+green on ef5597e8's tree — the next run the first to carry the SL+BS
+wave; a red run's uploaded forensics the census law's own
+first-occurrence reads, the retry allowlist standing).
 
 WAVE OR LANDED (2026-11-08, commit 68722f1f — the off-rail census row
 the RD/RK source pass opened, closed the same session): moveOffRail

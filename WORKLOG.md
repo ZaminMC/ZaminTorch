@@ -3145,3 +3145,81 @@ they open, the roll-law census rows (the ascending-slope roll, the
 rail-center d18 interpolation, the boat's steer model, the
 perpendicular-look kick edge), and the flank walk's steal-poll
 cadence.
+
+---
+Task ID: 2026-11-08 session (third run)
+Agent: main (ZaminTorch session)
+Task: the re-pin's four named census rows (the roll family's remaining
+tails + the boat's own steer) + the CI release watch.
+
+Work Log:
+- Read the worklog, synced develop (c17e1325 clean), checked the PRs
+  (0 open — the verifier's lane still empty) and the CI: run #676
+  IN PROGRESS on c17e1325 (the pending-supersession chain #675→#676
+  carrying the full-fix tree, exactly as the last session pinned).
+- WAVES SL + BS LANDED (commit ef5597e8): THE SHAPE MODEL — the rail
+  walk reads the reference's own rail-shape band whole (railShapeAt,
+  the default the flat shape so every stub track keeps its semantics):
+  the four ASCENTS walk (the ±0.0078125 climb arm, the interpolated
+  ride height (a full cell's rise across the cell, measured from the
+  low face), the d14 grade trim (both sides read the SNAP — a
+  just-coupled body carries no spurious grade, the furnace seat's own
+  catch), the two-band rail search (the reference's exact
+  prefer-below form — the slope's high end and the falling coupling
+  both resolve), the shape-aware continuation (the exit level, the
+  down-step, and ANY-rail-ahead preserving the junction fold — the
+  same-axis gate would have stranded the cart one cell short of every
+  junction, the L-corner seat's own law), and the ASCENT EXEMPT from
+  the flat from-rest floor (the arm from rest IS the slide — a cart
+  placed on an ascent rolls down, vanilla's own)); the four CURVES
+  walk (the d18 interpolation: the position and velocity ride the
+  end-to-end diagonal, the exit crossing re-points the full magnitude
+  to the pure leg — the pre-shape walk read every curve as a dead
+  cell, so the placement's own corner tracks were unwalkable whole);
+  THE PERPENDICULAR-LOOK KICK (the 2-D add whole — the look's
+  perpendicular bulk folds onto the travel axis, the pre-fix engine
+  refused the kick whole). THE BOAT'S OWN STEER: the paddling drive
+  (the momentum × forward × 0.05 along f = the rider's yaw −
+  sideways×90°, the LivingEntity rider gate), the momentum ramp
+  0.07→0.35 with the floor clamp (the reference's 0.0 first-tick
+  start included), the 0.35 cap, the glide drag 0.99/0.95, the
+  grounded halving, the raw land gravity, and THE CRASH (the pre-move
+  speed over 0.2975 into a wall breaks the hull outside the damage
+  walk's i-frame).
+- SEATS: MinecartSlopeRollParityDiscoveryTest 8/0 + BoatSteer-
+  ParityDiscoveryTest 7/0, each law verified RED on the neutralized
+  engine (the arm 4, the trim 3, the interpolation 2, the curve 2,
+  the kick fold 1, the momentum 2, the drag 4 — the no-op patches).
+  THE STALE SEATS UPDATED TO THE LANDED LAWS: the furnace cart's
+  mid-cell placement (the swapped-world fall vs the reference's
+  coupling band), the boat float seat's rider mount, the protocol
+  boat seat's ramp-spanning steer window + the vertical-drain.
+- THE ROOT-CAUSE READS ALONG THE WAY (the probe's own): the hill
+  rig's upper flats silently refused (the rails' support consult —
+  the stone under the upper flats added, the canonical vanilla hill),
+  and the from-rest floor eating the ascent's arm (T9-T10 of the
+  probe trace: vel −0.0078125 then 0 — the exemption landed).
+- THE CI RELEASE WATCH CLOSED and the pipeline CONFIRMED GREEN ON THE
+  WAVE ITSELF: run #676 green — torch-1.8.8-158 PUBLISHED (22:48 Nov
+  7), the first green release since #598 (Nov 1); run #677 green on
+  ef5597e8 — torch-1.8.8-159 PUBLISHED (00:32 Nov 8), the first
+  release carrying the shape model. The six-day window closed whole
+  and the pipeline is green on every push again.
+- LANES: the vehicle package 101/101, the related batch (push,
+  seated-mob, armorstand, spawn-stamp, detector-rail, rail-blocks,
+  rail-placement, hopper, anvil, drop-stamp) green, the protocol
+  module green, bukkit/api/transport green.
+- The architecture's record appended (Waves SL + BS + the six new
+  census rows: the track-end run-off, the boat's 5-slice buoyancy,
+  the boat's heading law, the boat's death drops, the boat's
+  snow/lily breaking, the cart's yaw convention) + the NEXT WORK
+  re-pin; the README's rows and footnotes refreshed.
+
+SESSION COMMITS (all as Abasing): ef5597e8 (the waves + the seats +
+the stale-seat repairs) + the docs commit.
+
+AT CLOSE: the next session's first acts per the re-pin: the CI watch
+(the pipeline green on ef5597e8's tree — run #677 already confirmed,
+torch-1.8.8-159 out), the verifier's PRs when they open (none at
+close), the six new census rows' three-pass verification, and the
+flank walk's steal-poll cadence row.
