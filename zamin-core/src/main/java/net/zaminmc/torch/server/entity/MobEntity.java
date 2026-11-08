@@ -8731,6 +8731,181 @@ public final class MobEntity implements LivingEntity {
         navigation.moveTo(x, y, z, walkSpeed());
     }
 
+    // --- Wave LN: the leeched-navigation family (PathFinderMobEntity
+    // .updateLeashStatus lines 72-121 read whole — the arms the engine's
+    // leash walk never carried) -------------------------------------------
+
+    /**
+     * The leeched-navigation one-shot (PathFinderMobEntity line 23's
+     * {@code leechedNavigation} flag): false until the first leashed tick
+     * with a live holder arms it, true until the leash ends.
+     */
+    private boolean leechedNavigation;
+
+    /** The leash wander's live target (goToWalkTargetGoal's targetX/Y/Z). */
+    private Position leashWanderTarget;
+
+    /** Whether the leash wander owns the WANDER lane this tick (the goal running). */
+    private boolean leashWanderActive;
+
+    /**
+     * The holder-centered village pin (PathFinderMobEntity line 76:
+     * {@code setVillagePosAndRadius(new BlockPos((int)entity.x,
+     * (int)entity.y, (int)entity.z), 5)}): every leashed tick with a live
+     * holder re-centers the village cache ON THE HOLDER at radius five —
+     * the village-consulting walks (the villager's own village-return, the
+     * golem's village band) read the HOLDER's pin while the leash stands,
+     * and the leash wander's own canStart gate (beyond the pin's five)
+     * reads it below.
+     */
+    public void leashPinToHolder(double holderX, double holderY, double holderZ) {
+        setVillageCache((int) holderX, (int) holderY, (int) holderZ, 5.0f);
+    }
+
+    /**
+     * The arming one-shot (PathFinderMobEntity lines 86-93): the FIRST
+     * leashed tick with a live holder registers the band-2 leash wander
+     * ({@code goalSelector.addGoal(2, this.goToWalkTargetGoal)} — the
+     * engine's selector shape: the wander's claim gates the stroll lane,
+     * {@link #leashWanderClaimHolds()}) and parks the swim paths
+     * ({@code setCanSwim(false)} — the leeched body paths AROUND the
+     * water, the reference's own leash law: a dragged mob walks the
+     * shore, never swims).
+     */
+    public void armLeechedNavigation() {
+        if (!leechedNavigation) {
+            leechedNavigation = true;
+            navigation.setCanSwim(false);
+        }
+    }
+
+    /**
+     * The detach's recovery (PathFinderMobEntity lines 112-120): when the
+     * leash ends after the leeched-navigation arm stood, the band-2 wander
+     * leaves ({@code removeGoal}), the swim paths return — the reference's
+     * own UNCONDITIONAL {@code setCanSwim(true)} (line 116), never the
+     * parked value: a leashed-then-released chicken ends with its
+     * navigation canSwim TRUE even though its ctor never armed it — the
+     * reference's own quirk, seated 1:1 — and the village pin clears
+     * ({@code resetVillageRadius()}).
+     */
+    public void releaseLeechedNavigation() {
+        if (!leechedNavigation) {
+            return;
+        }
+        leechedNavigation = false;
+        navigation.setCanSwim(true);
+        resetVillageCache();
+        leashWanderActive = false;
+        leashWanderTarget = null;
+    }
+
+    /** @return whether the leeched-navigation arm stands (the seat's read). */
+    public boolean leechedNavigationArmed() {
+        return leechedNavigation;
+    }
+
+    /**
+     * updateForLeashLength AT ITS OWN CALL-SITE (PathFinderMobEntity line
+     * 95 — UNCONDITIONAL while leashed, the distance gates all below it):
+     * the horse's own override (HorseBaseEntity lines 230-234) stands the
+     * hay graze down when the leash length passes six — the > 6.0F gate
+     * lives INSIDE the horse's override, not at the leash walk's call
+     * site, so every future override rides the same unconditional call.
+     */
+    public void updateForLeashLength(float leashLength) {
+        if (leashLength > 6.0F && type == MobType.HORSE && eating()) {
+            setEatingHay(false);
+        }
+    }
+
+    /**
+     * The leash wander's canStart gate (WanderThroughVillageGoal lines
+     * 22-34): {@code !isInVillage()} — the reference's isInVillage() is
+     * isValidGoalTarget over the mob's OWN cell (PathFinderMobEntity lines
+     * 42-48): a cache-set body within the radius is "in village" (no
+     * wander — the pin's five-block slack), a body beyond it proceeds to
+     * the pick. The -1 radius (no cache) short-circuits valid — but the
+     * pin writes every leashed tick, so the armed body always carries one.
+     */
+    private boolean leashWanderBeyondPin() {
+        if (villageRadius <= 0.0f) {
+            return true; // isValidGoalTarget's -1 short-circuit: valid, so not "in village"
+        }
+        return cellSquaredDistance((int) Math.floor(position.x()),
+                (int) Math.floor(position.y()), (int) Math.floor(position.z()),
+                villageCenterX, villageCenterY, villageCenterZ)
+                >= (long) villageRadius * (long) villageRadius;
+    }
+
+    /**
+     * The leash wander's lane claim (the band-2 registration's selector
+     * effect): while the leeched-navigation arm stands, the wander's
+     * canStart (beyond the pin) OR its shouldContinue (the navigation
+     * busy — WanderThroughVillageGoal line 38) blocks the plain stroll's
+     * own start: band 2 precedes the stroll's 7 in the reference's
+     * selector, and a running MOVE-claimed goal at 2 refuses the stroll's
+     * MOVE claim outright.
+     */
+    boolean leashWanderClaimHolds() {
+        return leechedNavigation
+                && (leashWanderActive || leashWanderBeyondPin());
+    }
+
+    /**
+     * The leash wander's pick (WanderThroughVillageGoal line 27:
+     * {@code TargetFinder.getTargetAwayFromPosition(this.entity, 16, 7,
+     * villagePosVec)}): the shared TargetFinder walk with the pin's own
+     * half-plane — the reference's startOffset is villagePos − mob, so the
+     * passing candidates are the TOWARD-PIN half (the decompiled name
+     * misleads; the math is the village-return walk's own filter) — plus
+     * the village arms the walk already carries for a cache-set body: the
+     * toward-pin nudge (up to 8) and the in-band isValidGoalTarget gate
+     * (the candidates within the pin's five while the body stands inside
+     * the pin + 16 band). The best favor of ten wins.
+     *
+     * @return whether a candidate won (the goal's null gate).
+     */
+    private boolean pickLeashWanderTarget() {
+        double[] pick = targetFinderWalk(16, 7, true,
+                villageCenterX - Math.floor(position.x()),
+                villageCenterZ - Math.floor(position.z()));
+        if (pick == null) {
+            return false;
+        }
+        leashWanderTarget = new Position(pick[0], pick[1], pick[2]);
+        return true;
+    }
+
+    /** @return the leash wander's live target (the seat's read). */
+    Position leashWanderTargetForTest() {
+        return leashWanderTarget;
+    }
+
+    /**
+     * The pin's own test read (the holder-centered village cache):
+     * {centerX, centerY, centerZ, radius} — the seat's assert over the
+     * reference's own line-76 write.
+     */
+    int[] leashVillagePinForTest() {
+        return new int[]{villageCenterX, villageCenterY, villageCenterZ,
+                (int) villageRadius};
+    }
+
+    /** @return whether the leash wander owns the WANDER lane (the seat's read). */
+    boolean leashWanderWalking() {
+        return leashWanderActive;
+    }
+
+    /** The leash wander's start() (WanderThroughVillageGoal line 36). */
+    private void startLeashWander() {
+        leashWanderActive = true;
+        mode = Mode.WANDER;
+        modeTicks = 0;
+        navigation.moveTo(leashWanderTarget.x(), leashWanderTarget.y(),
+                leashWanderTarget.z(), walkSpeed());
+    }
+
     /**
      * The love clock drain ({@code AnimalEntity.mobTick}): the decrement
      * first, then the every-10-ticks ambient heart particle (the vanilla
@@ -15597,6 +15772,7 @@ public final class MobEntity implements LivingEntity {
             mode = Mode.IDLE; // target lost (or daylight saved the spider)
             modeTicks = 0;
             strollActive = false; // the hunt's walk replaced the stroll's
+            leashWanderActive = false; // and the leash wander's (the hunt's claim)
         }
         switch (mode) {
             case IDLE -> {
@@ -15621,7 +15797,21 @@ public final class MobEntity implements LivingEntity {
                 // stroll at band 7 can never start under it: a seated pet
                 // stays where it was seated, and a pet whose owner left
                 // the world parks whole, the reference's ownerless arm).
-                if (!sitGoalHolds()
+                // WAVE LN — THE LEASH'S BAND-2 WANDER PRECEDES THE STROLL
+                // (goToWalkTargetGoal, PathFinderMobEntity line 19's own
+                // registration at band 2): while the leeched-navigation
+                // arm stands and the body is BEYOND the holder's pin
+                // (WanderThroughVillageGoal.canStart's !isInVillage()),
+                // the wander's own pick (no interval dice — the goal has
+                // none) claims the lane outright; its navigation-busy
+                // shouldContinue keeps the claim while the leash follow's
+                // own path runs — the plain stroll's band-7 start is
+                // refused under both.
+                if (leechedNavigation && leashWanderBeyondPin()
+                        && pickLeashWanderTarget()) {
+                    startLeashWander();
+                } else if (!sitGoalHolds()
+                        && !leashWanderClaimHolds()
                         && goals.hasBuiltIn("stroll")
                         && farFromPlayerTicks() < 100
                         && random.nextInt(strollInterval()) == 0
@@ -15646,6 +15836,21 @@ public final class MobEntity implements LivingEntity {
                     }
                     return;
                 }
+                if (leashWanderActive) {
+                    // The leash wander's shouldContinue
+                    // (WanderThroughVillageGoal line 38): the navigation
+                    // alone owns the walk's life — the leash follow's own
+                    // per-tick moveTo (the LeadSystem walk, later in the
+                    // tick) keeps the navigation BUSY while it holds, so
+                    // the claim stands exactly while a path lives.
+                    tickPathFollowing(leashWanderTarget);
+                    if (navigation.isDone()) {
+                        leashWanderActive = false;
+                        mode = Mode.IDLE;
+                        modeTicks = 0;
+                    }
+                    return;
+                }
                 if (modeTicks >= WANDER_TICKS + random.nextInt(WANDER_TICKS)) {
                     mode = Mode.IDLE;
                     modeTicks = 0;
@@ -15655,6 +15860,7 @@ public final class MobEntity implements LivingEntity {
                 mode = Mode.IDLE;
                 modeTicks = 0;
                 strollActive = false; // another mind owned the body; the stroll re-picks
+                leashWanderActive = false; // the same retirement for the leash wander
             }
         }
     }

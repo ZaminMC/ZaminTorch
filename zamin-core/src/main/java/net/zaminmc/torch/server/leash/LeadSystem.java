@@ -223,14 +223,19 @@ public final class LeadSystem {
     }
 
     /**
-     * The detach (MobEntity.detachLeash lines 789-802): the state clears,
-     * the lead drops at the mob (the dropItem arm), the wire clears.
+     * The detach (MobEntity.detachLeash lines 789-802 + PathFinderMobEntity
+     * lines 112-120 — Wave LN: the leeched-navigation recovery rides the
+     * same single choke point every detach path ends in): the state clears,
+     * the band-2 wander leaves, the swim paths return (the reference's own
+     * UNCONDITIONAL true), the village pin resets, the lead drops at the
+     * mob (the dropItem arm), the wire clears.
      */
     public void detachLeash(MobEntity mob, boolean dropLead) {
         if (!mob.isLeashed()) {
             return;
         }
         mob.clearLeash();
+        mob.releaseLeechedNavigation();
         for (Listener listener : listeners) {
             listener.onMobDetached(mob);
         }
@@ -432,27 +437,48 @@ public final class LeadSystem {
         detachLeash(mob, true);
     }
 
-    /** The leash physics (PathFinderMobEntity lines 88-111). */
+    /**
+     * The leash physics (PathFinderMobEntity.updateLeashStatus lines 72-121,
+     * THE REFERENCE'S OWN ORDER — Wave LN restructured the walk whole):
+     * the holder-centered village pin first (line 76 — every leashed tick,
+     * the distance gates all BELOW it), then the sitting tameable's early
+     * return (lines 78-84 — a seated pet takes no arming, no follow, no
+     * pull; the snap alone), then the leeched-navigation arming one-shot
+     * (lines 86-93), then updateForLeashLength at its own unconditional
+     * call-site (line 95), then the follow beyond four (lines 96-98), the
+     * pull beyond six ({@code v += d * |d| * 0.4} per component, lines
+     * 100-107), and the snap at ten (lines 109-111). The early-return
+     * "inside the slack" shortcut the engine once carried is RETIRED —
+     * the pin and the leash-length hook run at EVERY distance.
+     */
     private void leashPhysics(MobEntity mob, Position holder) {
+        // Line 76: the pin — the village cache re-centers on the holder.
+        mob.leashPinToHolder(holder.x(), holder.y(), holder.z());
         double dx = holder.x() - mob.position().x();
         double dy = holder.y() - mob.position().y();
         double dz = holder.z() - mob.position().z();
         double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        if (distance <= FOLLOW_RANGE) {
-            return; // inside the slack: no follow, no pull
-        }
-        // The follow (f > 4.0): the navigation walks to the holder at the
-        // mob's own speed.
-        mob.navigateToward(holder.x(), holder.y(), holder.z());
-        if (distance > PULL_RANGE) {
-            // The pull (f > 6.0): v += d * |d| * 0.4 per component.
-            // Wave PE-28 — updateForLeashLength (HorseBaseEntity lines
-            // 230-234): a leash pulled past 6.0 stands the horse's hay
-            // graze down (the same band the pull itself reads).
-            if (mob.type() == net.zaminmc.torch.server.entity.MobType.HORSE
-                    && mob.eating()) {
-                mob.setEatingHay(false);
+        // Lines 78-84: the sitting tameable (the reference's instanceof
+        // TameableEntity gate resolves to the engine's tameable family —
+        // the wolf and the ocelot share the sitting flag): the snap alone.
+        if (mob.wolfSitting()) {
+            if (distance > SNAP_RANGE) {
+                detachLeash(mob, true);
             }
+            return;
+        }
+        // Lines 86-93: the arming one-shot — the band-2 wander registers
+        // and the swim paths park on the FIRST leashed tick.
+        mob.armLeechedNavigation();
+        // Line 95: updateForLeashLength — its own call-site, unconditional.
+        mob.updateForLeashLength((float) distance);
+        if (distance > FOLLOW_RANGE) {
+            // The follow (lines 96-98): the navigation walks to the holder
+            // at the mob's own speed.
+            mob.navigateToward(holder.x(), holder.y(), holder.z());
+        }
+        if (distance > PULL_RANGE) {
+            // The pull (lines 100-107): v += d * |d| * 0.4 per component.
             double ux = dx / distance;
             double uy = dy / distance;
             double uz = dz / distance;
@@ -461,7 +487,7 @@ public final class LeadSystem {
                     uz * Math.abs(uz) * PULL_FORCE);
         }
         if (distance > SNAP_RANGE) {
-            // The snap (f > 10.0): the leash breaks, the lead drops.
+            // The snap (lines 109-111): the leash breaks, the lead drops.
             detachLeash(mob, true);
         }
     }
