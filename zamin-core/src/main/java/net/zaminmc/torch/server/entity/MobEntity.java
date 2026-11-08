@@ -1417,6 +1417,14 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.WITHER || type == MobType.ENDER_DRAGON) {
             return false;
         }
+        // ChickenEntity.canDespawn (line 164): {@code this.hasJockey()
+        // && this.rider == null} — the jockey chicken left standing when
+        // its baby zombie died moves on like a monster (Wave CJ), while
+        // a RIDDEN jockey stays and the plain chicken never leaves (the
+        // animal's own never-despawn law).
+        if (type == MobType.CHICKEN) {
+            return chickenJockey && !hasRider();
+        }
         if (isTameableKind()) {
             return !wolfTamed() && wolfTicksExisted > 2400;
         }

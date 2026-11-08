@@ -6177,6 +6177,12 @@ public final class MobManager {
             if (type == MobType.SLIME) {
                 mob.initializeSlimeSize(); // SlimeEntity.initialize (12k)
             }
+            // ZombieEntity.initialize's Data pair (line 401: the 5% baby
+            // draw then the 5% villager draw, both at the Data's own
+            // construction — Wave CJ lands the baby half the family
+            // rides; the engine's spawnAt may have drawn between, the
+            // pair's own order preserved here).
+            boolean zombieBaby = type == MobType.ZOMBIE && random.nextFloat() < 0.05F;
             if (type == MobType.ZOMBIE && random.nextFloat() < 0.05F) {
                 // ZombieEntity.initialize's Data roll (line 401: the 5%
                 // villager skin — {@code world.random.nextFloat() < 0.05F}):
@@ -6184,11 +6190,66 @@ public final class MobManager {
                 // on (Slice 25a).
                 mob.setZombieVillager(true);
             }
-            if (baby) {
+            if (zombieBaby || baby) {
                 mob.setBreedingAge(-24_000);
+                // THE CHICKEN JOCKEY ARMS (initialize lines 412-426 — the
+                // baby zombie alone rides): the first 5% consults the
+                // nearby NOT-RIDING chickens within the zombie's box grown
+                // (5, 3, 5) — the FIRST of the gather, marked jockey, the
+                // zombie seated at once; the else-branch's own 5% spawns a
+                // FRESH chicken at the zombie's own place, marked, seated.
+                // The natural spawner's group baby flag never rides (the
+                // horse alone rolls babies among the animals — the shared
+                // arm below keys on the zombie's OWN draw).
+                if (zombieBaby && random.nextFloat() < 0.05F) {
+                    MobEntity chicken = nearestRideableChicken(mob);
+                    if (chicken != null) {
+                        chicken.setChickenJockey(true);
+                        chicken.setRider(mob.entityId());
+                    }
+                } else if (zombieBaby && random.nextFloat() < 0.05F) {
+                    MobEntity chicken = spawnAt(MobType.CHICKEN, position);
+                    if (chicken != null) {
+                        chicken.setBodyYaw(yaw);
+                        chicken.setChickenJockey(true);
+                        chicken.setRider(mob.entityId());
+                    }
+                }
             }
         }
         return mob;
+    }
+
+    /**
+     * The jockey spawn's nearby-chicken gather (ZombieEntity.initialize
+     * lines 413-415: {@code getEntitiesOfType(ChickenEntity.class,
+     * getShape().grown(5.0, 3.0, 5.0), EntityFilter.NOT_RIDING)} — the
+     * FIRST of the manager's own order, the chickens not already seated).
+     */
+    MobEntity nearestRideableChicken(MobEntity zombie) {
+        double halfWidth = zombie.type().width / 2.0;
+        double minX = zombie.position().x() - halfWidth - 5.0;
+        double maxX = zombie.position().x() + halfWidth + 5.0;
+        double minY = zombie.position().y() - 3.0;
+        double maxY = zombie.position().y() + zombie.type().height + 3.0;
+        double minZ = zombie.position().z() - halfWidth - 5.0;
+        double maxZ = zombie.position().z() + halfWidth + 5.0;
+        for (MobEntity candidate : all()) {
+            if (candidate.type() != MobType.CHICKEN || candidate.dead()
+                    || candidate.seatedVehicleId() != -1) {
+                continue;
+            }
+            double cx = candidate.position().x();
+            double cy = candidate.position().y();
+            double cz = candidate.position().z();
+            double cHalf = candidate.type().width / 2.0;
+            if (cx + cHalf >= minX && cx - cHalf <= maxX
+                    && cy + candidate.type().height >= minY && cy <= maxY
+                    && cz + cHalf >= minZ && cz - cHalf <= maxZ) {
+                return candidate; // the gather's first
+            }
+        }
+        return null;
     }
 
     /**

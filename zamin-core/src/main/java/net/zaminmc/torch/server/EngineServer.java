@@ -21288,6 +21288,25 @@ public final class EngineServer implements Server, EngineBridge {
             // position moving outright.
             net.zaminmc.torch.server.entity.MobEntity mobRider = mobManager.byId(mob.riderId());
             if (mobRider != null && !mobRider.dead()) {
+                if (mob.type() == net.zaminmc.torch.server.entity.MobType.CHICKEN) {
+                    // ChickenEntity.updateRiderPositon (lines 168-177 —
+                    // the reference's own typo kept in the record): the
+                    // jockey's seat sits 0.1 FORWARD of the body's yaw
+                    // ({@code x + 0.1*sin(bodyYaw), z - 0.1*cos(bodyYaw)})
+                    // at HALF the body's height plus the rider's own ride
+                    // height, and the living rider's bodyYaw FOLLOWS the
+                    // mount's — the baby zombie faces where the chicken
+                    // faces.
+                    float yawRad = mob.bodyYawLive() * (float) Math.PI / 180.0F;
+                    mobRider.teleport(new Position(
+                            mob.position().x() + 0.1 * Math.sin(yawRad),
+                            mob.position().y() + mob.type().height * 0.5
+                                    + net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw
+                                    .riderRideHeight(mobRider.type(), mobRider.isBaby()),
+                            mob.position().z() - 0.1 * Math.cos(yawRad)));
+                    mobRider.setBodyYaw(mob.bodyYawLive());
+                    continue;
+                }
                 Position seat = new Position(mob.position().x(),
                         mob.position().y() + mob.seatHeight()
                                 + net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.riderRideHeight(
@@ -24630,6 +24649,9 @@ public final class EngineServer implements Server, EngineBridge {
                     ? 50 // WitherEntity's own xpDrop (the ctor line 67)
                     : mob.type() == net.zaminmc.torch.server.entity.MobType.ENDERMITE
                     ? 3 // EndermiteEntity's own xpDrop (the ctor line 26)
+                    : mob.type() == net.zaminmc.torch.server.entity.MobType.CHICKEN
+                    && mob.hasChickenJockey()
+                    ? 10 // ChickenEntity.getXpDrop line 160: the jockey's own 10
                     : ExperienceAwards.forMobKill(mob.type().hostile, gameplayRandom);
             // The baby zombie's own lift (ZombieEntity.getXpDrop lines
             // 128-133): {@code xpDrop = (int) (xpDrop * 2.5F)} — the
