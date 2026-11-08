@@ -2893,7 +2893,16 @@ public final class ProjectileManager {
             return 0.0f;
         }
         double speed = projectile.launchSpeed();
-        double l = Math.ceil(speed * (2.0 + projectile.bonusDamage()));
+        // The damage base (ArrowEntity.onCollision line 232's own
+        // {@code this.damage} field): the player bow's 2.0 default, or
+        // the skeleton-shot's distance-scaled override (doRangedAttack
+        // line 256 — the charge ratio * 2.0 + the gaussian 0.25 jitter +
+        // the difficulty * 0.11 bump) with the Power bonus added on top
+        // exactly like the reference's own field arithmetic (line 258's
+        // {@code setDamage(getDamage() + i * 0.5 + 0.5)}).
+        double base = Double.isNaN(projectile.damageOverride())
+                ? 2.0 : projectile.damageOverride();
+        double l = Math.ceil(speed * (base + projectile.bonusDamage()));
         if (projectile.critical()) {
             l += random.nextInt((int) (l / 2) + 2);
         }

@@ -25009,19 +25009,57 @@ public final class EngineServer implements Server, EngineBridge {
                 witchRangedAttack(mob, aimPoint);
                 return;
             }
-            // The skeleton loosed: launch the arrow through the projectile
-            // system (the same physics and hit resolution player arrows ride).
-            Position origin = mob.eyePosition();
-            double dx = aimPoint.x() - origin.x();
-            double dy = (aimPoint.y() + 1.0) - origin.y(); // aim at the torso
-            double dz = aimPoint.z() - origin.z();
-            double horizontal = Math.sqrt(dx * dx + dz * dz);
-            float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
-            float pitch = (float) -Math.toDegrees(Math.atan2(dy, horizontal));
-            projectileManager.launch(ProjectileEntity.Kind.ARROW, mob.entityId(),
-                    origin, yaw, pitch, MobEntity.SKELETON_ARROW_SPEED, mob.dimension());
-            fxManager.sound(mob.position(), "random.bow", 1.0f, 1.0f, mob.dimension());
-            publishMobSwing(mob); // the arm swing rides the animation packet
+            // THE SKELETON'S LOOSE (the census read — SkeletonEntity
+            // .doRangedAttack lines 252-271 over ArrowEntity's
+            // shooter/target ctor lines 56-78, 1:1):
+            // (1) THE SPAWN SEAT — the ctor's own write: the eye band
+            // (y + eyeHeight - 0.1) pushed ONE block along the normalized
+            // horizontal toward the target (the ctor's d4/d5), the aim at
+            // the target's LOWER torso (minY + height / 3) with the
+            // horizontal-distance gravity compensation (dy + d3 * 0.2 —
+            // the ctor's own f2 arm at line 75);
+            // (2) THE LAUNCH — dispense(d0, d1 + f2, d2, 1.6F,
+            // 14 - difficultyId * 4): the 1.6 speed and the
+            // difficulty-scaled divergence (easy 10, normal 6, hard 2)
+            // through the launchVector form;
+            // (3) THE DAMAGE FIELD — setDamage(charge * 2.0F +
+            // nextGaussian() * 0.25 + difficultyId * 0.11F) with the
+            // charge the goal's clamped distance ratio (the POWER/PUNCH/
+            // FLAME riders key on the bow's enchantments — the engine's
+            // equipment model carries no enchant store, the row stands
+            // for the enchant family);
+            // (4) THE SOUND — random.bow at the reference's own pitch
+            // jitter (1.0 / (nextFloat() * 0.4 + 0.8)); NO swing
+            // broadcast — the reference's doRangedAttack swings nothing.
+            float charge = mob.consumeRangedCharge();
+            double targetHeight = mob.rangedTargetHeight();
+            Position feet = mob.position();
+            double eyeY = feet.y() + mob.eyeHeightForQuery() - 0.1;
+            double d0 = aimPoint.x() - feet.x();
+            double d1 = (aimPoint.y() + targetHeight / 3.0) - eyeY; // the ctor's height/3 aim
+            double d2 = aimPoint.z() - feet.z();
+            double d3 = Math.sqrt(d0 * d0 + d2 * d2);
+            if (d3 < 1.0E-7) {
+                d3 = 1.0E-7; // the ctor's own guard
+            }
+            Position origin = new Position(
+                    feet.x() + d0 / d3,
+                    eyeY,
+                    feet.z() + d2 / d3);
+            double gravityCompensation = d3 * 0.2;
+            int divergence = 14 - difficulty * 4;
+            ProjectileEntity arrow = projectileManager.launchVector(
+                    ProjectileEntity.Kind.ARROW, mob.entityId(), origin,
+                    d0, d1 + gravityCompensation, d2,
+                    MobEntity.SKELETON_ARROW_SPEED, divergence, mob.dimension());
+            if (arrow != null) {
+                arrow.setDamageOverride(charge * 2.0
+                        + (mobManager.random().nextGaussian() * 0.25
+                        + difficulty * 0.11));
+            }
+            fxManager.sound(mob.position(), "random.bow", 1.0f,
+                    (float) (1.0 / (mobManager.random().nextFloat() * 0.4 + 0.8)),
+                    mob.dimension());
         }
 
         /**
@@ -26335,9 +26373,13 @@ public final class EngineServer implements Server, EngineBridge {
      * the 0.16 perpendicular hand offset — the vanilla quirk the
      * construction applies along the yaw). The throw itself is silent —
      * the reference plays no bow draw for the witch (the splash's 2002
-     * burst is the tell). The target's velocity lead-ahead (target.x +
-     * velocityX) rides the engine's client-authoritative movement model:
-     * the session carries no velocity read (a documented difference).
+     * burst is the tell). THE VELOCITY LEAD (the census read, lines
+     * 200-203): {@code target.x + target.velocityX} — the player's own
+     * motion fields carry the explicit server impulses alone (knockback,
+     * explosions) exactly like the reference's server-side EntityPlayer
+     * motion (the client's own walk never writes them), and the MOB
+     * target's velocityX the engine's own live integration — the lead
+     * rides the ladder's own f measure too.
      */
     private void witchRangedAttack(MobEntity mob, Position aimPoint) {
         if (mob.witchDrinking()) {
@@ -26352,44 +26394,108 @@ public final class EngineServer implements Server, EngineBridge {
                 feet.x() - Math.cos(yawRadians) * 0.16,
                 feet.y() + 1.62 - 0.1,
                 feet.z() - Math.sin(yawRadians) * 0.16);
-        // The target resolves as the nearest player to the AI's aim point
-        // (the AI ticks the aim at the target's own position).
-        PlayerSession target = null;
-        double best = 4.0; // within two blocks of the aim
+        // THE TARGET RESOLUTION (the census read): the reference's
+        // doRangedAttack receives the LIVE LivingEntity target — the
+        // engine resolves the body at the aim (the AI ticks the aim at
+        // the target's own position): the nearest PLAYER within two
+        // blocks of the aim, else the nearest MOB (the revenge-on-mob
+        // arms — a golem's feud throw reads the golem's own eye height
+        // and health, never a player's).
+        PlayerSession playerTarget = null;
+        double bestPlayer = 4.0; // within two blocks of the aim
         for (PlayerSession candidate : players.all()) {
             if (candidate.state() != net.zaminmc.torch.entity.PlayerState.PLAYING
                     || candidate.dead()) {
                 continue;
             }
             double distance = candidate.position().distanceSquared(aimPoint);
-            if (distance < best) {
-                best = distance;
-                target = candidate;
+            if (distance < bestPlayer) {
+                bestPlayer = distance;
+                playerTarget = candidate;
             }
         }
-        // The reference's choice ladder (lines 204-212): the horizontal
-        // measures feet-to-feet exactly like the reference's own d1/d3.
+        MobEntity mobTarget = null;
+        if (playerTarget == null) {
+            double bestMob = 4.0;
+            for (MobEntity candidate : mobManager.all()) {
+                if (candidate == mob || candidate.dead()) {
+                    continue;
+                }
+                double distance = candidate.position().distanceSquared(aimPoint);
+                if (distance < bestMob) {
+                    bestMob = distance;
+                    mobTarget = candidate;
+                }
+            }
+        }
+        // THE AIM + THE VELOCITY LEAD (doRangedAttack lines 198-203): the
+        // aim height reads the TARGET'S OWN EYE HEIGHT (never the player's
+        // fixed 1.62), and the horizontal arms LEAD the target by its own
+        // velocity ({@code target.x + target.velocityX - this.x} — a
+        // strafing body's potion lands where it walks, not where it
+        // stood); the lead rides the tier ladder's own f measure too.
+        double targetEyeHeight;
+        float targetHealth;
+        double leadX;
+        double leadZ;
+        boolean hasTargetEffects;
+        if (playerTarget != null) {
+            targetEyeHeight = 1.62; // the standing player's eye band
+            targetHealth = playerTarget.health();
+            leadX = aimPoint.x() + playerTarget.motionX() - feet.x();
+            leadZ = aimPoint.z() + playerTarget.motionZ() - feet.z();
+            hasTargetEffects = true; // the ladder consults the live store below
+        } else if (mobTarget != null) {
+            targetEyeHeight = mobTarget.eyeHeightForQuery();
+            targetHealth = mobTarget.health();
+            leadX = aimPoint.x() + mobTarget.velocityX() - feet.x();
+            leadZ = aimPoint.z() + mobTarget.velocityZ() - feet.z();
+            hasTargetEffects = true;
+        } else {
+            targetEyeHeight = 1.62;
+            targetHealth = 20.0f;
+            leadX = aimPoint.x() - feet.x();
+            leadZ = aimPoint.z() - feet.z();
+            hasTargetEffects = false;
+        }
+        double aimY = aimPoint.y() + targetEyeHeight - 1.1;
+        double d2 = aimY - feet.y();
+        float horizontal = (float) Math.sqrt(leadX * leadX + leadZ * leadZ);
+        // The reference's choice ladder (lines 204-212) over the LEADED
+        // measure — the tier the target's own state picks.
         int metadata = 32732; // the strong harming default
-        double d1 = aimPoint.x() - feet.x();
-        double d2 = (aimPoint.y() + 1.62 - 1.1) - feet.y(); // the chest aim
-        double d3 = aimPoint.z() - feet.z();
-        float horizontal = (float) Math.sqrt(d1 * d1 + d3 * d3);
-        if (target != null) {
-            if (horizontal >= 8.0F && !potionSystem.hasEffect(target,
-                    net.zaminmc.torch.server.potion.StatusEffects.SLOWNESS)) {
+        if (hasTargetEffects) {
+            boolean slow = playerTarget != null
+                    ? potionSystem.hasEffect(playerTarget,
+                            net.zaminmc.torch.server.potion.StatusEffects.SLOWNESS)
+                    : potionSystem.hasEffect(mobTarget,
+                            net.zaminmc.torch.server.potion.StatusEffects.SLOWNESS);
+            boolean poison = playerTarget != null
+                    ? potionSystem.hasEffect(playerTarget,
+                            net.zaminmc.torch.server.potion.StatusEffects.POISON)
+                    : potionSystem.hasEffect(mobTarget,
+                            net.zaminmc.torch.server.potion.StatusEffects.POISON);
+            boolean weak = playerTarget != null
+                    ? potionSystem.hasEffect(playerTarget,
+                            net.zaminmc.torch.server.potion.StatusEffects.WEAKNESS)
+                    : potionSystem.hasEffect(mobTarget,
+                            net.zaminmc.torch.server.potion.StatusEffects.WEAKNESS);
+            if (horizontal >= 8.0F && !slow) {
                 metadata = 32698; // the slowness splash
-            } else if (target.health() >= 8.0F && !potionSystem.hasEffect(target,
-                    net.zaminmc.torch.server.potion.StatusEffects.POISON)) {
+            } else if (targetHealth >= 8.0F && !poison) {
                 metadata = 32660; // the poison splash
-            } else if (horizontal <= 3.0F && !potionSystem.hasEffect(target,
-                    net.zaminmc.torch.server.potion.StatusEffects.WEAKNESS)
+            } else if (horizontal <= 3.0F && !weak
                     && mobManager.random().nextFloat() < 0.25F) {
                 metadata = 32696; // the weakness splash
             }
         }
+        // dispense(d1, d2 + f * 0.2F, d3, 0.75F, 8.0F) — the reference's
+        // own velocity form (the vertical measured FEET-to-aim, the
+        // potion spawning at the eye band — the reference's own quirk;
+        // the {@code pitch -= -20} render offset is the client's alone).
         ProjectileEntity potion = projectileManager.launchVector(
                 ProjectileEntity.Kind.POTION, mob.entityId(), origin,
-                d1, d2 + horizontal * 0.2F, d3, 0.75, 8.0, mob.dimension());
+                leadX, d2 + horizontal * 0.2F, leadZ, 0.75, 8.0, mob.dimension());
         if (potion != null) {
             potion.setPotionDamage(metadata);
         }

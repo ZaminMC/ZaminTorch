@@ -120,16 +120,35 @@ public final class MobEntity implements LivingEntity {
     public static final float MELEE_ATTACK_DAMAGE = 2.0f;
     /** Melee cooldown in ticks (historical attack delay). */
     public static final int MELEE_ATTACK_COOLDOWN = 20;
-    /** Skeleton shooting band: closer than this it backs away. */
-    public static final double SKELETON_TOO_CLOSE = 6.0;
-    /** Skeleton shooting band: farther than this it closes in. */
-    public static final double SKELETON_TOO_FAR = 12.0;
-    /** Skeleton maximum shot range (the historical bow reach). */
-    public static final double SKELETON_SHOOT_RANGE = 15.0;
-    /** Skeleton bow cooldown in ticks (the historical 60-tick attack delay). */
-    public static final int SKELETON_ATTACK_COOLDOWN = 60;
-    /** Skeleton arrow launch speed (blocks per tick). */
-    public static final double SKELETON_ARROW_SPEED = 1.8;
+    /**
+     * THE PROJECTILEATTACKGOAL FAMILY (the census read — the goal's own
+     * law, ProjectileAttackGoal lines 20-93): every carrier rides the
+     * ONE cadence shape with its own constructor triple. The SKELETON'S
+     * (SkeletonEntity line 43: {@code new ProjectileAttackGoal(this,
+     * 1.0, 20, 60, 15.0F)}) — the 5-arg form's min 20 / max 60 cooldown
+     * band over the 15-block reach, the cooldown
+     * {@code floor(f * (max - min) + min)} with f the distance ratio:
+     * a close target re-arms at ~24, a far one at 60. The retired
+     * engine form (the flat 60 + nextInt(20), the 6/12 retreat bands,
+     * the immediate first shot) was never the reference's shape.
+     */
+    public static final int SKELETON_GOAL_MIN_COOLDOWN = 20;
+    public static final int SKELETON_GOAL_MAX_COOLDOWN = 60;
+    public static final double SKELETON_GOAL_RANGE = 15.0;
+    /**
+     * THE WITCH'S OWN TRIPLE (WitchEntity line 42: {@code new
+     * ProjectileAttackGoal(this, 1.0, 60, 10.0F)} — the 4-arg form's
+     * min == max 60): a FLAT sixty-tick cadence over the 10-block reach,
+     * the distance ratio falling out of the shared formula whole.
+     */
+    public static final int WITCH_GOAL_COOLDOWN = 60;
+    public static final double WITCH_GOAL_RANGE = 10.0;
+    /**
+     * Skeleton arrow launch speed (ArrowEntity's ctor speed — the
+     * SkeletonEntity.doRangedAttack line 253's {@code 1.6F}; the retired
+     * engine form launched at 1.8).
+     */
+    public static final double SKELETON_ARROW_SPEED = 1.6;
     /** Creeper ignition distance: inside this it stops and primes. */
     public static final double CREEPER_PRIME_RANGE = 1.8;
     /** Creeper prime vertical tolerance. */
@@ -3473,6 +3492,16 @@ public final class MobEntity implements LivingEntity {
                     && !witchHasEffect(net.zaminmc.torch.server.potion.StatusEffects.SPEED)
                     && position.distanceSquared(visibleTarget) > 121.0) {
                 choice = WITCH_SPEED;
+            } else if (random.nextFloat() < 0.25F && visibleTarget != null
+                    && !witchHasEffect(net.zaminmc.torch.server.potion.StatusEffects.SPEED)
+                    && position.distanceSquared(visibleTarget) > 121.0) {
+                // THE REFERENCE'S OWN DUPLICATED ARM (WitchEntity.mobTick
+                // lines 118-123 — the vanilla source carries the SAME
+                // speed arm TWICE, the second draw firing only when the
+                // first missed): two independent 25% draws — the far-
+                // target speed drink lands 1 - 0.75*0.75 = 43.75% of the
+                // eligible ticks, never the single arm's 25%.
+                choice = WITCH_SPEED;
             }
             if (choice > 0) {
                 witchDrink = choice;
@@ -6590,6 +6619,17 @@ public final class MobEntity implements LivingEntity {
     public double walkSpeed() {
         if (hasMovementSpeedOverride()) {
             return movementSpeedOverride;
+        }
+        // THE WITCH'S DRINKING SPEED PENALTY (WitchEntity.mobTick lines
+        // 129-131 + 103: the DRINKING_SPEED_PENALTY modifier — operation
+        // ZERO, the ADDITIVE form: {@code new AttributeModifier(UUID,
+        // "Drinking speed penalty", -0.25, 0)} over the registered 0.25
+        // base (initAttributes line 83) — the drinking witch's
+        // MOVEMENT_SPEED is EXACTLY ZERO, every goal's walk input dying
+        // whole: she stands still through the whole 33-tick window, the
+        // modifier removed only at the drink's completion.
+        if (type == MobType.WITCH && witchDrinking()) {
+            return 0.0;
         }
         // The horse's spawn-time MOVEMENT_SPEED roll (HorseBaseEntity
         // .initialize lines 1280-1283): the horse's rolled band (line 1281
@@ -11823,7 +11863,7 @@ public final class MobEntity implements LivingEntity {
                 double dy = mobTarget.position().y() - position.y();
                 double dz = mobTarget.position().z() - position.z();
                 tickSkeletonMind(mobTarget.position(),
-                        Math.sqrt(dx * dx + dz * dz), dy);
+                        Math.sqrt(dx * dx + dz * dz), mobTarget.bodyHeight());
             } else if (tickPounceAtTarget(mobTarget.position())) {
                 // The tameable family's own leap (PounceAtTargetGoal over
                 // the melee's band): the airborne window holds the walk —
@@ -11931,7 +11971,9 @@ public final class MobEntity implements LivingEntity {
                 return;
             }
             if (type.traits.ranged() && !skeletonWither) {
-                tickSkeletonMind(huntTarget, horizontal, dy);
+                // The player hunt's aim band: the standing player's own
+                // 1.8 hull (the ctor's target.height / 3 read).
+                tickSkeletonMind(huntTarget, horizontal, 1.8);
                 return;
             }
             // The wither variant's melee (the nether initialize lines
@@ -11973,6 +12015,12 @@ public final class MobEntity implements LivingEntity {
             mode = Mode.IDLE; // target lost (or daylight saved the spider)
             modeTicks = 0;
             clearPath();
+            // The ProjectileAttackGoal's stop() reset (lines 56-60): the
+            // seen counter and the cadence counter return to their start
+            // forms — the next claim re-arms the first-shot window whole.
+            if (type.traits.ranged() && !skeletonWither) {
+                resetRangedGoal();
+            }
         }
         // No hunt: the stroll goal owns the idle band this tick. (The
         // villager's village-return walk runs in the goal layer above —
@@ -16201,29 +16249,113 @@ public final class MobEntity implements LivingEntity {
         tickPathFollowing(target); // the feet route around walls, the eyes stay on
     }
 
-    /** The skeleton goal: hold the shooting band, shoot on a clear line. */
-    private void tickSkeletonMind(Position target, double horizontal, double dy) {
+    /**
+     * THE PROJECTILEATTACKGOAL LAW (the census read whole — the goal's
+     * own tick, lines 63-93, shared by the skeleton, the witch and every
+     * carrier): the distance reads to the target's FEET
+     * ({@code squaredDistanceTo(target.x, target.shape.minY, target.z)}),
+     * the seen counter climbs on consecutive visible ticks, the body
+     * WALKS at the goal's speed until it is BOTH inside the range AND
+     * seen for twenty ticks — then it stands (the goal's own
+     * {@code navigation.stop()} — NO retreat band, the retired 6/12
+     * shape never in the reference) — and the cadence walks the
+     * counter: the first arm (the goal's start, counter -1) and every
+     * post-refuse re-arm land {@code floor(f * (max - min) + min)}
+     * WITHOUT loosing, the zero counter loosing only inside the range
+     * on a visible tick, re-arming by the same distance-scaled floor.
+     * A refused shot (out of range, or unseen) leaves the counter at
+     * zero — the next tick's {@code < 0} arm re-arms the window whole.
+     */
+    private void tickSkeletonMind(Position target, double horizontal, double targetHeight) {
+        // The goal's own per-kind triple (the constructor's parameters).
+        int minCooldown = SKELETON_GOAL_MIN_COOLDOWN;
+        int maxCooldown = SKELETON_GOAL_MAX_COOLDOWN;
+        double range = SKELETON_GOAL_RANGE;
+        if (type == MobType.WITCH) {
+            minCooldown = WITCH_GOAL_COOLDOWN;
+            maxCooldown = WITCH_GOAL_COOLDOWN;
+            range = WITCH_GOAL_RANGE;
+        }
+        // The aim band the loose's ctor reads (ArrowEntity line 66:
+        // {@code target.minY + target.height / 3.0F} — the lower torso;
+        // the witch's own doRangedAttack reads the EYE height instead).
+        rangedTargetHeight = targetHeight;
         yaw = angleTo(target.x() - position.x(), target.z() - position.z());
         headYaw = yaw;
-        if (horizontal > SKELETON_TOO_FAR) {
-            mode = Mode.CHASE; // close the gap
-            tickPathFollowing(target);
-        } else if (horizontal < SKELETON_TOO_CLOSE) {
-            mode = Mode.WANDER; // re-rolled below as a retreat heading
-            yaw = angleTo(position.x() - target.x(), position.z() - target.z());
-            headYaw = yaw; // the body backs off, the eyes stay on the target
+        // d0 — the squared 3-D distance to the target's FEET (line 64:
+        // the reference measures mob-feet to target-feet, never eye to
+        // eye).
+        double feetDy = target.y() - position.y();
+        double d0 = horizontal * horizontal + feetDy * feetDy;
+        boolean seen = world.clearLine(eyePosition(), target);
+        rangedSeenTicks = seen ? rangedSeenTicks + 1 : 0;
+        // The stand band (lines 72-76): inside the range AND twenty
+        // consecutive seen ticks — the navigation stops (the STRAFE
+        // stand); anything else walks the approach at the goal's speed.
+        if (d0 <= range * range && rangedSeenTicks >= 20) {
+            mode = Mode.STRAFE;
             clearPath();
         } else {
-            mode = Mode.STRAFE; // in the band: hold and shoot
-            clearPath();
+            mode = Mode.CHASE;
+            tickPathFollowing(target);
         }
-        if (attackCooldown == 0
-                && horizontal <= SKELETON_SHOOT_RANGE
-                && world.clearLine(eyePosition(), target)) {
-            attackCooldown = SKELETON_ATTACK_COOLDOWN + random.nextInt(20);
-            pendingRangedShot = true;
-            rangedTarget = target;
+        // The cadence walk (lines 79-92).
+        if (--rangedAttackCooldown == 0) {
+            if (d0 <= range * range && seen) {
+                // The loose: the charge ratio clamped [0.1, 1.0] rides
+                // the shot (the doRangedAttack's range argument).
+                double f = Math.sqrt(d0) / range;
+                pendingRangedShot = true;
+                rangedTarget = target;
+                pendingRangedCharge = (float) Math.max(0.1, Math.min(1.0, f));
+                // The re-arm: the UNCLAMPED ratio (line 88's own f).
+                rangedAttackCooldown = (int) Math.floor(f * (maxCooldown - minCooldown) + minCooldown);
+            }
+            // The refused shot (out of range, or unseen): the counter
+            // stays at zero — the next tick's < 0 arm re-arms whole.
+        } else if (rangedAttackCooldown < 0) {
+            double f2 = Math.sqrt(d0) / range;
+            rangedAttackCooldown = (int) Math.floor(f2 * (maxCooldown - minCooldown) + minCooldown);
         }
+    }
+
+    /**
+     * The goal's stop() reset (ProjectileAttackGoal lines 56-60 — the
+     * target lost): the seen counter and the cadence counter return to
+     * their start forms, so the next claim re-arms the first-shot
+     * window whole.
+     */
+    private void resetRangedGoal() {
+        rangedSeenTicks = 0;
+        rangedAttackCooldown = -1;
+    }
+
+    /** The goal's seen counter (consecutive visible target ticks). */
+    private int rangedSeenTicks;
+    /** The goal's cadence counter (-1 = the goal's start form). */
+    private int rangedAttackCooldown = -1;
+    /** The loose's charge ratio (doRangedAttack's range argument). */
+    private float pendingRangedCharge = 1.0f;
+    /** The aim band's target height (the ctor's height / 3 read). */
+    private double rangedTargetHeight = 1.8;
+
+    /**
+     * @return the target-height consult the loose's aim band reads
+     * (ArrowEntity line 66's {@code target.height / 3.0F}).
+     */
+    public double rangedTargetHeight() {
+        return rangedTargetHeight;
+    }
+
+    /**
+     * @return and clears the loose's charge ratio — the clamped distance
+     * ratio the reference passes doRangedAttack (the skeleton's arrow
+     * damage scales with it).
+     */
+    public float consumeRangedCharge() {
+        float value = pendingRangedCharge;
+        pendingRangedCharge = 1.0f;
+        return value;
     }
 
     /** @return and clears whether the melee hunter should land a hit this tick. */

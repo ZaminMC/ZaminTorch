@@ -9810,17 +9810,24 @@ command-cart, detector-rail, drop-stamp, falling-anvil, hopper,
 piston-push, armorstand, seated-mob) 85/85, the entity lane run at
 close.
 
-NEXT WORK (re-pinned after the CENSUS SECOND SLICE, in order): the
-verifier's PRs when they open (none open at this session's close — the
-agent's branch fix/furnace-fuel-parity-audit still carries no PR); the
-vanilla-grade census's next family pick; the panic seat's own watch
-(the documented single-JVM load flake — green isolated and on every
-re-run, one red under the full parallel entity load; the enderman-hunt
-seat AND the wolf-collar seat joined the family this session — both
-the same shape, green isolated x3-x4); the CI watch on the runs
-carrying today's seats (run #696 GREEN whole — torch-1.8.8-159
-published; the next runs carry the pearl fix + the void census + the
-exhaustion census).
+NEXT WORK (re-pinned after the PROJECTILEATTACKGOAL FAMILY CENSUS, in
+order): the verifier's PRs when they open (none open at this session's
+close — the agent's branch fix/furnace-fuel-parity-audit still carries
+no PR); the vanilla-grade census's next family pick; the flake-family
+watch (the panic seat, the enderman-hunt seat, the wolf-collar seat —
+the documented single-JVM load flakes, green isolated — JOINED THIS
+SESSION by RiderSpareFallParityTest.theSeatedPlayerPaysTheDelegatedFall,
+run #697's one red under the parallel load, green isolated x3 on the
+current tree and green in #698 whole); the CI watch on the runs
+carrying this census (the #697 window CLOSED: its two reds —
+DonkeyChest's open-window timeout, the retry-allowlisted
+environmental row, and the RiderSpareFall seat above — both green in
+#698 whole on the same tree; #698 GREEN WHOLE, torch-1.8.8-161
+published); the projectile census's own standing tails (the
+POWER/PUNCH/FLAME riders on the skeleton's bow — NOT-REACHABLE until
+the equipment model carries an enchant store, the row stands for that
+family; the witch's {@code pitch -= -20} render offset — the client's
+alone, the spawn packet's pitch derived from the velocity).
 
 THE DAMAGE-SOURCE EXHAUSTION CENSUS + THE PEARL-ENDERMITE HUNT SEAT
 LANDED (2026-11-08, this session's second slice — the family pick the
@@ -10005,6 +10012,115 @@ re-run), the vehicle package, the block package, the fishing package,
 the anvil family, the hunger/item/mob void seats, the bukkit module —
 all green; the four new seats 4/4 (3 law seats RED-verified, 1
 control).
+
+WAVE PA — THE PROJECTILEATTACKGOAL FAMILY CENSUS LANDED (2026-11-09,
+the census's next family pick, the goal's own law read whole over
+every carrier, each arm RED-verified on the no-op patches):
+
+THE GOAL'S OWN LAW (ProjectileAttackGoal lines 20-93 — ONE cadence
+shape, every carrier riding its own constructor triple): the distance
+reads to the target's FEET ({@code squaredDistanceTo(target.x,
+target.shape.minY, target.z)} — never eye to eye); the seen counter
+climbs on consecutive visible ticks; the body WALKS at the goal's
+speed until BOTH inside the range AND twenty seen ticks — then the
+navigation STOPS (the stand; NO retreat band, the retired 6/12 shape
+never in the reference); the cadence counter walks
+{@code --ticksUntilNextAttack == 0} — the loose only inside the range
+on a visible tick, re-arming {@code floor(f * (max - min) + min)} with
+f the UNCLAMPED distance ratio; a REFUSED loose (out of range or
+unseen) leaves the counter at zero, the next tick's {@code < 0} arm
+re-arming the window WHOLE without loosing; the goal's start (counter
+-1) arms the first-shot window the same way — NEVER an immediate
+loose. THE RETIRED ENGINE FORM (the flat 60 + nextInt(20) cadence, the
+6/12 retreat bands, the immediate first shot) was never the
+reference's shape. THE PER-KIND TRIPLES: the skeleton's
+(SkeletonEntity line 43: {@code ProjectileAttackGoal(this, 1.0, 20,
+60, 15.0F)} — the 5-arg form, the 20/60 band over 15 blocks: a
+10-block target arms 46, a standing 9.316 separation re-arms 44) and
+the witch's (WitchEntity line 42: the 4-arg form, min == max 60 over
+10 blocks — the FLAT cadence whatever the distance). The snow golem's
+volley (PE-17's own arm) rides the same law's flat 20/10 and stands
+verified whole.
+
+THE SKELETON'S LOOSE (SkeletonEntity.doRangedAttack lines 252-271 over
+ArrowEntity's shooter/target ctor lines 56-78, 1:1): the spawn seat —
+the eye band (y + eyeHeight - 0.1) pushed ONE block along the
+normalized horizontal toward the target, the aim at the target's LOWER
+torso ({@code minY + height / 3.0F} — the aim-band height threaded
+through the mind: the player hunt's 1.8 hull, the mob-target arm's own
+{@code bodyHeight()}) with the horizontal-distance gravity
+compensation ({@code dy + d3 * 0.2} — the ctor's own f2 arm); the
+launch — {@code dispense(d0, d1 + f2, d2, 1.6F, 14 - difficultyId *
+4)}: the 1.6 speed (the retired engine launched at 1.8) and the
+DIFFICULTY-SCALED DIVERGENCE (easy 10, normal 6, hard 2) through the
+launchVector form; THE DAMAGE FIELD — {@code setDamage(charge * 2.0F +
+nextGaussian() * 0.25 + difficultyId * 0.11F)} with the charge the
+goal's clamped distance ratio (a NEW damageOverride field on the
+projectile, NaN keeping the player bow's 2.0 base whole — the hit
+wound {@code ceil(speed * damageField)} reading the override through
+damageOf; a close charge wounds a glancing ~1, a full charge ~4, never
+the retired flat ceil(speed * 2.0)); the bow sound's PITCH JITTER
+({@code 1.0 / (nextFloat() * 0.4 + 0.8)} — the retired engine played
+1.0 flat); NO swing broadcast (the reference's doRangedAttack swings
+nothing — the retired engine's publishMobSwing retired from the loose).
+The POWER/PUNCH/FLAME riders (lines 254-267) key on the bow's
+enchantments — NOT-REACHABLE until the equipment model carries an
+enchant store (ItemStack carries no enchant fields today), the row
+stands for that family.
+
+THE WITCH'S THROW TAILS (WitchEntity.doRangedAttack lines 195-215):
+the aim height reads the TARGET'S OWN EYE HEIGHT ({@code target.y +
+target.getEyeHeight() - 1.1F} — the retired engine hardcoded the
+player's 1.62; the mob-target arms — the revenge-on-golem feud — now
+read the golem's own eye band) and the horizontal arms LEAD the target
+by its velocity ({@code target.x + target.velocityX - this.x} — the
+player's motion fields carry the explicit server impulses alone,
+exactly the reference's server-side EntityPlayer semantics; the MOB
+target's velocityX the engine's own live integration), the lead riding
+the tier ladder's own f measure too; the target resolution extends to
+the MOB arms (the nearest body at the aim, player first, mob second —
+the witch's revenge on a golem throws at the golem with the golem's
+own health and effects in the tier consults). The {@code pitch -=
+-20} render offset stays the client's alone (the spawn packet's pitch
+derived from the velocity).
+
+THE WITCH'S DRINK-LADDER DUPLICATION (WitchEntity.mobTick lines
+113-123 — the vanilla source carries the SAME speed arm TWICE, the
+second draw firing only when the first missed): two independent 25%
+draws — the far-target speed drink lands 1 - 0.75*0.75 = 43.75% of
+the eligible ticks, never the single arm's 25%. The engine's ladder
+carried it ONCE — FIXED to the reference's own duplication. THE
+DRINKING SPEED PENALTY'S OWN FORM (lines 30-32 + 129-131: {@code new
+AttributeModifier(UUID, "Drinking speed penalty", -0.25, 0)} —
+operation ZERO, the ADDITIVE form over the registered 0.25 base): the
+drinking witch's MOVEMENT_SPEED is EXACTLY ZERO — every walk input
+dies whole for the 33-tick window (the walkSpeed consult answers 0.0
+while the flag stands), the modifier removed at the completion.
+
+SEATS: ProjectileAttackGoalParityDiscoveryTest 8 NEW — the first-shot
+arm + the distance-scaled cadence (the looses at ticks 47/91/135, the
+46-then-44 windows at the measured separations), the stand band's
+no-retreat law (the adjacent target: never the WANDER flip, the stand
+at twenty seen ticks, the clamped 0.1 charge's 24-tick window), the
+refused loose's re-arm (the out-of-range zero never looses, the window
+re-armed whole), the witch's flat cadence (the loose at tick 61 at 9
+blocks) + her own ten-block range (a held 12-block separation never
+looses), the DUPLICATED speed arm (the scripted chain — the first arm
+reads 0.9, ONLY the second arm's 0.1 can arm the drink), the drinking
+stop (walkSpeed 0.0 through the window, the base returning at the
+completion), and the arrow's distance-scaled damage field (the close
+charge's glancing wound vs the full charge's heavier one vs the
+player bow's untouched 2.0 base) — the four law families RED-verified
+on their own no-op patches in turn (the retired flat cadence: 4 red;
+the witch reading the skeleton's range: 1; the duplicated arm removed:
+1; the drinking stop removed: 1; the damage override ignored: 1), all
+8 GREEN on the landed laws. The ranged-on-mob seat in
+CombatTargetTailsTest re-pinned to the reference's cadence (the claim
+walks, the stand at twenty, the loose at the counter's zero — the
+retired immediate-shot form retired with it). LANES: the entity
+package whole (the enderman-hunt and panic seats' documented single-
+JVM load flakes alone — both green isolated and on the re-run), the
+projectile package, the bukkit module — all green.
 
 RUN #690'S THREE RED SEATS FIXED AT THE SOURCE + THE FLANK-TAIL (b) PASS
 LANDED + THE FURNACE-BRIDGE RESIDUAL ROOT-CAUSED WHOLE (2026-11-08, commits

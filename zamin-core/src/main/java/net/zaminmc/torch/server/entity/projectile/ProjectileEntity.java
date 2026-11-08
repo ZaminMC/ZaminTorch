@@ -107,6 +107,15 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
     private boolean critical;
     /** The Punch level carried from the release (0 = none). */
     private int punchLevel;
+    /**
+     * THE SKELETON'S OWN DAMAGE FIELD (the census read — ArrowEntity's
+     * {@code damage} through SkeletonEntity.doRangedAttack line 256:
+     * {@code setDamage(range * 2.0F + (nextGaussian() * 0.25 +
+     * difficultyId * 0.11F))} — the distance-scaled charge form REPLACING
+     * the base 2.0 the player bow's {@code power * 2.0F} carries). NaN —
+     * the default — keeps the player bow's base whole.
+     */
+    private double damageOverride = Double.NaN;
     /** The Power bonus riding the damage multiplier (the j * 0.5 + 0.5 arm). */
     private double bonusDamage;
     /** The burning clock (Flame releases ignite 100 s — the whole flight). */
@@ -400,6 +409,16 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
 
     public void setPunchLevel(int punchLevel) {
         this.punchLevel = punchLevel;
+    }
+
+    /** The skeleton-shot damage field (NaN = the player bow's 2.0 base). */
+    public double damageOverride() {
+        return damageOverride;
+    }
+
+    /** Replaces the arrow's damage base (the skeleton's distance-scaled form). */
+    public void setDamageOverride(double damage) {
+        this.damageOverride = damage;
     }
 
     public double bonusDamage() {

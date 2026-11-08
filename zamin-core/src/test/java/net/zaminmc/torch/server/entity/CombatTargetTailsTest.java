@@ -550,10 +550,35 @@ class CombatTargetTailsTest {
         // (lines 40-48); the skeleton's melee goal is Player-only (lines
         // 43-44).
         skeleton.setMobAttackTarget(golem);
+        // THE GOAL'S OWN FIRST TICK (the ProjectileAttackGoal census): the
+        // cadence counter ARMS the first-shot window — floor(f * (60 - 20)
+        // + 20) with f the 10-block distance ratio 10/15 = 0.667 → 46
+        // ticks — WITHOUT loosing (lines 89-92's {@code < 0} arm); the
+        // body WALKS the approach (seen < 20 consecutive ticks, line 72's
+        // stand gate not yet armed).
         skeleton.tick(true);
-
+        assertEquals(MobEntity.Mode.CHASE, skeleton.mode(),
+                "the claim's first tick walks (the seen counter under 20)");
+        assertFalse(skeleton.consumePendingRangedShot(),
+                "the first-shot window arms WITHOUT loosing");
+        assertFalse(skeleton.consumePendingMeleeAttack(),
+                "the melee swing never arms against a mob (the Player-only goal)");
+        // THE STAND BAND (line 72-76): twenty consecutive seen ticks inside
+        // the range — the navigation stops (the STRAFE stand), the retired
+        // 6/12 retreat bands never the reference's shape.
+        for (int i = 0; i < 19; i++) {
+            skeleton.tick(true);
+        }
         assertEquals(MobEntity.Mode.STRAFE, skeleton.mode(),
-                "the mob target rides the shooting band (the 6-12 hold), not the melee chase");
+                "twenty seen ticks inside the range: the goal stops the walk");
+        assertFalse(skeleton.consumePendingRangedShot(),
+                "the window still holds (46 ticks from the claim)");
+        // THE LOOSE (line 79's {@code --ticksUntilNextAttack == 0}): the
+        // counter's zero tick looses — the bow drawn at the golem, the
+        // aim the mob target's own position.
+        for (int i = 0; i < 27; i++) {
+            skeleton.tick(true);
+        }
         assertTrue(skeleton.consumePendingRangedShot(), "the bow is drawn at the golem");
         assertEquals(golem.position(), skeleton.rangedTarget(),
                 "the shot aims at the mob target's own position");
