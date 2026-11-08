@@ -85,11 +85,33 @@ class DragonContactBoundsParityDiscoveryTest {
      * the seat re-reads the wing and re-places the body each round
      * (the 0.2 overlap margin riding the 12-wide hull), the fling walk
      * running every tick.
+     *
+     * <p>THE SEAT'S OWN FORM (run #678's first-occurrence read — the engine
+     * 1:1, the bench's vanilla-validity the defect, the wall-clip seat's
+     * own pattern): (1) the player joins CREATIVE — the reference flings
+     * every LivingEntity with no gamemode gate (creative players ARE
+     * flung by the wings, flingMobs' own filter), while the head hull's
+     * 10.0 wound never lands on a creative body (the invulnerable
+     * family) — a survival body standing in a flying dragon's path dies
+     * to the HEAD arm mid-seat, and a dead body's every teleport is
+     * silently dropped (teleportOnTick's own dead gate) with the fling
+     * walk skipping it whole: all 30 rounds run against a body frozen at
+     * its death spot, exactly run #678's shape; (2) each round's window
+     * counts COMPLETED ENGINE TICKS (the ML-002 law — a wall-clock 700ms
+     * observes load-dependent FEWER fling walks than the 14 the window
+     * means), polled in 2-tick steps so the round exits the moment the
+     * fling lands.</p>
      */
     @Test
     void theEdgeStandPlayerAtTheWingHullIsFlung() throws Exception {
         spawnDragonInTheEnd();
         PlayerSession body = joinedInTheEnd("EdgeStand");
+        // Creative: flung by the wings (the reference's own LivingEntity
+        // filter — no gamemode gate), never wounded by the head (the
+        // invulnerable family) — the death that froze run #678's body off
+        // the table whole.
+        server.ticker().submit(() -> body.setGamemode(GameMode.CREATIVE));
+        EngineAwaits.awaitTicks(server.worldFor(1), 1, "the creative mode landed");
         AtomicBoolean flung = new AtomicBoolean();
         server.addSurvivalListener(new EngineServer.SurvivalListener() {
             @Override
@@ -121,9 +143,13 @@ class DragonContactBoundsParityDiscoveryTest {
             double placedX = face + 0.1;
             server.teleportPlayer(body, new Position(placedX, wing[1] - 2.0,
                     wing[2]));
-            long deadline = System.currentTimeMillis() + 700;
-            while (System.currentTimeMillis() < deadline && !flung.get()) {
-                Thread.sleep(25);
+            // The round's window: 14 COMPLETED ticks (the census's ML-002
+            // law — under load a wall-clock 700ms observes too few of the
+            // every-tick fling walks for the 0.2 overlap to hold against
+            // the wing's drift), in 2-tick steps for the early exit.
+            for (int t = 0; t < 7 && !flung.get(); t++) {
+                EngineAwaits.awaitTicks(server.worldFor(1), 2,
+                        "the wing's fling walk");
             }
         }
         assertTrue(flung.get(),
@@ -165,12 +191,14 @@ class DragonContactBoundsParityDiscoveryTest {
             server.ticker().submit(() -> stand.set(server.armorStands().summonAt(
                     placedX, wing[1] - 2.0, wing[2], 1, null)));
             await(() -> stand.get() != null, "the stand summoned at the wing edge");
-            long deadline = System.currentTimeMillis() + 700;
-            while (System.currentTimeMillis() < deadline && !flung.get()) {
-                if (stand.get().x() > placedX + 0.15) {
+            // The round's window: 14 COMPLETED ticks (the ML-002 law — the
+            // wall-clock 700ms the loaded runner starved), in 2-tick steps.
+            for (int t = 0; t < 7 && !flung.get(); t++) {
+                EngineAwaits.awaitTicks(server.worldFor(1), 2,
+                        "the wing's fling walk");
+                if (stand.get() != null && stand.get().x() > placedX + 0.15) {
                     flung.set(true);
                 }
-                Thread.sleep(25);
             }
         }
         assertTrue(flung.get(),

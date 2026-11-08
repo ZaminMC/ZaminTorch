@@ -107,6 +107,7 @@ class PistonBreakDropParityDiscoveryTest {
         EngineServer server = boot();
         try {
             int x = 330, z = 330, y = 40;
+            BlockPosition lever = new BlockPosition(x, y + 2, z);
             server.ticker().submit(() -> {
                 server.world().setBlock(new BlockPosition(x, y, z),
                         PistonBlocks.pistonOf(EAST, false, false));
@@ -123,26 +124,54 @@ class PistonBreakDropParityDiscoveryTest {
                 // strong power re-radiating down to the piston.
                 server.world().setBlock(new BlockPosition(x, y + 1, z),
                         BuiltinBlocks.STONE);
-                server.world().setBlock(new BlockPosition(x, y + 2, z),
-                        RedstoneBlocks.leverOf(5, false));
+                server.world().setBlock(lever, RedstoneBlocks.leverOf(5, false));
             });
             await(() -> PistonBlocks.isPiston(typeAt(server, x, y, z)), "the piston placed");
             await(() -> typeAt(server, x + 1, y, z).identifier().value()
                             .equals("wheat_stage7"),
                     "the mature crop placed");
-            server.ticker().submit(() -> server.redstone().useLever(
-                    new BlockPosition(x, y + 2, z)));
 
-            // Vanilla: the destroy arm breaks the crop with its drops — the
-            // wheat AND the seeds (the row's two entries, each rolling).
-            // The engine before this fix dropped the wheat ALONE.
-            await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
-                    "the piston extended over the crop");
-            await(() -> dropsNear(server, x + 1, y, z).contains("wheat"),
-                    "the broken crop dropped its wheat");
-            await(() -> dropsNear(server, x + 1, y, z).contains("wheat_seeds"),
-                    "VT-023: the broken crop dropped the seeds too (every "
-                            + "entry rolls — the dig path's own walk)");
+            // Vanilla (WheatBlock.dropItems lines 91-105): the mature crop
+            // drops its wheat ALWAYS, then rolls the seed bonus — 3
+            // independent nextInt(15) <= 7 rolls, one seed each — so a
+            // single break drops NO seeds (7/15)^3 ≈ 10.2% of the time: a
+            // LEGITIMATE 1:1 outcome, not a divergence (run #678's
+            // first-occurrence read — the engine 1:1, the bench's single
+            // sample the defect). The seat's own form RE-BREAKS (retract,
+            // re-place, re-extend — each round's rolls fresh) until a seed
+            // round lands, bounded; the engine before VT-023 never rolled
+            // the seeds at all, so the first zero-roll never hid the fix's
+            // absence (the wheat await below still gates every round).
+            boolean seedsSeen = false;
+            for (int round = 0; round < 12 && !seedsSeen; round++) {
+                if (round > 0) {
+                    server.ticker().submit(() -> server.redstone().useLever(lever));
+                    await(() -> !PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
+                            "round " + round + ": the piston retracted");
+                    server.ticker().submit(() -> server.world().setBlock(
+                            new BlockPosition(x + 1, y, z),
+                            BuiltinBlocks.WHEAT_STAGE7));
+                    await(() -> typeAt(server, x + 1, y, z).identifier().value()
+                                    .equals("wheat_stage7"),
+                            "round " + round + ": the mature crop re-placed");
+                }
+                server.ticker().submit(() -> server.redstone().useLever(lever));
+                await(() -> PistonBlocks.pistonExtended(typeAt(server, x, y, z)),
+                        "round " + round + ": the piston extended over the crop");
+                await(() -> dropsNear(server, x + 1, y, z).contains("wheat"),
+                        "round " + round + ": the broken crop dropped its wheat");
+                // The seeds spawn in the SAME drop walk as the wheat — once
+                // the wheat is visible, this round's seed verdict is final.
+                if (dropsNear(server, x + 1, y, z).contains("wheat_seeds")) {
+                    seedsSeen = true;
+                }
+            }
+            assertTrue(seedsSeen,
+                    "VT-023: the broken crop's seed bonus walks (every entry "
+                            + "rolls — 3 x nextInt(15) <= 7 at age 7; a zero "
+                            + "roll is vanilla's own outcome, the re-break the "
+                            + "seat's form; the engine before this fix dropped "
+                            + "the wheat ALONE)");
         } finally {
             server.shutdown(() -> { });
         }
