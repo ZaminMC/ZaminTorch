@@ -9824,13 +9824,26 @@ first-occurrence read — the ENGINE 1:1 at every one, the bench's own
 load-shape the defect family; the runner has not yet seen the
 tick-denominated furnace form or the wither/hunger repairs — the next
 runs carry them); the flank walk's ADJACENT TAILS the steal-cadence
-source pass surfaced (the chase's stale-route walk after a claim-END —
-the same law the steal's route adoption closed for the steal alone:
-the claim-end fall-through walks the retired flank route at the chase
-band until the repath cooldown opens, a ~20-30-tick standstill-or-walk-
-away window vanilla's same-pass re-consult never carries; the claim-
-hold law's release paths — the target's death, the band's edge — the
-same fall-through shape); the vanilla-grade census's next family pick
+source pass surfaced (OPEN — the session's own probe reached past the
+simple story and the rows stand for careful source passes: (a) the
+claim-end fall-through's stale window — vanilla's selector re-consults
+at the next setup pass (<=3 ticks) and the winning goal's start()
+adopts a FRESH route the same pass, while the engine's fall-through
+consults at once but its repath cooldown can walk the retired flank
+route (the band-edge end, the route live) or stand still (the route-
+completion end) for the cooldown's window — a repathCooldown-reopen at
+the claim end was DRAFTED AND REVERTED the same day (the seat could
+not honestly pin the law: the detour, the claim-hold and the
+TargetFinder dice interleave); (b) THE STUCK-IN-WALL OBSERVATION the
+probe surfaced — a golem whose flank pick (the spawn-shifted draw
+stream) walked toward the wall jumped +0.86 east in ONE tick (past
+the 0.275 walk bound — some write moved the body into the solid), the
+wall-clip detour armed, and the body's box [7.21, 8.61] sat INSIDE
+the wall cell with every subsequent move clipped — the golem FROZEN
+for 20+ ticks until the detour expired; the one-tick write that
+entered the solid and the clip's inability to resolve an already-
+inside box both want their own root-cause passes); the vanilla-grade
+census's next family pick
 (the FT family's own neighbors: the leash's leeched-navigation arm —
 PathFinderMobEntity.updateLeashStatus lines 82-118, the swim-off +
 the holder-centered village pin + the band-2 goToWalkTargetGoal
