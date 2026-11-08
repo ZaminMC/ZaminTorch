@@ -265,6 +265,32 @@ public final class EngineServer implements Server, EngineBridge {
     /** The callbacks waiting for each in-flight chunk generation. */
     private final java.util.Map<Long, java.util.Queue<java.util.function.Consumer<EngineChunk>>>
             pendingChunkLoads = new java.util.concurrent.ConcurrentHashMap<>();
+    /**
+     * The per-key request/install mutex (64 stripes): the request's
+     * peek-then-claim pair and the install's publish-then-remove pair
+     * must never interleave — a publication landing between a request's
+     * peek and its key-claim leaves the claim on a REMOVED key and
+     * submits a redundant generation (run #690's dedupe red: three
+     * requests, two jobs, every callback still served — the count alone
+     * spoke). The stripes are never nested (one key per critical
+     * section) and callbacks fire OUTSIDE them, so the lock discipline
+     * stays flat.
+     */
+    private final Object[] chunkLoadLocks = new Object[64];
+    {
+        for (int i = 0; i < chunkLoadLocks.length; i++) {
+            chunkLoadLocks[i] = new Object();
+        }
+    }
+
+    /** The stripe for one dimension-tagged chunk key. */
+    private Object chunkLoadLock(long key) {
+        // The mix spreads consecutive chunk keys across the stripes (the
+        // low bits of a packed position cluster heavily).
+        int h = (int) (key ^ (key >>> 32));
+        h ^= (h >>> 16);
+        return chunkLoadLocks[Math.floorMod(h, chunkLoadLocks.length)];
+    }
     private BlockInteractionService blockInteraction;
     private ChatService chatService;
     /** The tab-list family (Slice 84 — the PlayerInfo walks: join/quit/gamemode/ping). */
@@ -36742,21 +36768,45 @@ public final class EngineServer implements Server, EngineBridge {
         // installation and the callbacks run inside the owner's drain
         // context (the design's §4 sequence: snapshot compute, validate,
         // owner applies).
-        java.util.Queue<java.util.function.Consumer<EngineChunk>> callbacks =
-                pendingChunkLoads.computeIfAbsent(key,
-                        k -> new java.util.concurrent.ConcurrentLinkedQueue<>());
-        callbacks.add(onLoaded);
-        if (!pendingChunkGenerations.add(key)) {
+        //
+        // The peek-then-claim pair runs under the per-key stripe so it can
+        // never interleave with an install's publish-then-remove pair (run
+        // #690's dedupe red: the publication landing in the gap left the
+        // claim on the removed key and submitted a second job).
+        boolean claimed = false;
+        synchronized (chunkLoadLock(key)) {
+            existing = source.peek(position);
+            if (existing != null) {
+                // Published while this request walked to the stripe — the
+                // synchronous serve, exactly the fast path's own shape.
+                onLoaded.accept(existing);
+                return;
+            }
+            pendingChunkLoads.computeIfAbsent(key,
+                    k -> new java.util.concurrent.ConcurrentLinkedQueue<>())
+                    .add(onLoaded);
+            claimed = pendingChunkGenerations.add(key);
+        }
+        if (!claimed) {
             return; // a job is already in flight; this callback rides its install
         }
         if (computeSubsystem == null) {
             // The no-compute boot shape (partial test engines): the legacy
-            // synchronous path on the tick thread.
-            pendingChunkGenerations.remove(key);
-            pendingChunkLoads.remove(key);
+            // synchronous path on the tick thread. EVERY waiting callback
+            // rides the generation (the riders' queue entries, never the
+            // claimer's own alone — a dropped rider is a lost load).
+            java.util.Queue<java.util.function.Consumer<EngineChunk>> waiting;
+            synchronized (chunkLoadLock(key)) {
+                pendingChunkGenerations.remove(key);
+                waiting = pendingChunkLoads.remove(key);
+            }
             ticker.submit(() -> {
                 EngineChunk chunk = source.getOrGenerate(position);
-                onLoaded.accept(chunk);
+                if (waiting != null) {
+                    for (java.util.function.Consumer<EngineChunk> callback : waiting) {
+                        callback.accept(chunk);
+                    }
+                }
             });
             return;
         }
@@ -36799,10 +36849,18 @@ public final class EngineServer implements Server, EngineBridge {
                                        net.zaminmc.torch.block.ChunkPosition position,
                                        EngineChunk chunk) {
         long key = dimensionKey(dimension, position.packed());
-        pendingChunkGenerations.remove(key);
-        java.util.Queue<java.util.function.Consumer<EngineChunk>> callbacks =
-                pendingChunkLoads.remove(key);
-        EngineChunk installed = worldFor(dimension).installGenerated(position, chunk);
+        java.util.Queue<java.util.function.Consumer<EngineChunk>> callbacks;
+        EngineChunk installed;
+        // The publish-then-remove pair under the same per-key stripe as the
+        // request's peek-then-claim: a claim that lands after this removal
+        // re-checks the publication INSIDE its own stripe and serves the
+        // published chunk on the spot — the redundant submission the gap
+        // used to allow is gone at the source (run #690's count red).
+        synchronized (chunkLoadLock(key)) {
+            pendingChunkGenerations.remove(key);
+            callbacks = pendingChunkLoads.remove(key);
+            installed = worldFor(dimension).installGenerated(position, chunk);
+        }
         if (callbacks != null) {
             for (java.util.function.Consumer<EngineChunk> callback : callbacks) {
                 callback.accept(installed);

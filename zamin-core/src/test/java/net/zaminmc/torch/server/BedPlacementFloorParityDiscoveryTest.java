@@ -352,6 +352,15 @@ class BedPlacementFloorParityDiscoveryTest {
                     windowId -> { });
             await(() -> isBedHalfAt(server, foot) && isBedHalfAt(server, head),
                     "the bed lands on the stone floors (both trees — the agreeing row)");
+            // The consume rides the SAME tick task as the placement writes
+            // (placeBedOnTick's own tail), but the block writes and the
+            // inventory write reach the test thread through different
+            // visibility edges — the placement's await can pass while the
+            // ticker still walks to consumeHeld (run #690's flake: both
+            // halves landed, the count read its stale 1). The spend is
+            // itself awaited, then pinned.
+            await(() -> builder.inventory().held().isEmpty(),
+                    "the bed item spent (both trees)");
             assertEquals(0, builder.inventory().held().count(),
                     "the bed item spent (both trees)");
         } finally {

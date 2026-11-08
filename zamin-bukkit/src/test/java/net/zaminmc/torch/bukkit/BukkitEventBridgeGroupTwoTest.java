@@ -328,7 +328,8 @@ class BukkitEventBridgeGroupTwoTest {
             throw new AssertionError(missed.getMessage()
                     + " [state: " + state + "; ticks="
                     + harness.server.world().totalTicks()
-                    + "; furnace log:" + furnaceLog + "]", missed);
+                    + "; furnace log:" + furnaceLog + "; sweep ring:"
+                    + harness.server.furnaceManager().diagnostics() + "]", missed);
         }
         awaitLong(harness, () -> {
             FurnaceBlockEntity furnace = harness.server.furnaceManager().at(smeltAt);

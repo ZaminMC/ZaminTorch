@@ -32,6 +32,30 @@ public final class FurnaceManager {
     private final Map<BlockPosition, FurnaceBlockEntity> furnaces = new LinkedHashMap<>();
     private final List<Listener> listeners = new ArrayList<>();
 
+    // TEMPORARY DIAGNOSTIC (the residual intermittent's own forensics —
+    // retired once the pass lands): the last N sweep decisions, so a
+    // failed await can speak WHICH ticks skipped a furnace and why.
+    private static final int DIAG_CAP = 64;
+    private final String[] diagRing = new String[DIAG_CAP];
+    private int diagHead;
+
+    private void diag(String line) {
+        diagRing[diagHead] = line;
+        diagHead = (diagHead + 1) % DIAG_CAP;
+    }
+
+    /** TEMPORARY DIAGNOSTIC: the last sweep decisions (oldest first). */
+    public synchronized String diagnostics() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < DIAG_CAP; i++) {
+            String line = diagRing[(diagHead + i) % DIAG_CAP];
+            if (line != null) {
+                sb.append("\n  ").append(line);
+            }
+        }
+        return sb.toString();
+    }
+
     /** Observers the protocol adapter translates into wire sync. */
     public interface Listener {
         /** A furnace's slots changed outside the viewing player's own click. */
@@ -166,13 +190,16 @@ public final class FurnaceManager {
             gatePosition = position; // the firing entity's own row
             FurnaceBlockEntity furnace = entry.getValue();
             if (!isFurnaceBlock(world, position)) {
-                // The block-gone discard only decides on a LOADED chunk —
-                // an unloaded chunk reads as air, but the vanilla block
-                // entity freezes there (the restored state of a furnace
-                // outside the spawn area survives the restart).
-                return world.isChunkLoadedAt(position);
+                boolean loaded = world.isChunkLoadedAt(position);
+                diag("t=" + world.totalTicks() + " " + position
+                        + " SKIP notFurnace block=" + world.getBlock(position).identifier()
+                        + " loaded=" + loaded + " map=" + furnaces.size());
+                return loaded;
             }
             if (!world.isChunkLoadedAt(position)) {
+                diag("t=" + world.totalTicks() + " " + position
+                        + " SKIP frozen block=" + world.getBlock(position).identifier()
+                        + " map=" + furnaces.size());
                 return false; // frozen: an unloaded chunk's furnace does not smelt
             }
             int beforeSlots = furnace.slotsSerial();
@@ -186,6 +213,11 @@ public final class FurnaceManager {
             if (wasBurning != furnace.burning()) {
                 syncLitBlock(world, position, furnace.burning());
             }
+            diag("t=" + world.totalTicks() + " " + position
+                    + " TICK cook=" + furnace.cookTime()
+                    + " burn=" + furnace.burnTimeRemaining()
+                    + " in=" + furnace.input().count() + "x" + furnace.input().type()
+                    + " map=" + furnaces.size());
             return false;
         });
     }
