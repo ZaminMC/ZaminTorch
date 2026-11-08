@@ -155,8 +155,14 @@ class RelogRemountAcceptanceTest extends ProtocolTestBase {
             // then the teleport to the seat.
             readRemountAttach(second, boatId[0]);
             double[] teleport = readRemountTeleport(second);
-            assertEquals(seat.y(), teleport[1], 1e-6,
-                    "the resync teleport lands the rejoiner's client at the seat");
+            // The 5-slice buoyancy (census row BB-1) bobs the hull — the
+            // seat re-anchors every tick, so the wire teleport (sent at
+            // ITS tick) sits inside the bob's motion window of the live
+            // read, never at the frozen-rest exact match the pre-fix
+            // zero-vertical water rest pinned.
+            assertEquals(seat.y(), teleport[1], 0.15,
+                    "the resync teleport lands the rejoiner's client at the seat"
+                            + " (the bobbing hull's per-tick re-anchor window)");
 
             // The shared-server cleanup: dismount, then break the boat.
             server.ticker().submit(() -> {
