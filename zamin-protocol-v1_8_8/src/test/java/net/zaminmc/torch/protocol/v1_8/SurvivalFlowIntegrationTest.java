@@ -6,6 +6,8 @@ import net.zaminmc.torch.server.player.PlayerSession;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
+import java.io.IOException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import net.zaminmc.torch.testing.EngineAwaits;
@@ -136,9 +138,40 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             client.sendBlockPlacement(2, 3, 2, 1, 3);
             // ML-019's order: the immediate consume sync precedes the deferred
             // broadcast flush — the window sync first, the block change after.
-            int[] afterPlace = client.readWindowItems(10_000);
+            // Run #682's lesson (the wire read's own load-shape family): the
+            // 10s wall budget burned under the release run's PARALLEL module
+            // load exactly like the furnace seat's wall deadline did — a
+            // starved runner's engine answers LATE, not never. The wire form
+            // of the tick-denominated repair: a LIVING engine keeps producing
+            // packets (the deadline loop keeps consuming them — a dead engine
+            // throws EOF, never this timeout), so the widened 60s wall budget
+            // is the socket's own patience cap; the forensics below arm the
+            // first-occurrence read for anything the widened bound still
+            // misses.
+            int[] afterPlace;
+            try {
+                afterPlace = client.readWindowItems(60_000);
+            } catch (IOException missed) {
+                PlayerSession survivor = server.playerRegistry()
+                        .byName("Survivor").orElse(null);
+                String position = survivor == null ? "GONE"
+                        : String.format("(%.2f, %.2f, %.2f)", survivor.position().x(),
+                                survivor.position().y(), survivor.position().z());
+                var world = server.world();
+                String hole = "block(2,4,2)=" + world.getBlock(
+                        new BlockPosition(2, 4, 2)).identifier().value()
+                        + " block(2,3,2)=" + world.getBlock(
+                        new BlockPosition(2, 3, 2)).identifier().value();
+                String held = survivor == null ? "?"
+                        : String.valueOf(survivor.inventory().held());
+                throw new IOException(missed.getMessage()
+                        + " [state: player=" + position
+                        + " " + hole
+                        + " held=" + held
+                        + " ticks=" + world.totalTicks() + "]", missed);
+            }
             assertEquals(-1, afterPlace[2]); // consumption emptied the hotbar
-            client.readBlockChangeAt(2, 4, 2, 3, 10_000); // dirt placed (the deferred flush)
+            client.readBlockChangeAt(2, 4, 2, 3, 60_000); // dirt placed (the deferred flush)
 
             // --- mine again, then drop the held item with Q (status 4) ---
             client.sendDigging(0, 2, 4, 2, 1);

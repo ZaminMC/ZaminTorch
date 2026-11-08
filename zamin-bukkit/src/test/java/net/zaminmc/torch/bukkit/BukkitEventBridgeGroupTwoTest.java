@@ -304,14 +304,18 @@ class BukkitEventBridgeGroupTwoTest {
         } catch (AssertionError missed) {
             // The forensics dump (the run's own first-occurrence reads):
             // the furnace's live state and the probe's furnace lines.
+            // Run #682's lesson: the dump itself must be null-safe — an
+            // EMPTY slot's ItemStack carries a null type (the fuel view
+            // NPE'd before the state could speak), so every slot read
+            // describes EMPTY instead of dereferencing.
             FurnaceBlockEntity furnace = harness.server.furnaceManager().at(smeltAt);
             String state = furnace == null ? "GONE (no block entity)"
                     : "burning=" + furnace.burning()
                     + " burnRemaining=" + furnace.burnTimeRemaining()
                     + " cook=" + furnace.cookTime()
-                    + " input=" + furnace.input().type().identifier()
-                    + " fuel=" + furnace.fuel().type().identifier()
-                    + " output=" + furnace.output().type().identifier();
+                    + " input=" + slotView(furnace.input())
+                    + " fuel=" + slotView(furnace.fuel())
+                    + " output=" + slotView(furnace.output());
             String furnaceLog;
             try {
                 furnaceLog = harness.probeLogLines().stream()
@@ -463,6 +467,18 @@ class BukkitEventBridgeGroupTwoTest {
                 + ") — the INPUT is the stable load signal (the fuel may"
                 + " already have ignited and been consumed, the core suite's"
                 + " own law)");
+    }
+
+    /**
+     * The forensics' slot view (run #682's NPE lesson): an EMPTY
+     * ItemStack carries a null type, so the dump describes the empty
+     * slot instead of dereferencing — the state always speaks.
+     */
+    private static String slotView(net.zaminmc.torch.item.ItemStack stack) {
+        if (stack == null || stack.isEmpty() || stack.type() == null) {
+            return "EMPTY";
+        }
+        return stack.type().identifier() + "x" + stack.count();
     }
 
     /**
