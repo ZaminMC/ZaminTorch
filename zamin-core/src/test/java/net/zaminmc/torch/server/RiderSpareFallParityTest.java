@@ -46,8 +46,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 728-731), the landing's cell consult (the -0.2 feet cell with the
  * fence fallback), and the payment — the base ALONE, a vehicle has NO
  * formula of its own: the seated player pays, the vehicle pays nothing
- * (its health never moves). The farmland's instanceof LivingEntity gate
+ * through the formula. The farmland's instanceof LivingEntity gate
  * (FarmlandBlock.onFallenOn lines 57-71) skips vehicles whole.</p>
+ *
+ * <p>THE BOAT'S OWN OVERRIDE BESIDE THE DELEGATE (census row BB-3,
+ * BoatEntity.checkFallDamage lines 394-414): the hull's break consult
+ * REPLACES the base landing whole — a dry fall past 3.0 breaks the hull
+ * (the removal, the 3-planks/2-sticks wreck drops) whatever the landing
+ * block answers: the pad's ZERO and the farmland's gate belong to the
+ * RIDER's own consult alone, never the hull's. The rider pays AND the
+ * hull breaks at the same landing — both laws, one tick.</p>
  */
 class RiderSpareFallParityTest {
 
@@ -248,7 +256,8 @@ class RiderSpareFallParityTest {
                 paid.add(new Paid(rider, distance, multiplier)));
         VehicleEntity boat = manager.spawnBoat(new Position(5.5, 70.0, 5.5), 0);
         assertTrue(manager.mount(boat, 7), "the seat takes the rider");
-        float boatHealthBefore = boat.health();
+        // (The hull's health row is the WRECK arm's to spend — the base
+        // Entity's takeFallDamage is empty, no fall formula ever moves it.)
         for (int i = 0; i < 200 && !boat.onGround(); i++) {
             manager.tick();
         }
@@ -260,11 +269,22 @@ class RiderSpareFallParityTest {
         assertEquals(1.0f, stonePair.multiplier(), 1e-9, "the common blocks' 1.0");
         assertTrue(stonePair.distance() > 5.0f && stonePair.distance() < 7.0f,
                 "the accumulated descent: " + stonePair.distance());
-        assertEquals(boatHealthBefore, boat.health(), 1e-9,
-                "the vehicle pays nothing itself (the non-living base)");
+        // The hull's own break beside the payment (census row BB-3 —
+        // BoatEntity.checkFallDamage lines 394-414 REPLACES the base
+        // landing whole): the dry fall past 3.0 removes the hull through
+        // the WRECK arm (never the damage walk's boat item) — the rider's
+        // delegate paid the SAME landing, both laws one tick. The vehicle
+        // pays nothing through any fall FORMULA (the base Entity's
+        // takeFallDamage is empty) — the break is the removal, not a
+        // wound.
+        assertTrue(boat.dead(), "the hull breaks at the 3.0+ dry landing"
+                + " (BB-3 — the rider still paid the same tick)");
+        assertTrue(boat.wrecked(), "the break is the WRECK arm (the"
+                + " crash/fall family, never the damage walk's boat item)");
 
         // Over the pad: the ZERO forwards — the rider is spared with the
-        // vehicle.
+        // vehicle (the hull breaks all the same: the override never
+        // consults the landing block).
         ConcurrentLinkedQueue<Paid> padPaid = new ConcurrentLinkedQueue<>();
         VehicleFloorWorld pad = new VehicleFloorWorld();
         floor(pad.cells, "slime_block");
@@ -280,6 +300,10 @@ class RiderSpareFallParityTest {
         assertTrue(padBoat.onGround(), "the boat landed on the pad");
         assertEquals(1, padPaid.size());
         assertEquals(0.0f, padPaid.poll().multiplier(), 1e-9, "the pad's ZERO forwards");
+        assertTrue(padBoat.dead() && padBoat.wrecked(),
+                "the pad's ZERO spares the RIDER alone — the hull's break"
+                        + " consult never reads the landing block (the"
+                        + " override replaces the base whole)");
 
         // The farmland: the instanceof LivingEntity gate skips vehicles
         // WHOLE — no payment, the store still spent.
@@ -298,6 +322,10 @@ class RiderSpareFallParityTest {
         assertTrue(farmBoat.onGround(), "the boat landed on the farmland");
         assertEquals(0, farmPaid.size(), "the farmland skips vehicles whole");
         assertEquals(0.0f, farmBoat.fallDistance(), 1e-9, "the store spent all the same");
+        assertTrue(farmBoat.dead() && farmBoat.wrecked(),
+                "the farmland's LivingEntity gate skips the RIDER's payment"
+                        + " alone — the hull's break consult never reads the"
+                        + " landing block");
     }
 
     // ------------------------------------------------------------------

@@ -4439,11 +4439,26 @@ public final class MobEntity implements LivingEntity {
      */
     private static final double GOLEM_FLANK_SPEED = 0.9;
     /**
-     * The flank claim's steal poll (the engine's cadence form of the
-     * selector's every-tick MeleeAttackGoal.canStart consult while the
-     * band-2 claim runs — one direct-route probe every 20 ticks).
+     * THE FLANK CLAIM'S STEAL POLL CADENCE (GoalSelector.tick line 45's
+     * own law: {@code this.ticks++ % this.constantThree == 0},
+     * {@code constantThree = 3} — the SETUP PASS the selector's whole
+     * canStart consult walk rides): while the band-2 flank claim runs,
+     * the melee goal's canStart consult STILL RUNS at every setup pass
+     * — {@code canUse(melee)} passes over the live flank (the melee's
+     * band-1 precedence beats the flank's band 2, and the flank's
+     * {@code canStop()} defaults true, so the lower band never blocks
+     * the consult), and {@code MeleeAttackGoal.canStart} line 57's
+     * {@code findPath} verdict TRUE claims the body the same pass
+     * (the melee registered FIRST — its {@code moveAlong} replaces the
+     * flank's route; the flank's own visit that pass sees
+     * {@code canUse(flank)} false — the active melee shares the MOVE
+     * control bit at better precedence — and stops). One direct-route
+     * probe every 3 selector ticks, the counter the body's own
+     * {@link #age} mirrors (the reference's per-selector {@code ticks}
+     * field, ++ once per living tick from spawn — the phase never
+     * re-anchors at the claim's arm).
      */
-    private static final int GOLEM_FLANK_STEAL_INTERVAL = 20;
+    private static final int GOLEM_FLANK_STEAL_PASS_INTERVAL = 3;
     /** The snow golem's volley cadence (ProjectileAttackGoal's interval 20). */
     private static final int SNOW_GOLEM_SHOT_INTERVAL = 20;
     /** The snow golem's volley range (ProjectileAttackGoal's 10.0F). */
@@ -4464,12 +4479,6 @@ public final class MobEntity implements LivingEntity {
      * re-consulting the melee route (the steal shape).
      */
     private boolean golemFlankLive;
-    /**
-     * The flank claim's steal poll clock (the engine's cadence form of
-     * the selector's every-tick canStart consult — one direct-route
-     * probe every {@link #GOLEM_FLANK_STEAL_INTERVAL} flank ticks).
-     */
-    private int golemFlankStealCooldown;
     /**
      * THE MELEE GOAL'S OWN RUNNING STATE (Wave G2 — MeleeAttackGoal's
      * claim law over the golem's {@code pauseWhenMobIdle = true}):
@@ -4625,23 +4634,45 @@ public final class MobEntity implements LivingEntity {
             // resolution above guaranteed it), the 32 band. The claim
             // ends at the route's completion (the selector's next pass
             // re-consults the melee route) or the band's edge, and the
-            // STEAL POLL probes the direct route mid-claim (the engine's
-            // cadence form of the selector's every-tick canStart
-            // consult: the moment a direct path opens, the chase takes
-            // the body back).
+            // STEAL POLL probes the direct route mid-claim (GoalSelector
+            // .tick line 45's own setup-pass cadence — the melee goal's
+            // canStart consult runs at every {@code ticks % 3 == 0} pass
+            // while the flank holds the MOVE (canUse passes: the melee's
+            // band-1 precedence over the flank's band 2, the flank's
+            // canStop() true), and the moment a direct path opens, the
+            // chase takes the body back — the probe's phase riding the
+            // body's own age counter, the reference's per-selector
+            // ticks field, never re-anchored at the arm).
             if (golemFlankLive) {
                 double squared = dx * dx + dy * dy + dz * dz;
                 if (navigation.isDone()
                         || squared > GOLEM_HUNT_RANGE * GOLEM_HUNT_RANGE) {
                     golemFlankLive = false; // stop(): the claim ends
                 } else {
-                    // The steal poll: one direct-route probe every
-                    // GOLEM_FLANK_STEAL_INTERVAL flank ticks.
-                    if (--golemFlankStealCooldown <= 0) {
-                        golemFlankStealCooldown = GOLEM_FLANK_STEAL_INTERVAL;
-                        if (navigation.findPath(chaseTarget.x(), chaseTarget.y(),
-                                chaseTarget.z()) != null) {
+                    // The steal poll — the selector's own setup pass
+                    // (GoalSelector.tick line 45: ticks++ % 3 == 0 — the
+                    // constantThree law): the direct-route probe runs
+                    // every 3rd tick of the body's own life (the engine's
+                    // age is the reference's per-selector counter + 1 —
+                    // the first lived tick IS a setup pass, exactly the
+                    // reference's own shape; the phase never re-anchors
+                    // at the claim's arm).
+                    if ((age - 1) % GOLEM_FLANK_STEAL_PASS_INTERVAL == 0) {
+                        net.zaminmc.torch.server.entity.ai.pathing.Path direct =
+                                navigation.findPath(chaseTarget.x(), chaseTarget.y(),
+                                        chaseTarget.z());
+                        if (direct != null) {
                             golemFlankLive = false; // the steal: the chase claims
+                            // THE CLAIM'S OWN ROUTE ADOPTION (MeleeAttackGoal
+                            // .start line 74: moveAlong(this.path, this.speed)
+                            // — the claim adopts the CONSULT'S OWN PATH, the
+                            // walk turning to the direct route the very pass
+                            // the steal lands; the flank's stale route never
+                            // carries the chase — the pre-fix fall-through
+                            // walked the retired route at the chase band
+                            // until the repath cooldown opened).
+                            navigation.moveAlong(direct, walkSpeed()
+                                    * (type.traits.ranged() ? 1.0 : 1.1));
                         }
                     }
                     if (golemFlankLive) {
@@ -4711,7 +4742,6 @@ public final class MobEntity implements LivingEntity {
             return false; // canStart false: ten candidates, none in the half-plane
         }
         golemFlankLive = true;
-        golemFlankStealCooldown = GOLEM_FLANK_STEAL_INTERVAL;
         navigation.moveTo(pick.x(), pick.y(), pick.z(), GOLEM_FLANK_SPEED);
         return true;
     }

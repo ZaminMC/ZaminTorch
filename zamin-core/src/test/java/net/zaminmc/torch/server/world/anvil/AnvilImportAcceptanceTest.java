@@ -1177,7 +1177,17 @@ class AnvilImportAcceptanceTest {
             assertEquals(2, slots[0].count());
             assertEquals("minecraft:iron_ingot", slots[5].type().identifier().toString());
             assertEquals(1, slots[5].count());
-            assertEquals(90.0f, chest.rotation().yaw(), 0.001f);
+            // The CY wave's yaw convention (MinecartEntity.tick lines
+            // 289-298): the wire yaw rides the MOVEMENT — the imported
+            // Rotation row stands only until the cart's first moving tick
+            // (the Motion row (0.5, 0, -0.25) re-points the yaw into its
+            // own east-north quadrant); the STILL cart alone keeps its
+            // heading (the spawner's 180 below — no Motion row).
+            assertTrue(chest.rotation().yaw() > 90.0f && chest.rotation().yaw() < 180.0f,
+                    "the moving cart's yaw rides the displacement (the"
+                            + " east-north quadrant of the (0.5, -0.25)"
+                            + " motion — measured " + chest.rotation().yaw()
+                            + "; the pre-CY engine kept the imported 90)");
             // The Motion row landed at (0.5, 0, -0.25); the engine's own
             // off-rail friction decays it toward zero between the import
             // and this assertion (the direction is preserved, never

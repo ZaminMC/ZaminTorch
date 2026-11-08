@@ -438,7 +438,14 @@ class BukkitEventBridgeGroupTwoTest {
     /** The longer await (the smelt cycle is 200 real-time ticks). */
     private static void awaitLong(BooleanSupplier condition, String description)
             throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 40_000;
+        // The liveness bound's own load headroom (run #679's CI red seat
+        // root-caused: the deadline burned to the full 40s under the
+        // release run's PARALLEL module load — the runner's ticker thread
+        // starved and the 200-tick cook cycle covered fewer ticks per
+        // wall second; the conditions themselves stay engine-visible
+        // polls, the bound is liveness alone, so the headroom widens
+        // rather than the seat joining the retry census).
+        long deadline = System.currentTimeMillis() + 120_000;
         while (System.currentTimeMillis() < deadline) {
             if (condition.getAsBoolean()) {
                 return;

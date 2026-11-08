@@ -178,6 +178,14 @@ class PistonSliceDOwnershipAcceptanceTest {
             netherPig.set(server.mobs().spawnAt(MobType.PIG,
                     new Position(cx + 2.5, fy + 1, cz + 0.5)));
             netherPig.get().setDimension(-1); // the body lives in the nether
+            // The observation's own control (run #679's CI red seat
+            // root-caused): the pig is a FULL-AI body — its own stroll
+            // family may wander it inside the await window, and the seat's
+            // 1e-9 pin reads ANY wander as a displacement. NoAI pins the
+            // mind and the movement alone (the reference's own law): the
+            // body stands exactly still whatever the load's tick cadence,
+            // and the only variable left is the flight's own consult.
+            netherPig.get().setNoAi(true);
         });
         await(() -> netherPig.get() != null, "the nether pig spawned in the flight path");
         double before = netherPig.get().position().x();

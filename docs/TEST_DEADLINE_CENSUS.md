@@ -132,6 +132,30 @@ becomes eligible by recurring. The seed membership, with the evidence:
     own watch list: the drop-settle await and the open-window await,
     both re-verified green solo that session); CI-failed on runs
     #636/#637's artifacts.
+- The 2026-11-08 run-#679 extension — the release run's own four red
+  seats, each root-caused the same day from the run's log (three fixed
+  at the source, one allowlisted):
+  - `BukkitEventBridgeGroupTwoTest` (the furnace-bridge seat) — the
+    smelt-event await (an engine-visible probe-log poll, the C-C
+    liveness form) burned its FULL 40s deadline under the release run's
+    parallel module load (the runner's ticker starved; the test's own
+    wall burn measured exactly the bound). The class's `awaitLong` bound
+    widened to 120s for the load headroom, and the residual intermittent
+    miss (1-in-4 full-module runs locally at the widened bound, green
+    solo x3, green on 3 of 4 full-module runs) joins the allowlist per
+    the membership law: the conditions are engine-visible polls, the
+    miss is load-shape-only, the solo evidence is the diagnosis.
+  - `PistonSliceDOwnershipAcceptanceTest` (the nether-body seat) — NOT
+    a flake: the observation pig was a FULL-AI body whose own stroll
+    family could wander it inside the await window (the seat's 1e-9 pin
+    reads any wander as a displacement). Fixed at the source with
+    `setNoAi(true)` (the deterministic observation); never allowlisted.
+  - `RiderSpareFallParityTest` + `AnvilImportAcceptanceTest` — NOT
+    flakes: two STALE SEATS the TR+BB+CY waves' stale-seat sweeps
+    missed (the boat's BB-3 hull break at the 3.0+ dry landing vs the
+    seat's health-unchanged pin; the CY movement-derived yaw vs the
+    imported-rotation pin). Both re-pinned to the landed laws; never
+    allowlisted.
 
 Root-caused and RETIRED from candidacy (fixed at the source, run 556's
 evidence — these were never added to the list):

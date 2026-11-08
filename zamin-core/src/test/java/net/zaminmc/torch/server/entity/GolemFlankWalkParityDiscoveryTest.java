@@ -252,4 +252,83 @@ class GolemFlankWalkParityDiscoveryTest {
                 "the melee cadence lands the heavy hit once the window"
                         + " opens");
     }
+
+    // ------------------------------------------------------------------
+    // Seat 4 — the steal's own cadence (the selector's setup-pass law)
+    // ------------------------------------------------------------------
+
+    /**
+     * THE STEAL POLL'S CADENCE (GoalSelector.tick line 45's own law:
+     * {@code this.ticks++ % this.constantThree == 0} with
+     * {@code constantThree = 3} — the SETUP PASS the whole canStart
+     * consult walk rides): while the flank claim runs, the melee goal's
+     * canStart consult STILL RUNS at every third tick of the selector's
+     * own counter ({@code canUse(melee)} passes over the live flank —
+     * the melee's band-1 precedence beats the flank's band 2 and the
+     * flank's {@code canStop()} defaults true, so the lower band never
+     * blocks the consult), and the consult's {@code findPath} verdict
+     * TRUE claims the body the very same pass (the melee registered
+     * FIRST, its moveAlong replacing the flank's route; the flank's own
+     * visit that pass sees canUse false — the active melee shares the
+     * MOVE control bit at better precedence — and stops). The wall-face
+     * local minimum arms the flank (seat 1's geometry), the claim runs
+     * established, and then the wall OPENS — the direct route stands at
+     * once. The steal lands at the next setup pass: within 3 ticks of
+     * the opening, the chase's eastbound walk crossing the wall's line
+     * within 2 more. RED on the pre-fix engine: the 20-tick countdown
+     * poll left the golem sliding along the wall up to 20 ticks after
+     * the route opened (measured: the crossing 10+ ticks late).
+     */
+    @Test
+    void theStealLandsAtTheSelectorsOwnSetupPassCadence() {
+        WallWorld world = new WallWorld();
+        world.wallX = 8;
+        // NIGHT (18000 — midnight): the target zombie stands in the open,
+        // and a noon seat would burn it down mid-window (the undead
+        // daylight walk) before the steal's own story finishes.
+        MobManager manager = managerIn(world, 90L);
+        MobEntity golem = manager.spawnAt(MobType.IRON_GOLEM,
+                new Position(7.5, 8.0, 0.5));
+        MobEntity zombie = manager.spawnAt(MobType.ZOMBIE,
+                new Position(20.5, 8.0, 0.5));
+        assert golem != null && zombie != null : "the spawns never cancel here";
+        world.mobs.add(golem);
+        world.mobs.add(zombie);
+        zombie.setNoAi(true); // the target stands still, dead ahead
+        golem.setMobAttackTarget(zombie);
+
+        // The claim runs established: 10 ticks of the flank holding the
+        // golem west of the wall's face.
+        for (int tick = 0; tick < 10; tick++) {
+            manager.tick(List.of(), 18000L);
+            assertTrue(golem.position().x() < 8.0,
+                    "the flank claim holds the golem west of the wall while"
+                            + " the route stands (tick " + tick + ")");
+        }
+        // THE WALL OPENS — the direct route exists from this tick on.
+        world.wallX = Integer.MIN_VALUE;
+        int openTick = 10;
+        int crossingTick = -1;
+        for (int tick = openTick; tick < openTick + 40; tick++) {
+            manager.tick(List.of(), 18000L);
+            if (golem.position().x() >= 8.0) {
+                crossingTick = tick;
+                break;
+            }
+        }
+        assertTrue(crossingTick != -1,
+                "the opened route's chase crosses the wall's line (the steal"
+                        + " claims — the golem measured at x="
+                        + golem.position().x() + ")");
+        assertTrue(crossingTick - openTick <= 5,
+                "the steal lands at the selector's own setup-pass cadence —"
+                        + " the direct-route probe within 3 ticks of the"
+                        + " opening (MeleeAttackGoal.start adopting the"
+                        + " consult's own route the landing pass), the"
+                        + " eastbound walk crossing within 2 more (measured "
+                        + (crossingTick - openTick) + " ticks; the pre-fix"
+                        + " 20-tick countdown poll walked the stale flank"
+                        + " route at the chase band for ~30 ticks past the"
+                        + " opening)");
+    }
 }
