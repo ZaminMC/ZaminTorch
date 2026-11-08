@@ -9810,48 +9810,35 @@ command-cart, detector-rail, drop-stamp, falling-anvil, hopper,
 piston-push, armorstand, seated-mob) 85/85, the entity lane run at
 close.
 
-NEXT WORK (re-pinned after the FLANK-CADENCE + FT + CE session, in
-order): the verifier's PRs when they open (none at this session's
-close — the verifier's lane still empty across every check); THE CI
-WATCH (runs #679/#680/#681 red on five distinct bench-side seats, all
-root-caused from the logs and artifacts the same day — the flank row's
-own session closing every one: the two STALE SEATS re-pinned to the
-landed TR+BB+CY laws, the piston seat's full-AI observation pig pinned
-NoAI, the furnace seat's WALL-deadline await converted to the
-tick-denominated EngineAwaits form, the wither seat's item race closed
-by awaiting the drop itself, the hunger seat's forensics armed for its
-first-occurrence read — the ENGINE 1:1 at every one, the bench's own
-load-shape the defect family; the runner has not yet seen the
-tick-denominated furnace form or the wither/hunger repairs — the next
-runs carry them); the flank walk's ADJACENT TAILS the steal-cadence
-source pass surfaced (OPEN — the session's own probe reached past the
-simple story and the rows stand for careful source passes: (a) the
-claim-end fall-through's stale window — vanilla's selector re-consults
-at the next setup pass (<=3 ticks) and the winning goal's start()
-adopts a FRESH route the same pass, while the engine's fall-through
-consults at once but its repath cooldown can walk the retired flank
-route (the band-edge end, the route live) or stand still (the route-
-completion end) for the cooldown's window — a repathCooldown-reopen at
-the claim end was DRAFTED AND REVERTED the same day (the seat could
-not honestly pin the law: the detour, the claim-hold and the
-TargetFinder dice interleave); (b) THE STUCK-IN-WALL OBSERVATION the
-probe surfaced — a golem whose flank pick (the spawn-shifted draw
-stream) walked toward the wall jumped +0.86 east in ONE tick (past
-the 0.275 walk bound — some write moved the body into the solid), the
-wall-clip detour armed, and the body's box [7.21, 8.61] sat INSIDE
-the wall cell with every subsequent move clipped — the golem FROZEN
-for 20+ ticks until the detour expired; the one-tick write that
-entered the solid and the clip's inability to resolve an already-
-inside box both want their own root-cause passes); the vanilla-grade
-census's next family pick
-(the FT family's own neighbors: the leash's leeched-navigation arm —
-PathFinderMobEntity.updateLeashStatus lines 82-118, the swim-off +
-the holder-centered village pin + the band-2 goToWalkTargetGoal
-registration the engine's leash walk never carried; the chicken's
-jockey family — the zombie spawn's 5% baby-on-chicken arm, the
-riderless despawn, the 10-XP kill, the updateRiderPositon seat law);
-a red run's uploaded forensics the census law's own first-occurrence
-reads, the retry allowlist standing.
+NEXT WORK (re-pinned after the LN + CJ session, in order): the
+verifier's PRs when they open (none at this session's close — the
+lane still empty across every check); THE CI WATCH (runs #679-#682's
+red seats all root-caused and repaired bench-side — the furnace's
+forensics now null-safe so the next landing SPEAKS, the survival-flow
+wire reads widened to the 60s wall patience with the first-occurrence
+forensics armed; run #686 (1b0d3efe) in flight at this session's
+start carries neither repair — the first run carrying them is the one
+after this session's push); THE FLANK WALK'S ADJACENT TAILS (OPEN —
+the steal-cadence source pass's own rows, standing for careful source
+passes: (a) the claim-end fall-through's stale window — vanilla's
+selector re-consults at the next setup pass (<=3 ticks) and the
+winning goal's start() adopts a FRESH route the same pass, while the
+engine's fall-through consults at once but its repath cooldown can
+walk the retired flank route or stand still for the cooldown's
+window; (b) THE STUCK-IN-WALL OBSERVATION — a golem jumped +0.86
+east in ONE tick (past the 0.275 walk bound — some write moved the
+body into the solid), the wall-clip detour armed, and the body's box
+sat INSIDE the wall cell with every subsequent move clipped — the
+golem FROZEN for 20+ ticks; the one-tick write that entered the
+solid and the clip's inability to resolve an already-inside box both
+want their own root-cause passes); THE JOCKEY CHASE HAND-OFF
+(ZombieEntity.mobTick lines 184-187 — the mounted baby zombie with a
+target hands ITS navigation path to the CHICKEN's navigation at speed
+1.5, the famous jockey chase; the engine's mount-side seat model
+needs the rider-side mount lookup first — the row stands for its own
+careful pass); the vanilla-grade census's next family pick; a red
+run's uploaded forensics the census law's own first-occurrence reads,
+the retry allowlist standing.
 
 THE FLANK STEAL-POLL CADENCE ROW CLOSED + WAVES FT + CE LANDED
 (2026-11-08, commits 90e1f33d + ade02967 — the re-pin's first named
@@ -9930,6 +9917,84 @@ ParityDiscoveryTest 3 NEW — 8/8 RED on the neutralized engine (the
 no-op patches), 8/8 GREEN on the landed laws. LANES: the entity
 package 788 green whole, the vehicle/piston/NBT/persistence/anvil
 lanes, the bukkit module, the wither class green.
+
+WAVES LN + CJ LANDED (2026-11-08, commits 94c5784f + the LN + the CJ
+releases — the re-pin's census picks read whole from the reference,
+each law RED-verified on the no-op patches in turn):
+
+LN — THE LEASH'S LEECHED-NAVIGATION ARM (PathFinderMobEntity
+.updateLeashStatus lines 72-121): the arms the engine's leash walk
+never carried. THE HOLDER-CENTERED VILLAGE PIN (line 76): every
+leashed tick with a live holder re-centers the village cache ON THE
+HOLDER at radius five, BEFORE the distance gates — the engine's
+retired "inside the slack" early return skipped it whole; the
+village-consulting walks (the villager's own village-return, the
+golem's village band) read the HOLDER's pin while the leash stands.
+THE SITTING TAMEABLE'S EARLY RETURN (lines 78-84): a seated pet takes
+no arming, no follow, no pull — the snap alone at ten. THE
+LEECHED-NAVIGATION ONE-SHOT (lines 86-93): the FIRST leashed tick
+parks the swim paths (setCanSwim(false) — the dragged body paths
+AROUND the water). updateForLeashLength AT ITS OWN UNCONDITIONAL
+CALL-SITE (line 95): the horse's hay stand-down rides the leash-length
+hook with its own > 6 gate inside, the call no longer folded inside
+the pull band. THE BAND-2 WANDER (goToWalkTargetGoal —
+WanderThroughVillageGoal at band 2 while leeched): the wander's
+canStart gate (!isInVillage — beyond the pin's five) claims the stroll
+lane outright, its navigation-busy shouldContinue keeping the claim
+while the leash follow's own per-tick moveTo holds the path; the pick
+rides the shared TargetFinder walk's toward-pin half-plane with the
+in-band gate (the candidates within the pin's five, the toward-pin
+nudge), the best favor of ten. THE DETACH'S RECOVERY (lines 112-120)
+at the single choke point every detach path ends in: the swim paths
+return with the reference's own UNCONDITIONAL setCanSwim(true) — never
+the parked value, the leashed-then-released CHICKEN (the one kind
+whose ctor never armed swim) ends canSwim TRUE, the reference's own
+quirk — and the village pin resets. SEATS: LeashLeechedNavigationTest
+4 NEW, all RED on the no-op patches (the pin, the arming, the sitting
+gate, the release), 4/4 GREEN. LANES: the leash package whole, the
+village-return walk, the goal API, the full entity package green (the
+two first-run reds — the wounded-cow panic await and the chest-cart
+placement — pass isolated and on the lane's re-run: the single-JVM
+full-lane load flakes, not the laws).
+
+CJ — THE CHICKEN'S JOCKEY FAMILY: THE 10-XP KILL (ChickenEntity
+.getXpDrop line 160 — the death ladder's own row); THE RIDERLESS
+DESPAWN (canDespawn line 164 — the mark alone moves on, the SEATED
+mark stays, the plain chicken never leaves); THE JOCKEY SEAT
+(updateRiderPositon lines 168-177 — the reference's own typo kept in
+the record: the rider 0.1 forward of the body's yaw at HALF the
+height plus the rider's own ride height, the living rider's bodyYaw
+FOLLOWING the mount's); THE SPAWN ARM (ZombieEntity.initialize lines
+401-426 — the Data pair's own 5% baby draw beside the standing
+villager roll, the baby's chicken arms: the first 5% consults the
+nearby NOT-RIDING chickens within the zombie's box grown (5, 3, 5) —
+the FIRST of the manager's own order, marked jockey, seated at once;
+the else-branch's own 5% spawns a FRESH chicken at the zombie's own
+place, marked, seated). SEATS: ChickenJockeyParityDiscoveryTest 4 NEW
+(the ten-XP kill + the plain band; the despawn trio; the seat's
+0.1-forward/half-height/yaw-follow; the gather's first-eligible law),
+all four RED on the no-op patches (two combined runs, each reddening
+exactly its own seats), 4/4 GREEN. LANES: the death-XP ladder, the
+spawn system whole, the persistence acceptance, the mount-seats API,
+the leash LN seats green. OPEN ROW (below): the jockey chase hand-off.
+
+RUN #682'S TWO RED SEATS REPAIRED BENCH-SIDE (commit 94c5784f — the
+2505892b release run's forensics, both the load-shape family): the
+furnace seat's FORENSICS NPE (the armed dump itself crashed — an EMPTY
+slot's ItemStack carries a NULL TYPE, the fuel view dereferenced it;
+the null-safe slotView form now describes EMPTY, the next landing
+SPEAKS; the tick-denominated await form itself stands, green locally
+and on every run since); the survival-flow seat's WIRE TIMEOUT (packet
+48 — the placement's consume sync, the test's first failure across
+the release history): the 10s wall budget burned under the parallel
+module load — THE WIRE FORM of the tick-denominated repair (the
+engine-response reads widened to the 60s wall patience: a LIVING
+engine keeps producing packets through the deadline loop, a dead one
+throws EOF, never this timeout) + the first-occurrence forensics armed
+(the player's server-side position, the hole's two block states, the
+held stack, the engine's tick count — the placement-refusal arm, the
+position-race arm and the pure-starvation arm all distinguishable on
+the next landing).
 
 WAVE OR LANDED (2026-11-08, commit 68722f1f — the off-rail census row
 the RD/RK source pass opened, closed the same session): moveOffRail

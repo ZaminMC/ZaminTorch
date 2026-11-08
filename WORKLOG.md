@@ -3314,3 +3314,58 @@ SESSION COMMITS (all as Abasing): 9d1de3a4 (the #678 bench repairs)
 AT CLOSE: the entity lane's full rerun finishing in the background;
 the next push's release run the first to carry the wave — a red
 run's forensics the census law's first-occurrence reads.
+
+---
+
+## 2026-11-08 — the LN + CJ session (the re-pin's census picks)
+
+- Read the worklog, synced develop (1b0d3efe clean), checked the PRs:
+  0 open (the verifier's lane still empty at every check).
+- RUN #682'S TWO RED SEATS ROOT-CAUSED AND REPAIRED BENCH-SIDE
+  (commit 94c5784f): the furnace seat's armed forensics dump NPE'd on
+  an EMPTY slot's null type before the state could speak — the
+  null-safe slotView form landed so the next landing SPEAKS (the
+  tick-denominated await form itself stands, green locally); the
+  survival-flow seat's wire timeout (packet 48, the placement's
+  consume sync — the test's first failure ever) burned its 10s wall
+  budget under the parallel load — the wire form of the
+  tick-denominated repair (the 60s wall patience over a living
+  engine's packet stream) + the first-occurrence forensics armed.
+- WAVE LN — THE LEASH'S LEECHED-NAVIGATION ARM (PathFinderMobEntity
+  .updateLeashStatus lines 72-121 read whole): the holder-centered
+  village pin (radius 5, before the distance gates — the retired
+  slack early-return skipped it), the sitting tameable's early
+  return (the snap alone), the swim park on the first leashed tick,
+  updateForLeashLength at its own unconditional call-site, the
+  band-2 wander's stroll-lane claim (the toward-pin best-favor pick,
+  the in-band gate), and the detach's recovery at the single choke
+  point — the swim returned UNCONDITIONALLY true (the
+  leashed-then-released chicken quirk) + the pin reset. Seats:
+  LeashLeechedNavigationTest 4 NEW, RED on the no-op patches in turn
+  (the pin, the arming, the sitting gate, the release), 4/4 green;
+  the leash package, the village-return walk, the goal API and the
+  full entity package green (the two first-run reds pass isolated
+  and on the re-run — single-JVM load flakes).
+- WAVE CJ — THE CHICKEN'S JOCKEY FAMILY: the 10-XP kill (the death
+  ladder's own row), the riderless despawn (the mark alone moves on,
+  the seated mark stays), the jockey seat (updateRiderPositon — the
+  0.1-forward yaw offset, the half-height seat, the bodyYaw follow)
+  and the spawn arm (the Data pair's 5% baby draw + the two chicken
+  arms: the nearby NOT-RIDING gather over the grown (5,3,5) box, the
+  fresh-chicken else-branch). Seats: ChickenJockeyParityDiscoveryTest
+  4 NEW, RED on the no-op patches (two combined runs), 4/4 green;
+  the death-XP ladder, the spawn system, the persistence, the
+  mount-seats lanes green. OPEN: the jockey chase hand-off (the
+  zombie's path to the chicken's navigation at 1.5) recorded for its
+  own pass.
+- The architecture's record appended + the NEXT WORK re-pinned (the
+  verifier's PRs, the CI watch on the first run carrying today's
+  repairs, the flank's adjacent tails, the jockey chase hand-off);
+  the README refreshed (badge 3,831).
+
+SESSION COMMITS (all as Abasing): 94c5784f (the #682 bench repairs)
++ the Wave LN release + the Wave CJ release + this docs commit.
+
+AT CLOSE: pushing — the next release run the first to carry all
+three; the flank's stuck-in-wall root-cause pass and the jockey
+chase hand-off the next family picks.

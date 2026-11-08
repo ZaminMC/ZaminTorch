@@ -24,13 +24,13 @@ architecture, decisions and milestones.
 [![1.8.8 vanilla parity](https://img.shields.io/badge/1.8.8_vanilla_parity-%E2%89%8895%25-brightgreen)](#status)
 [![dimension ownership](https://img.shields.io/badge/dimension_ownership-%E2%89%8897%25-brightgreen)](#status)
 [![CI pipeline](https://img.shields.io/badge/CI_pipeline-%E2%89%8897%25-brightgreen)](#status)
-[![automated seats](https://img.shields.io/badge/automated_seats-3%2C823-brightgreen)](#status)
+[![automated seats](https://img.shields.io/badge/automated_seats-3%2C831-brightgreen)](#status)
 
 | Workstream | Done | State |
 |------------|------|-------|
-| 1.8.8 vanilla parity (the mechanics ledger, §22/§29) | ≈95% | 3,300+ engine seats green; the flank steal's own cadence closed to the selector's 3-tick setup-pass law; the farm animals' food-tempt walk + the ctor swim census + the chicken's egg layer and slow fall landed |
+| 1.8.8 vanilla parity (the mechanics ledger, §22/§29) | ≈95% | 3,300+ engine seats green; the flank steal's own cadence closed to the selector's 3-tick setup-pass law; the farm animals' food-tempt walk + the ctor swim census + the chicken's egg layer and slow fall landed; the leash's leeched-navigation arm (the holder-centered village pin, the swim park, the band-2 wander) and the chicken's jockey family (the 5% baby-on-chicken spawn, the riderless despawn, the 10-XP kill, the jockey seat) landed |
 | Dimension ownership (the FL4 waves — every system ranges its own world) | ≈97% | chests, containers, tiles, pistons, decorations, leads, beacons, the wither — each dimension's own family, redstone and wire |
-| CI pipeline (Phase A + publishing) | ≈97% | parallelised with selective retry and failure forensics; **torch-1.8.8-159 published**; runs #678–#681's red seats all root-caused same-day from the logs and artifacts (stale seats re-pinned, a wall-deadline await converted to the tick-denominated form, an observation pig pinned NoAI, first-occurrence forensics armed) — the engine 1:1 at every one |
+| CI pipeline (Phase A + publishing) | ≈97% | parallelised with selective retry and failure forensics; **torch-1.8.8-159 published**; runs #678–#682's red seats all root-caused same-day from the logs and artifacts (stale seats re-pinned, a wall-deadline await converted to the tick-denominated form, an observation pig pinned NoAI, the forensics dump null-safe, the wire reads' 60s wall patience) — the engine 1:1 at every one |
 | Engine infrastructure (§22/§35: ownership, scheduling, transport) | ≈90% | the region model, the cross-owner protocol, the encode-once transport landed and pinned; the B-gaps wait for their triggers per §X.8 |
 | Concurrency Phase 5 — parallel pre-gen lighting | 90% (gated) | landed, measured 1.4–1.6×, OFF by default (`torch.parallel-pregen-light`) |
 | Concurrency Phase 6 — further parallel gameplay lanes | ≈20% | the random-tick lane landed; each further lane gated on its own evidence |
@@ -41,7 +41,7 @@ architecture, decisions and milestones.
 
 [Progress history](WORKLOG.md)
 
-<sub>Every row's estimate is measured against its own ledger — the wave/section named in the row — not a feeling; percentages move as work lands and a row leaves the table at 100%. The landed record behind these numbers lives in [`Torch-Arcetecture.txt`](Torch-Arcetecture.txt) §22/§29, [`VANILLA_1_8_8_COMPATIBILITY.md`](VANILLA_1_8_8_COMPATIBILITY.md), [`NATIVE_API_CAPABILITIES.md`](NATIVE_API_CAPABILITIES.md) and [`WORKLOG.md`](WORKLOG.md). Last full re-verification of the table: 2026-10-31 (the FL4-F10 redstone world-binding wave + the parity PR wave #101/#102/#104); latest landing: 2026-11-08 (the flank steal-poll cadence closed to GoalSelector's own 3-tick setup-pass law with the claim's route adoption; Waves FT + CE — the farm animals' food-tempt family, the ctor swim census with the wolf misreading corrected, the chicken's egg layer with its NBT pair and the 60% slow fall).</sub>
+<sub>Every row's estimate is measured against its own ledger — the wave/section named in the row — not a feeling; percentages move as work lands and a row leaves the table at 100%. The landed record behind these numbers lives in [`Torch-Arcetecture.txt`](Torch-Arcetecture.txt) §22/§29, [`VANILLA_1_8_8_COMPATIBILITY.md`](VANILLA_1_8_8_COMPATIBILITY.md), [`NATIVE_API_CAPABILITIES.md`](NATIVE_API_CAPABILITIES.md) and [`WORKLOG.md`](WORKLOG.md). Last full re-verification of the table: 2026-10-31 (the FL4-F10 redstone world-binding wave + the parity PR wave #101/#102/#104); latest landing: 2026-11-08 (Waves LN + CJ — the leash's leeched-navigation arm read whole from PathFinderMobEntity.updateLeashStatus: the holder-centered village pin, the sitting tameable's early return, the swim park, the band-2 wander's stroll-lane claim, the detach's unconditional-swim quirk; the chicken's jockey family: the 5% baby-on-chicken spawn arms, the riderless despawn, the 10-XP kill, the updateRiderPositon seat).</sub>
 
 ## Downloading a dev build (no build tools needed)
 
