@@ -24,7 +24,7 @@ architecture, decisions and milestones.
 [![1.8.8 vanilla parity](https://img.shields.io/badge/1.8.8_vanilla_parity-%E2%89%8895%25-brightgreen)](#status)
 [![dimension ownership](https://img.shields.io/badge/dimension_ownership-%E2%89%8897%25-brightgreen)](#status)
 [![CI pipeline](https://img.shields.io/badge/CI_pipeline-%E2%89%8897%25-brightgreen)](#status)
-[![automated seats](https://img.shields.io/badge/automated_seats-3%2C831-brightgreen)](#status)
+[![automated seats](https://img.shields.io/badge/automated_seats-3%2C835-brightgreen)](#status)
 
 | Workstream | Done | State |
 |------------|------|-------|

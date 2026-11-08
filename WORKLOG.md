@@ -3369,3 +3369,87 @@ SESSION COMMITS (all as Abasing): 94c5784f (the #682 bench repairs)
 AT CLOSE: pushing — the next release run the first to carry all
 three; the flank's stuck-in-wall root-cause pass and the jockey
 chase hand-off the next family picks.
+
+---
+Task ID: 2026-11-08 session (seventh run)
+Agent: main (ZaminTorch session)
+Task: Wave JC2 (the jockey chase hand-off — the architecture's named
+open row) + the flank family's adjacent tails + the CI watch.
+
+Work Log:
+- Read the worklog, synced develop (b28820cb clean), checked the PRs:
+  0 open (the verifier's lane still empty — though his first BRANCH,
+  fix/furnace-fuel-parity-audit, landed on the remote mid-session).
+- THE CI WATCH: runs #686-#688 all died on the Gradle WRAPPER's own
+  10-second services.gradle.org download timeout (504/timeout — never a
+  code failure; the suite never started). THE HARDENING LANDED (commit
+  ea35a50b): the wrapper distribution cached apart from setup-java's
+  user-home cache + a five-attempt retry warm-up before the build.
+- WAVE JC2 LANDED (commit f21dc5ae): the jockey chase hand-off whole —
+  the cross-body moveAlong at the reference's own 1.5, the rider-side
+  mount stamp (the per-tick both-sides convention), the canUpdatePath
+  zombie-on-chicken arm, the MOUNT-SIDE DRIVE (the body walk's
+  handed-route band — the movement control's setSpeed(nav.speed x
+  attribute) law), the park's faithful set (the reference parks the
+  horse ALONE — every other ridden body keeps its mind), the freeze/
+  steps/auto-mount/portal consults extended to the mob seat, and the
+  stroll/leash-wander lane refusals under the steer (the documented
+  adaptation — the reference's held-but-inert wander claim never
+  re-paths). SEATS: ChickenJockeyChaseHandoffDiscoveryTest 4 NEW (the
+  chase closes on the player; the 0.0525/tick slope + the shared route
+  object; the bite from the seat; the tail — the handed route finished
+  when the hunt ends), RED-verified four ways (the hand-off no-op 4/4,
+  the drive no-op 4/4, the 1.5 flattened to 1.0 the speed seat alone,
+  the park carve-out reverted 4/4), 4/4 green. Debug notes: the fake
+  players HOVER (no client gravity — the join teleport must land ON the
+  surface y 5.0, the flat world's grass top; the bite's vertical band
+  |dy| <= 2.0 broke at y 8.0); the 200-block departure triggered the
+  vanilla DESPAWN family (the riderless jockey mark beyond 128) — the
+  tail seat's departure now 80 blocks (beyond the 35 follow range,
+  inside the despawn band); the CJ seat test's rig repaired with the
+  mind restoration (the surface spawn + the NoAI pin — a live chicken
+  strolls on its own dice and the seat math wants the mount's cell
+  exact; the pre-JC2 frozen-mid-air spawn answered by accident).
+- THE FLANK TAILS (commit f2e1619a): (a) THE CLAIM-END FALL-THROUGH'S
+  FRESH CONSULT landed — the claim's end zeroes the repath cooldown
+  (the selector's next-pass shape: the melee's findPath + start()'s
+  adoption the same pass, a null verdict re-arming the flank's pick at
+  once — never the FROZEN cooldown's 15-30-tick stale window).
+  (b) THE STUCK-IN-WALL FREEZE ROOT-CAUSED WHOLE, the fix HELD OPEN:
+  reproduced deterministically (the golem frozen 153 ticks, the box
+  0.63 into the wall) — the ENGINE'S CHASE-BEELINE FALLBACK (the
+  pathYawValid ? pathYaw : yaw heading) walks the body at its yaw
+  whenever the navigation holds no live target, three arms mapped (the
+  steal's trivially-done route adoption holding the claim; the null-
+  null window's one-tick beeline with the velocity-decay carry-in; the
+  flank's null-route flicker arming the band with no target), the stub
+  path's CENTER-POINT clip (isSolidAt on the center alone) letting the
+  box in. The movement-control stand-down (no route — no walk) was
+  attempted and REVERTED (the steal seat's crossing regressed to 18
+  ticks — the stand-down/steal interleave wants its own pass); the
+  claim-end seat retired with it (the probe conflates (a) with the (b)
+  freeze); the full map recorded in the architecture's row.
+- THE FURNACE-BRIDGE RESIDUAL: run #688 (f21dc5ae) red on
+  BukkitEventBridgeGroupTwoTest's smelt await — the armed forensics
+  READ (downloaded the artifact): the furnace burning, the coal
+  consumed, cook=28 and burnRemaining=1573 after 719 engine ticks,
+  both burn events bridged — the furnace's OWN tick ran only ~28 times
+  in the window; the chunk-loaded freeze gate the leading hypothesis;
+  the seat green locally and on every re-run; the root-cause pass
+  pinned in the NEXT WORK.
+- LANES: the full entity package green twice (800/801 seats, the
+  wounded-cow panic await the documented single-JVM load flake — green
+  isolated and on re-run), the golem family + the jockey chase + the
+  chase tails + the bukkit bridge group all green.
+- The architecture's record appended (the JC2 + flank-tail + CI rows)
+  + the NEXT WORK re-pinned (the verifier's PRs, the flank-tail (b)
+  pass, the furnace-bridge residual, the CI watch on the first hardened
+  runs); the README refreshed (badge 3,835).
+
+SESSION COMMITS (all as Abasing): f21dc5ae + ea35a50b + f2e1619a +
+c6596c21 (the diagnostic's retirement) + the docs commit (this push).
+
+AT CLOSE: pushing the docs; the next runs carry the gradle hardening +
+the JC2 wave whole; the flank-tail (b) pass (the stand-down/steal
+interleave + the (a) seat it unblocks) and the furnace-bridge residual
+the next picks; the verifier's PR when it opens.

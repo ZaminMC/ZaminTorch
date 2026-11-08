@@ -9810,42 +9810,139 @@ command-cart, detector-rail, drop-stamp, falling-anvil, hopper,
 piston-push, armorstand, seated-mob) 85/85, the entity lane run at
 close.
 
-NEXT WORK (re-pinned after the LN + CJ session, in order): the
-verifier's PRs when they open (none at this session's close — the
-lane still empty across every check); THE CI WATCH (runs #679-#682's
-red seats all root-caused and repaired bench-side — the furnace's
-forensics now null-safe so the next landing SPEAKS, the survival-flow
-wire reads widened to the 60s wall patience with the first-occurrence
-forensics armed; run #686 (1b0d3efe) in flight at this session's
-start carries neither repair — the first run carrying them is the one
-after this session's push); THE FLANK WALK'S ADJACENT TAILS (OPEN —
-the steal-cadence source pass's own rows, standing for careful source
-passes: (a) the claim-end fall-through's stale window — vanilla's
-selector re-consults at the next setup pass (<=3 ticks) and the
-winning goal's start() adopts a FRESH route the same pass, while the
-engine's fall-through consults at once but its repath cooldown can
-walk the retired flank route or stand still for the cooldown's
-window; (b) THE STUCK-IN-WALL OBSERVATION — a golem jumped +0.86
-east in ONE tick (past the 0.275 walk bound — some write moved the
-body into the solid), the wall-clip detour armed, and the body's box
-sat INSIDE the wall cell with every subsequent move clipped — the
-golem FROZEN for 20+ ticks; the one-tick write that entered the
-solid and the clip's inability to resolve an already-inside box both
-want their own root-cause passes); THE JOCKEY CHASE HAND-OFF
-(ZombieEntity.mobTick lines 184-187 — the mounted baby zombie with a
-target hands ITS navigation path to the CHICKEN's navigation at speed
-1.5, the famous jockey chase; the engine's mount-side seat model
-needs the rider-side mount lookup first — the row stands for its own
-careful pass); the vanilla-grade census's next family pick; a red
-run's uploaded forensics the census law's own first-occurrence reads,
-the retry allowlist standing. THE PANIC SEAT'S OWN WATCH (run #686 +
-one local full-lane run, both under the two-JVM parallel load — the
-seat green isolated, on every re-run and on every prior release): the
-wounded-cow panic await died on its TICK deadline (the engine
-completed its hundred ticks; never the stall's or the patience cap's
-verdict) — the first-occurrence forensics now armed (the body's live
-health/mode/walk-multiplier, the attacker's position, the wolf's
-mode), the same convention the furnace and hunger seats carry.
+NEXT WORK (re-pinned after the JC2 + FLANK-TAIL session, in order): the
+verifier's PRs when they open (none open at this session's close — the
+agent's first branch, fix/furnace-fuel-parity-audit, landed on the remote
+mid-session, its PR the next lane's first check); THE FLANK-TAIL (b)
+STUCK-IN-WALL PASS (OPEN, the full root-cause map recorded below — the
+no-live-route stand-down attempted and REVERTED this session over the
+steal seat's 18-tick regression; the careful pass owns the
+stand-down/steal interleave, the trivial-route adoption, and the (a)
+seat it unblocks); THE FURNACE-BRIDGE SMELT AWAIT'S RESIDUAL INTERMITTENT
+(run #688 on f21dc5ae — the armed forensics READ: the furnace burning,
+the coal consumed, cook=28 and burnRemaining=1573 after 719 engine
+ticks, both burn events bridged — the furnace's OWN tick ran only ~28
+times in the window, the chunk-loaded freeze gate the leading hypothesis
+(the harness's chunk lifecycle under the release load); the seat green
+locally, on every re-run, and on every prior release run — the
+root-cause pass continues); THE CI WATCH (the gradle-distribution
+hardening landed this session — the wrapper dists cached + the
+five-attempt retry warm-up; runs #686-#688's download-timeout deaths
+retired with it; the first runs carrying the hardening + the JC2 wave
+in flight at this session's close); the vanilla-grade census's next
+family pick; a red run's uploaded forensics the census law's own
+first-occurrence reads, the retry allowlist standing. THE PANIC SEAT'S
+OWN WATCH (the documented single-JVM load flake — green isolated and on
+every re-run, the entity lane's one red under the full parallel load
+this session too, the forensics already armed).
+
+WAVE JC2 — THE JOCKEY CHASE HAND-OFF LANDED (2026-11-08, commit f21dc5ae
+— the architecture's own named open row from the CJ session, read from
+ZombieEntity.mobTick lines 184-187 whole): (1) THE HAND-OFF ITSELF — a
+mounted zombie-family body (the pigman rides its parent's walks) with a
+live attack target hands ITS OWN navigation route to the CHICKEN
+mount's navigation at the hand-off's own literal 1.5, every tick,
+through the cross-body moveAlong (receiveJockeyHandoff on the mount,
+the rider's getPath passed whole — the SHARED Path object the
+reference's own shape keeps: both navigations advance the one walking
+index); a null route clears the mount's path (the target-less rider
+stops the mount, moveAlong(null)); (2) THE RIDER-SIDE MOUNT STAMP (the
+reference's this.vehicle row over the mobs' own seats — Entity
+.startRiding's both-sides write in the engine's per-tick stamp
+convention, the Wave SM precedent): the manager stamps every mob seat
+at the tick head — the rider carries the mount's id + kind, the mount
+the mob-rider flag; (3) THE canUpdatePath ZOMBIE-ON-CHICKEN ARM
+(GroundPathNavigation lines 30-34 1:1): the mounted jockey's navigation
+ADVANCES while it rides; (4) THE MOUNT-SIDE DRIVE (the body walk's
+handed-route band — the reference's unconditional navigation tick +
+MovementControl's setSpeed(nav.speed x attribute) law): while the
+standing route came from the rider's hand-off, the mount's own walk
+bands stand down and the body walks the CURRENT route at the LAST
+moveAlong's speed — the jockey chicken walks the zombie's route at
+walkSpeed x 1.5 whatever its goals hold; the steer flag retires at the
+mount's next OWN path write (the last-writer law — the panic's one-tick
+steal, the tempt's per-tick fight, the reference's own interleave) and
+stands past the last hand-off so the mount FINISHES the handed route
+when the hunt ends (the vanilla tail); (5) THE PARK'S FAITHFUL SET (the
+reference parks the horse ALONE — HorseBaseEntity line 817's isDead
+override; the engine's rein-walk adaptation keeps the pig's player
+seat): every OTHER ridden body keeps its mind whole — the jockey
+chicken's goal layer + the mount-side drive the law that needs it; the
+rider's movement freeze extended to the mob seat (the anchor owns the
+position), the makesSteps belt-and-braces with it; (6) THE AUTO-MOUNT +
+PORTAL consults extended to the mob seat (MinecartEntity.push line
+663's vehicle == null; PortalBlock.onEntityCollision lines 158-162's
+vehicle == null && rider == null — the pair never arms, the mount's own
+arm carries the crossing); (7) THE STROLL/LEASH-WANDER LANE REFUSALS
+while the steer stands (the documented adaptation: the reference's
+held-but-inert wander claim never re-paths — WanderAroundGoal has no
+tick — while the engine's stroll walk re-paths on its cooldown and
+would fight the chase long-term). SEATS: ChickenJockeyChaseHandoff
+DiscoveryTest 4 NEW (the hand-off + the drive: the steer flag armed
+through the window + the pair closing on the player; the speed + the
+shared route: the closing slope 0.0525/tick in the 1.5 band + the mount
+holding the rider's own route object; the bite: the jockey strikes from
+the seat — the player's health dropping while the zombie rides; the
+tail: the handed route walked to its end when the hunt ends) — all four
+RED on the no-op patches in turn (the hand-off neutralized: 4/4; the
+drive neutralized: 4/4; the 1.5 speed flattened to 1.0: the speed seat
+alone; the park carve-out reverted: 4/4), 4/4 GREEN on the landed laws.
+The CJ seat test's rig repaired with them (the surface spawn + the NoAI
+pin — the JC2 mind restoration means a live chicken strolls on its own
+dice; the pre-JC2 frozen-mid-air spawn answered the seat math by
+accident). LANES: the full entity + vehicle packages green (800 seats).
+
+THE FLANK FAMILY'S ADJACENT TAILS (2026-11-08, commit f2e1619a): (a)
+THE CLAIM-END FALL-THROUGH'S FRESH CONSULT LANDED — the flank claim's
+end (the route's completion or the 32 band's edge) now ZEROES the
+repath cooldown before the fall-through chase: vanilla's selector
+sweeps the active goals' shouldContinue per tick and re-consults every
+canStart at the next setup pass (<= 3 ticks), the WINNING goal's
+start() adopting a FRESH route the same pass — the retired claim's own
+cycle never gates the successor. The engine's fall-through consulted at
+once but the chase's repath cooldown — armed by the flank's own arm and
+FROZEN through the flank route's run (tickGolemFlankRoute never spends
+it) — carried a stale window: the body standing on the spent route (or
+walking the retired one) for the cooldown's 15-30-tick remainder before
+the fresh findPath. The zeroed cooldown gives the fall-through the
+selector's own shape. ITS DISCOVERY SEAT RETIRED (the probe conflates
+(a) with the (b) freeze — the closed-wall rig freezes, the open-wall
+rig cannot distinguish (the beeline crosses on its own); the (b) pass
+unblocks the (a) seat). (b) THE STUCK-IN-WALL FREEZE ROOT-CAUSED WHOLE,
+THE FIX HELD OPEN — reproduced DETERMINISTICALLY in the claim-end rig
+(the golem frozen 153 ticks at the wall's face, the box 0.63 into the
+wall cell): the ENGINE'S CHASE-BEELINE FALLBACK (the walk's heading
+fallback pathYawValid ? pathYaw : yaw) walks the body AT ITS YAW
+whenever the navigation holds no live target, and the yaw faces the
+target — the body marches its box into the wall cell (+0.275/tick past
+the face), the stub path's CENTER-POINT clip (isSolidAt(newX, y, newZ)
+— the center alone, never the box) letting the flank in, every
+subsequent move clipped, the body FROZEN. THREE arms mapped: (1) the
+steal poll's findPath can return a TRIVIALLY-DONE route (a length-1
+partial where vanilla's buildPath null-arm answers — pathnode ==
+start), the adoption holding the melee claim with a spent route and the
+beeline running forever under the claim-hold; (2) the null-null window
+(no route, no pick — the TargetFinder draw failing) beelining for a
+tick, the VELOCITY DECAY carrying the box in over the following ticks;
+(3) the flank's own null-route flicker (the pick lands, the A* returns
+null) arming the 0.9 band with no target. THE MOVEMENT-CONTROL LAW (no
+route — no walk input, the body stands; the golem's goal set carries no
+wander family) was attempted as a no-live-route stand-down and
+REVERTED: the steal seat's crossing regressed to 18 ticks under it
+(the stand-down/steal-adoption interleave wanting its own careful
+pass). LANES: the golem family whole + the jockey chase + the chase
+tails + the full entity package green (801 seats, the wounded-cow panic
+await the documented single-JVM load flake).
+
+THE RELEASE PIPELINE'S GRADLE-DOWNLOAD HARDENING (2026-11-08, commit
+ea35a50b — the CI watch's own root cause): three consecutive release
+runs (#686, #687, #688's first attempt) died on the wrapper's own
+10-second services.gradle.org timeout — a transient 504/download-
+timeout on the runner's side, never a code failure (the suite never
+even started). The wrapper DISTRIBUTION now caches apart from
+setup-java's user-home cache (~/.gradle/wrapper/dists keyed on the
+wrapper properties), and a five-attempt retry warm-up stands before the
+build so the first run on a cold cache survives the flaky download too.
 
 THE FLANK STEAL-POLL CADENCE ROW CLOSED + WAVES FT + CE LANDED
 (2026-11-08, commits 90e1f33d + ade02967 — the re-pin's first named
