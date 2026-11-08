@@ -9810,26 +9810,113 @@ command-cart, detector-rail, drop-stamp, falling-anvil, hopper,
 piston-push, armorstand, seated-mob) 85/85, the entity lane run at
 close.
 
-NEXT WORK (re-pinned after TR + BB + CY, in order): the six census
-rows the SL+BS session opened are CLOSED (this record); the remaining
-named rows: the verifier's PRs when they open (none at this session's
-close — the verifier's lane still empty); the flank walk's steal-poll
-cadence (the engine's 20-tick form of the selector's every-tick
-canStart consult — a documented adaptation, the verifier's row when
-the census reaches it); the vanilla-grade census's next family pick
-when the verifier's rows land (the seated mob's goal behaviors stay
-the verifier's three-pass rows); THE CI WATCH (run #678 went red on
-two load-flake seats — both root-caused from the uploaded forensics
-the same day at commit 9d1de3a4, the engine 1:1 at both, the bench's
-own vanilla-validity the defect: the dragon seat's survival body died
-to the head arm mid-seat and its teleports silently dropped — the seat
-joins creative now, the reference's own fling filter carrying no
-gamemode gate while the creative body takes no head wound; the wheat
-seat's single-sample await blamed vanilla's own 10.2% zero-seed roll —
-the re-break form owns the probability now; the pipeline idle on the
-[skip ci] bump — the next push's run the first to carry this wave); a
-red run's uploaded forensics the census law's own first-occurrence
+NEXT WORK (re-pinned after the FLANK-CADENCE + FT + CE session, in
+order): the verifier's PRs when they open (none at this session's
+close — the verifier's lane still empty across every check); THE CI
+WATCH (runs #679/#680/#681 red on five distinct bench-side seats, all
+root-caused from the logs and artifacts the same day — the flank row's
+own session closing every one: the two STALE SEATS re-pinned to the
+landed TR+BB+CY laws, the piston seat's full-AI observation pig pinned
+NoAI, the furnace seat's WALL-deadline await converted to the
+tick-denominated EngineAwaits form, the wither seat's item race closed
+by awaiting the drop itself, the hunger seat's forensics armed for its
+first-occurrence read — the ENGINE 1:1 at every one, the bench's own
+load-shape the defect family; the runner has not yet seen the
+tick-denominated furnace form or the wither/hunger repairs — the next
+runs carry them); the flank walk's ADJACENT TAILS the steal-cadence
+source pass surfaced (the chase's stale-route walk after a claim-END —
+the same law the steal's route adoption closed for the steal alone:
+the claim-end fall-through walks the retired flank route at the chase
+band until the repath cooldown opens, a ~20-30-tick standstill-or-walk-
+away window vanilla's same-pass re-consult never carries; the claim-
+hold law's release paths — the target's death, the band's edge — the
+same fall-through shape); the vanilla-grade census's next family pick
+(the FT family's own neighbors: the leash's leeched-navigation arm —
+PathFinderMobEntity.updateLeashStatus lines 82-118, the swim-off +
+the holder-centered village pin + the band-2 goToWalkTargetGoal
+registration the engine's leash walk never carried; the chicken's
+jockey family — the zombie spawn's 5% baby-on-chicken arm, the
+riderless despawn, the 10-XP kill, the updateRiderPositon seat law);
+a red run's uploaded forensics the census law's own first-occurrence
 reads, the retry allowlist standing.
+
+THE FLANK STEAL-POLL CADENCE ROW CLOSED + WAVES FT + CE LANDED
+(2026-11-08, commits 90e1f33d + ade02967 — the re-pin's first named
+row read from GoalSelector.tick whole, then the census's own family
+pick, each law read from the reference source 1:1 and each verified
+RED on the neutralized engine by the no-op patches):
+
+FLANK — THE STEAL-POLL CADENCE (GoalSelector.tick line 45's own law):
+the engine's invented 20-tick countdown RETIRED — the selector's
+SETUP PASS runs every 3rd tick of its own counter (ticks++ %
+constantThree == 0, constantThree = 3), and while the band-2 flank
+claim holds the MOVE the melee goal's canStart consult STILL RUNS at
+every setup pass (canUse passes over the live flank: the melee's
+band-1 precedence beats the flank's band 2 and the flank's canStop()
+defaults true, so the lower band never blocks the consult —
+MeleeAttackGoal.canStart line 57's findPath the probe itself); the
+moment a direct route stands the chase claims the body the SAME pass.
+THE ENGINE'S FORM: the probe gate rides the body's own age counter
+((age - 1) % 3 == 0 — the engine's age is the reference's per-selector
+counter + 1, the first lived tick IS a setup pass, the phase never
+re-anchored at the claim's arm), and THE CLAIM'S OWN ROUTE ADOPTION
+(MeleeAttackGoal.start line 74: moveAlong(this.path, this.speed))
+lands with the steal — the pre-fix fall-through walked the RETIRED
+flank route at the chase band until the repath cooldown opened (the
+discovery probe's own find: the stolen golem sliding south along the
+opened wall at 0.275 for ~30 ticks, the route's last node frozen).
+THE PRIOR SESSION'S "every-tick canStart consult" READING CORRECTED
+(the reference's own selector spaces the consult at 3; the per-tick
+walk is the shouldContinue sweep alone). SEATS:
+GolemFlankWalkParityDiscoveryTest +1 (the wall opens mid-claim, the
+steal within 3 ticks — start() adopting the consult's route the
+landing pass, the eastbound crossing within 2 more), RED-verified two
+ways (the full pre-fix engine: the stale-route walk, the crossing
+never landing; the isolated cadence no-op: the 20-tick poll, the
+crossing 13 ticks late).
+
+FT — THE FARM TEMPT FAMILY + THE CTOR SWIM CENSUS: the four animals'
+TemptGoal registrations (the non-scared form — the ctor's false
+parameter, shouldContinue the canStart re-run alone): the CHICKEN's
+WHEAT_SEEDS at 1.0 (line 48), the COW's WHEAT at 1.25 (line 30 — the
+MOOSHROOM inheriting the super ctor's registration whole), the SHEEP's
+WHEAT at 1.1 (line 58), and the PIG's carrot PAIR at 1.2 (lines 38-39
+— the plain carrot AND the carrot-on-a-stick, two registrations at one
+band: the item change between the pair's members HOLDS the claim) —
+the engine's animals ignored held food entirely (only the ocelot's
+fish and the rabbit's carrots worked). The tick: the look's 30-degree
+grip, the 2.5-block hold band, the walk at the registration's own
+parameter, NO posture. THE CLAIM'S SWIM PARK (TemptGoal lines 72-75 +
+80): the tempted body paths AROUND the water for the claim's whole
+run, the ctor's arming returning at the stop — RETROFITTED onto the
+ocelot's and the rabbit's claims too. THE CTOR SWIM CENSUS: the cow,
+the mooshroom, the sheep, the pig, the rabbit, the wolf, the horse,
+the snow golem, the villager and the iron golem all arm setCanSwim
+(true) at construction (the engine armed only the ocelot; the chicken
+alone keeps the default off); THE PRIOR SESSION'S WOLF MISREADING
+CORRECTED (the reference's WolfEntity ctor line 56 arms swim true —
+the stale TameableFollow seat re-pinned).
+
+CE — THE CHICKEN'S OWN BODY LAWS (ChickenEntity.mobTick 1:1): THE EGG
+LAYER (lines 76-81): the adult non-jockey chicken's clock counts down
+every living tick — the reference's own SHORT-CIRCUIT shape (a baby's
+or a jockey's clock FROZEN, never spent; the frozen clock spends its
+very first adult tick) — the lay pays the plop ("mob.chicken.plop",
+1.0F, the two-draw jitter (nextFloat - nextFloat) * 0.2 + 1.0) and
+drops ONE egg at the body's feet (+0.5) through the TF-9 item spawn,
+the clock re-rolling its 6000-12000 band. THE NBT PAIR: EggLayTime
+(the contains-gated read) + IsChickenJockey (ungated) through the
+EntityNbt per-type family. The flap pair documented ANIMATION-ONLY
+(the client runs its own copy, the server never consults it). THE
+SLOW FALL (lines 73-75): the airborne falling chicken dampens its
+descent 60% per tick before the gravity arm (the steady state
+~0.095/tick; the landing's immunity the empty-override family).
+
+SEATS: FarmTemptParityDiscoveryTest 5 NEW + ChickenBodyLaws-
+ParityDiscoveryTest 3 NEW — 8/8 RED on the neutralized engine (the
+no-op patches), 8/8 GREEN on the landed laws. LANES: the entity
+package 788 green whole, the vehicle/piston/NBT/persistence/anvil
+lanes, the bukkit module, the wither class green.
 
 WAVE OR LANDED (2026-11-08, commit 68722f1f — the off-rail census row
 the RD/RK source pass opened, closed the same session): moveOffRail
