@@ -194,9 +194,14 @@ public enum MobType {
      * The potion-thrower (Slice 12i — the natural-spawn row): keeps its
      * distance and throws splash potions by the target's state, drinks
      * defensive potions (the reference's WitchEntity: 26 health, the
-     * silent mob — all three sound hooks null).
+     * silent mob — all three sound hooks null). The walk speed: the
+     * SAME 0.25 MOVEMENT_SPEED base the skeleton carries (initAttributes
+     * line 83 — the two are speed-class twins, both walking their
+     * ProjectileAttackGoal approach at the goal's own 1.0), aligned to
+     * the skeleton's calibrated 0.038 (the retired 0.03 walked her 21%
+     * slower than her twin).
      */
-    WITCH(66, 0.6, 1.95, 26.0f, 0.03, true, new Traits(true, false, false, false),
+    WITCH(66, 0.6, 1.95, 26.0f, 0.038, true, new Traits(true, false, false, false),
             List.of(), // the custom drop walk (WitchEntity.dropItems)
             "", "", "", 0.0f),
 

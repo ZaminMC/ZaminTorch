@@ -339,6 +339,40 @@ class ProjectileAttackGoalParityDiscoveryTest {
                 "the completion removes the modifier — the base returns");
     }
 
+    @Test
+    void theWitchWalksHerSpeedClassTwinsOwnGround() {
+        // THE SPEED-CLASS TWIN LAW (WitchEntity.initAttributes line 83 +
+        // SkeletonEntity line 66: BOTH register the SAME 0.25
+        // MOVEMENT_SPEED base, both walking their ProjectileAttackGoal
+        // approach at the goal's own 1.0): over the approach's walking
+        // window (the nineteen pre-stand ticks), the witch covers the
+        // SAME ground the skeleton covers — the retired 0.03 calibration
+        // walked her 21% slower than her twin.
+        GoalWorld world = new GoalWorld();
+        MobEntity skeleton = spawn(world, 370, MobType.SKELETON,
+                new Position(0.5, 8.0, 0.5), 72L);
+        MobEntity golemA = spawn(world, 371, MobType.IRON_GOLEM,
+                new Position(10.5, 8.0, 0.5), 73L);
+        skeleton.setMobAttackTarget(golemA);
+        GoalWorld witchWorld = new GoalWorld();
+        MobEntity witch = spawn(witchWorld, 372, MobType.WITCH,
+                new Position(0.5, 8.0, 0.5), 74L);
+        MobEntity golemB = spawn(witchWorld, 373, MobType.IRON_GOLEM,
+                new Position(10.5, 8.0, 0.5), 75L);
+        witch.setMobAttackTarget(golemB);
+
+        // The nineteen walking ticks (the stand arms at twenty seen).
+        for (int i = 0; i < 19; i++) {
+            skeleton.tick(true);
+            witch.tick(true);
+        }
+        double skeletonGround = skeleton.position().x() - 0.5;
+        double witchGround = witch.position().x() - 0.5;
+        assertEquals(skeletonGround, witchGround, 1e-9,
+                "the speed-class twins cover the same ground (skeleton "
+                        + skeletonGround + " vs witch " + witchGround + ")");
+    }
+
     // ------------------------------------------------------------------
     // The skeleton's loose — the ArrowEntity-ctor damage field
     // ------------------------------------------------------------------
