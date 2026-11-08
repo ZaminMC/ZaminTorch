@@ -24,7 +24,7 @@ architecture, decisions and milestones.
 [![1.8.8 vanilla parity](https://img.shields.io/badge/1.8.8_vanilla_parity-%E2%89%8895%25-brightgreen)](#status)
 [![dimension ownership](https://img.shields.io/badge/dimension_ownership-%E2%89%8897%25-brightgreen)](#status)
 [![CI pipeline](https://img.shields.io/badge/CI_pipeline-%E2%89%8897%25-brightgreen)](#status)
-[![automated seats](https://img.shields.io/badge/automated_seats-3%2C840-brightgreen)](#status)
+[![automated seats](https://img.shields.io/badge/automated_seats-3%2C843-brightgreen)](#status)
 
 | Workstream | Done | State |
 |------------|------|-------|
@@ -41,7 +41,7 @@ architecture, decisions and milestones.
 
 [Progress history](WORKLOG.md)
 
-<sub>Every row's estimate is measured against its own ledger — the wave/section named in the row — not a feeling; percentages move as work lands and a row leaves the table at 100%. The landed record behind these numbers lives in [`Torch-Arcetecture.txt`](Torch-Arcetecture.txt) §22/§29, [`VANILLA_1_8_8_COMPATIBILITY.md`](VANILLA_1_8_8_COMPATIBILITY.md), [`NATIVE_API_CAPABILITIES.md`](NATIVE_API_CAPABILITIES.md) and [`WORKLOG.md`](WORKLOG.md). Last full re-verification of the table: 2026-10-31 (the FL4-F10 redstone world-binding wave + the parity PR wave #101/#102/#104); latest landing: 2026-11-08 (the CI-watch close + the void-kill census: run #696 green whole with torch-1.8.8-159 published; the pearl seat's repeat CI red root-caused to the endermite's legitimate 0.3 bite — the engine 1:1, the seat's 5% variable gated at the reference's own doMobSpawning consult; the void census over every family — the falling block's both drop arms gain the doEntityDrops gate, the fishing bobber gains the kill-plane consult, both RED-verified).</sub>
+<sub>Every row's estimate is measured against its own ledger — the wave/section named in the row — not a feeling; percentages move as work lands and a row leaves the table at 100%. The landed record behind these numbers lives in [`Torch-Arcetecture.txt`](Torch-Arcetecture.txt) §22/§29, [`VANILLA_1_8_8_COMPATIBILITY.md`](VANILLA_1_8_8_COMPATIBILITY.md), [`NATIVE_API_CAPABILITIES.md`](NATIVE_API_CAPABILITIES.md) and [`WORKLOG.md`](WORKLOG.md). Last full re-verification of the table: 2026-10-31 (the FL4-F10 redstone world-binding wave + the parity PR wave #101/#102/#104); latest landing: 2026-11-08 (the CI-watch close + the void-kill census + the damage-source exhaustion census: run #696 green whole with torch-1.8.8-159 published; the pearl seat's repeat CI red root-caused to the endermite's legitimate 0.3 bite — the engine 1:1, the seat's 5% variable gated at the reference's own doMobSpawning consult; the void census over every family — the falling block's both drop arms gain the doEntityDrops gate, the fishing bobber gains the kill-plane consult; the exhaustion census — the guardian's thorns spike gains the ordinary 0.3 + the armor envelope + the creative refusal, the potion-effect family and the guardian beam's magic half stop piercing the creative gate, all RED-verified).</sub>
 
 ## Downloading a dev build (no build tools needed)
 

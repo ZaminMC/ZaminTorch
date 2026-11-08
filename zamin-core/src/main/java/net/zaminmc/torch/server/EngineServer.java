@@ -9163,9 +9163,21 @@ public final class EngineServer implements Server, EngineBridge {
                 if (mob.guardianSpikesMeleeAttacker()) {
                     // The attacker's own takeDamage walk (the reference's
                     // livingentity.takeDamage pair — the same tick, the
-                    // same walk) with the thorns sound.
-                    damageOnTick(attacker, mob.guardianThornsDamage(), true,
-                            "was slain by " + titledMobName(mob), 0.0f,
+                    // same walk) with the thorns sound. The THORNS source's
+                    // own law (DamageSource.thorns, EntityDamageSource's
+                    // setThorns + isMagic — NEITHER zeroes the exhaustion
+                    // field, and the armor envelope applies: a plain
+                    // EntityDamageSource with no bypass setter): the wound
+                    // rides the attacker's armor + enchantment ladder, the
+                    // creative invulnerability refuses it (no
+                    // setDamageIsAllowedInCreative on the source — the
+                    // entity-player gate stands), and the landed wound
+                    // charges the ordinary damage-taken exhaustion 0.3.
+                    damageOnTick(attacker,
+                            applyEnchantProtection(attacker,
+                                    applyArmor(attacker, mob.guardianThornsDamage()),
+                                    DamageKind.MELEE),
+                            false, "was slain by " + titledMobName(mob), 0.3f,
                             net.zaminmc.torch.event.DamageCause.MAGIC);
                     fxManager.sound(attacker.position(), "damage.thorns", 0.5f, 1.0f,
                             attacker.dimension());
@@ -22737,8 +22749,14 @@ public final class EngineServer implements Server, EngineBridge {
                     player.noteMobAttacker(attackerMob.type(), world.totalTicks());
                 }
                 // The magic damage: no knockback, no protection shave (the
-                // reference's DamageSource.MAGIC pierces armor).
-                damageOnTick(player, amount, true, cause, 0.0f,
+                // reference's DamageSource.MAGIC pierces armor). The
+                // creative gate stands exactly like the reference's own
+                // takeDamage head (PlayerEntity line 773: {@code
+                // abilities.invulnerable && !source.isOutOfWorld()} — the
+                // magic family carries NO out-of-world flag, so a
+                // creative body refuses the poison, the wither and the
+                // harming potion alike).
+                damageOnTick(player, amount, false, cause, 0.0f,
                         net.zaminmc.torch.event.DamageCause.MAGIC);
             } else {
                 MobEntity mob = (MobEntity) body;
@@ -26095,8 +26113,11 @@ public final class EngineServer implements Server, EngineBridge {
                     + (difficulty() == 3 ? GUARDIAN_MAGIC_HARD_BONUS : 0.0f);
             if (magic > 0.0f) {
                 // The magic pierce: no knockback, no armor shave (the
-                // potion family's own arm).
-                damageOnTick(target, magic, true, cause, 0.0f,
+                // potion family's own arm) — but the creative gate stands
+                // (the reference's takeDamage head: the indirect-magic
+                // source carries no out-of-world flag, so an invulnerable
+                // body refuses the beam's magic half whole).
+                damageOnTick(target, magic, false, cause, 0.0f,
                         net.zaminmc.torch.event.DamageCause.MAGIC);
             }
             // The melee half: the armor + enchantment ladder, the melee

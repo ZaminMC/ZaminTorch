@@ -9810,21 +9810,89 @@ command-cart, detector-rail, drop-stamp, falling-anvil, hopper,
 piston-push, armorstand, seated-mob) 85/85, the entity lane run at
 close.
 
-NEXT WORK (re-pinned after the CI-WATCH + VOID-CENSUS session, in
-order): the verifier's PRs when they open (none open at this session's
-close — the agent's branch fix/furnace-fuel-parity-audit still carries
-no PR); the vanilla-grade census's next family pick; the panic seat's
-own watch (the documented single-JVM load flake — green isolated and on
-every re-run, one red under the full parallel entity load; the
-enderman-hunt seat joined the family this session — the same shape,
-green isolated x4); THE PEARL-ENDERMITE HUNT SEAT (the census row the
-CI forensics armed: the pearl's 5% passenger hunting the hovering
-thrower is itself UNSEATED — EndermiteEntity's MeleeAttackGoal over
-PlayerEntity with the reach consult against the hovering target's box
-minY, the reference's own laws, a discovery seat for its own pass);
-the CI watch on the runs carrying today's seats (run #696 GREEN whole
-— torch-1.8.8-159 published; the next runs carry the pearl fix + the
-void census).
+NEXT WORK (re-pinned after the CENSUS SECOND SLICE, in order): the
+verifier's PRs when they open (none open at this session's close — the
+agent's branch fix/furnace-fuel-parity-audit still carries no PR); the
+vanilla-grade census's next family pick; the panic seat's own watch
+(the documented single-JVM load flake — green isolated and on every
+re-run, one red under the full parallel entity load; the enderman-hunt
+seat AND the wolf-collar seat joined the family this session — both
+the same shape, green isolated x3-x4); the CI watch on the runs
+carrying today's seats (run #696 GREEN whole — torch-1.8.8-159
+published; the next runs carry the pearl fix + the void census + the
+exhaustion census).
+
+THE DAMAGE-SOURCE EXHAUSTION CENSUS + THE PEARL-ENDERMITE HUNT SEAT
+LANDED (2026-11-08, this session's second slice — the family pick the
+re-pin named, the law the pearl seat's root cause opened, each read
+from the reference source 1:1 and RED-verified on the no-op patches):
+
+THE EXHAUSTION LAW ITSELF (reference DamageSource lines 29-137): the
+field carries {@code 0.3F} by default and EXACTLY TWO setters zero it
+— {@code setBypassesArmor()} and {@code setUnblockable()}; fire,
+projectile, explosive, difficulty and magic flags NEVER touch it. THE
+COMPLETE TABLE: 0.3 — inFire, lightningBolt (NO setters at all), lava,
+cactus, anvil, fallingBlock, mob, player, arrow, fireball, thrown,
+THORNS, explosion; 0.0 — onFire, inWall, drown, starve, fall,
+outOfWorld, generic, magic, wither, the indirect-magic potion source.
+THE CREATIVE GATE (PlayerEntity.takeDamage line 773): {@code
+abilities.invulnerable && !source.isOutOfWorld()} — THE VOID ALONE
+pierces an invulnerable body (the engine's own documented law,
+confirmed 1:1). THE AUDIT over every engine damage site found the
+ordinary families whole (in-fire 0.3, on-fire 0.0, lava 0.3, cactus
+0.3, suffocation 0.0, fall/rider-fall/pearl-fall 0.0, drown 0.0,
+starve 0.0, void 0.0+bypass, lightning 0.3, the melee wrappers 0.3,
+the projectile victim 0.3, the explosion victim 0.3, the anvil crush
+0.3, the dragon's contact 0.3, the thorns-enchant wildcard 0.3) and
+THREE REAL GAPS, all FIXED:
+
+(1) THE GUARDIAN'S SPIKE REFLECT (GuardianEntity.takeDamage line 426:
+{@code takeDamage(DamageSource.thorns(this), 2.0F)}) — the THORNS
+source is a PLAIN EntityDamageSource ({@code setThorns() +
+isMagic()} — EntityDamageSource lines 25-29 carry NO exhaustion touch)
+so the wound rides the ATTACKER's armor + enchantment ladder, charges
+the ORDINARY 0.3, and an invulnerable body refuses it; the pre-fix
+engine charged 0.0 with the creative PIERCE on and NO armor envelope.
+FIXED: the envelope + {@code 0.3f} + the creative refusal. SEAT:
+DamageSourceExhaustionCensusParityDiscoveryTest.theGuardiansSpikeWound
+ChargesTheOrdinaryDamageTaken — the bare-handed punch on a still
+guardian lands the flat 2.0 and pays the TWO charges the punch carries
+(the swing's own attack 0.3 + the thorns damage-taken 0.3), RED on the
+no-op patch (the 0.0/bypass form).
+
+(2) THE POTION-EFFECT FAMILY'S CREATIVE PIERCE (the Bodies.hurt
+player arm — poison, wither, and the harming potion all route it): the
+pre-fix {@code bypass=true} pierced the creative immunity where the
+reference refuses every magic-family source ({@code !source
+.isOutOfWorld()}); FIXED to the standing gate. SEAT: thePotionEffects
+NeverPierceTheCreativeGate — a creative body under poison AND wither
+holds its health whole, RED on the no-op patch (the health dropped).
+
+(3) THE GUARDIAN BEAM'S MAGIC HALF (the indirect-magic source): the
+same creative-gate fix — the beam's magic half refuses an invulnerable
+body whole, the melee half unchanged.
+
+THE PEARL-ENDERMITE HUNT SEAT LANDED (the row the CI forensics armed,
+the pearl seat's own companion law): PearlEndermiteHuntParityDiscovery
+Test NEW — the passenger spawned at the thrower's pre-teleport feet
+(the sink's own surface, the 5% roll controlled away), the thrower
+hovered at the pearl's origin through the SINK'S OWN CARRY SEQUENCE
+(applyMovement + resetBodyDelta — the phantom-jump-free form; the
+seat's first cut called applyMovement alone and the diagnostics caught
+the 0.2 phantom-jump artifact the sink itself prevents), and the hunt
+locks + BITES the hovering body (the first health drop polled — the
+20-tick swing cooldown holds the second bite away — and the exact 0.3
+melee charge read). RED-verified on the hostility no-op (the MobType's
+flag flipped — the await times out, no bite ever lands). The rig
+notes: the first bite's landing tick varies with the selector's
+setup-pass phase — the poll form, never a fixed window.
+
+LANES THE SLICE WHOLE: the guardian family, the crit lane, the witch
+lane, the potion package, the hunger/item/mob seats, the bukkit
+module, the entity package whole (the wolf-collar seat's one
+first-run red under the full parallel load — the documented flake
+family, green isolated x3, the CI-#695 seat itself) — all green; the
+three new seats 3/3 (2 RED-verified census laws + the hunt seat).
 
 THE CI WATCH CLOSED GREEN + THE VOID KILL ROW RESOLVED AS A CENSUS +
 THE PEARL SEAT ROOT-CAUSED WHOLE (2026-11-08, this session — each law

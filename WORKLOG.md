@@ -3525,3 +3525,49 @@ Work Log:
 AT CLOSE: pushing the wave; the next runs carry the pearl fix + the
 void census; the census's next family pick and the pearl-endtermite
 hunt seat the next picks.
+
+---
+Task ID: 2026-11-08 session (ninth run, second slice)
+Agent: main (ZaminTorch session)
+Task: The damage-source exhaustion census (the family pick) + the
+pearl-endtermite hunt seat (the row the CI forensics armed).
+
+Work Log:
+- THE EXHAUSTION LAW read whole from the reference (DamageSource lines
+  29-137): the field defaults 0.3F, EXACTLY TWO setters zero it
+  (setBypassesArmor / setUnblockable), and the creative gate reads
+  abilities.invulnerable && !source.isOutOfWorld() — the VOID ALONE
+  pierces (PlayerEntity.takeDamage line 773).
+- THE AUDIT over every engine damage site: the ordinary families whole
+  (in-fire/lava/cactus/lightning/melee/projectile/explosion/anvil/
+  dragon 0.3; on-fire/suffocation/fall/drown/starve/void/magic/wither
+  0.0) and THREE GAPS FIXED: (1) the guardian's spike reflect — the
+  THORNS source (setThorns + isMagic, neither zeroes) is a PLAIN
+  EntityDamageSource: the wound now rides the attacker's armor +
+  enchantment ladder, charges the ordinary 0.3, and the creative
+  refusal stands (the pre-fix site charged 0.0 with the pierce on and
+  no envelope); (2) the potion-effect family's hurt arm (poison,
+  wither, the harming potion) — bypass=true retired, the creative gate
+  stands; (3) the guardian beam's magic half — the same gate fix.
+- THE PEARL-ENDERMITE HUNT SEAT landed (the companion law): the
+  passenger at the thrower's pre-teleport feet (the sink's own spawn
+  surface, the 5% roll controlled away), the thrower hovered through
+  the SINK'S OWN carry sequence (applyMovement + resetBodyDelta — the
+  first cut's applyMovement-alone charged the 0.2 phantom jump the
+  sink itself prevents, caught by the diagnostics), the hunt locks +
+  bites the hovering body, the exact 0.3 melee charge read at the
+  first polled health drop (the 20-tick swing cooldown holds the
+  second bite away). RED on the hostility no-op.
+- SEATS: DamageSourceExhaustionCensusParityDiscoveryTest 2 NEW +
+  PearlEndermiteHuntParityDiscoveryTest 1 NEW — all three RED on the
+  no-op patches, all green on the landed laws.
+- LANES: the guardian family, the crit lane, the witch lane, the
+  potion package, the hunger/item/mob seats, the bukkit module, the
+  entity package whole (the wolf-collar seat's one first-run red
+  under the full parallel load — the documented flake family, the
+  CI-#695 seat itself, green isolated x3) — all green.
+- The architecture's record appended + the NEXT WORK re-pinned; the
+  README refreshed (badge 3,843).
+
+AT CLOSE: pushing the slice; the census's next family pick and the
+flake-family watch the next picks; the verifier's PR when it opens.
