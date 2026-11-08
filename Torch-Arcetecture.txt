@@ -9810,31 +9810,80 @@ command-cart, detector-rail, drop-stamp, falling-anvil, hopper,
 piston-push, armorstand, seated-mob) 85/85, the entity lane run at
 close.
 
-NEXT WORK (re-pinned after the JC2 + FLANK-TAIL session, in order): the
-verifier's PRs when they open (none open at this session's close — the
-agent's first branch, fix/furnace-fuel-parity-audit, landed on the remote
-mid-session, its PR the next lane's first check); THE FLANK-TAIL (b)
-STUCK-IN-WALL PASS (OPEN, the full root-cause map recorded below — the
-no-live-route stand-down attempted and REVERTED this session over the
-steal seat's 18-tick regression; the careful pass owns the
-stand-down/steal interleave, the trivial-route adoption, and the (a)
-seat it unblocks); THE FURNACE-BRIDGE SMELT AWAIT'S RESIDUAL INTERMITTENT
-(run #688 on f21dc5ae — the armed forensics READ: the furnace burning,
-the coal consumed, cook=28 and burnRemaining=1573 after 719 engine
-ticks, both burn events bridged — the furnace's OWN tick ran only ~28
-times in the window, the chunk-loaded freeze gate the leading hypothesis
-(the harness's chunk lifecycle under the release load); the seat green
-locally, on every re-run, and on every prior release run — the
-root-cause pass continues); THE CI WATCH (the gradle-distribution
-hardening landed this session — the wrapper dists cached + the
-five-attempt retry warm-up; runs #686-#688's download-timeout deaths
-retired with it; the first runs carrying the hardening + the JC2 wave
-in flight at this session's close); the vanilla-grade census's next
-family pick; a red run's uploaded forensics the census law's own
-first-occurrence reads, the retry allowlist standing. THE PANIC SEAT'S
-OWN WATCH (the documented single-JVM load flake — green isolated and on
-every re-run, the entity lane's one red under the full parallel load
-this session too, the forensics already armed).
+NEXT WORK (re-pinned after the FLANK-TAIL (b) + FURNACE-RESIDUAL session, in
+order): the verifier's PRs when they open (none open at this session's close —
+the agent's first branch, fix/furnace-fuel-parity-audit, still carries no PR);
+THE CI WATCH on the first runs carrying today's three repairs (the chunk-dedupe
+stripe lock, the bed consume await, the out-of-bounds band — run #693 in flight
+at the session's start carried none of them, the first carrying them follows
+the push); THE VOID KILL ROW (Entity.tick's y < -64 voidTick over the vehicle
+family — the bukkit harness's void-fallen boat now reads air and falls forever;
+vanilla kills it at -64, a 1:1 row for its own pass); the vanilla-grade
+census's next family pick; the panic seat's own watch (the documented
+single-JVM load flake — green isolated and on every re-run, one red under the
+full parallel entity load this session again).
+
+RUN #690'S THREE RED SEATS FIXED AT THE SOURCE + THE FLANK-TAIL (b) PASS
+LANDED + THE FURNACE-BRIDGE RESIDUAL ROOT-CAUSED WHOLE (2026-11-08, commits
+5d2bf909 + 017d87b0 — the re-pin's own rows, each law read from the reference
+source 1:1 and verified against the lanes):
+
+THE CHUNK-DEDUPE TOCTOU (ChunkGenerationOffloadTest's count red: three
+requests, two jobs, every callback still served): the request's
+peek-then-claim pair and the install's publish-then-remove pair could
+INTERLEAVE — a publication landing between a request's peek and its key-claim
+left the claim on the REMOVED key and submitted a redundant generation. THE
+FIX: a 64-stripe per-key mutex pairs the two critical sections (never nested,
+callbacks fire outside); the request re-checks the publication inside its own
+stripe and serves synchronously; the legacy no-compute arm now serves EVERY
+waiting rider (the claimer's own callback alone was a dropped-load wart).
+
+THE BED CONTROL SEAT'S CONSUME OBSERVATION (both halves landed, the count read
+its stale 1): the placement writes and the consume ride the SAME tick task but
+reach the test thread through different visibility edges — the spend is now
+itself awaited, then pinned.
+
+THE MOVEMENT-CONTROL LAW (MovementControl.tick's own state machine, 1:1): the
+walk input exists ONLY toward a live walk target — the navigation's waypoint
+(the MOVE_TO state) or the wall-slide detour; a body with NO live route writes
+NO walk input and STANDS (the WAIT state). The yaw-beeline fallback — the
+engine's invention and the stuck-in-wall freeze's own arm — RETIRED. THE MELEE
+CHASE'S RE-PATH CADENCE landed with it (MeleeAttackGoal.tick lines 84-105: the
+4 + nextInt(7) countdown, the distance bands, the target-moved/5%/first-pass
+gate, the +15 moveTo-failure backoff) — the invented 20-30 repath budget
+(which, frozen through the flank window, stranded the body up to 30 ticks —
+the prior session's 18-tick steal regression the beeline papered over)
+retired. The flank claim-end re-opens the melee state (tail (a)'s selector
+shape); the steal's adoption carries start() line 70's countdown zero; the
+stroll's start() moveTo lands at the claim (start lines 43-45). SEATS: the
+flank class 5/5 — the MID-FLANK STEAL seat re-armed honest (the wall opens
+mid-flank, the flank LIVE: the steal within 3 ticks, the crossing within 2
+more) + the CLAIM-HOLD'S STANDING seat NEW (the trivial partial — the adjacent
+cell's 1-block route the 1.4-wide golem's within-radius advance swallows
+whole, BOTH trees alike — the vanilla golem stands at the local minimum
+forever; the face-hold pins the box NEVER entering the wall cell). THE SIT
+CONTROL repaired to the clean rig (the verb cannot re-arm on a perched cat —
+the block-sit's own arm disables it, OcelotSitOnBlockGoal.start line 31's
+chest-quirk law; the perch's claim rightly holds the posture through the
+flip). LANES: the entity package 802 green (the documented panic flake alone),
+the vehicle lane green.
+
+THE FURNACE-BRIDGE RESIDUAL — ROOT-CAUSED WHOLE (the armed diagnostic's ring
+caught the failure live: the sweeps ran NORMALLY cook+1/tick through t=147
+then STOPPED while the tick counter walked to 720): a BOAT below the world —
+the bukkit vehicle-create test spawns at (85, 40, 85), BEYOND the pregenerated
+area, the hull falling through the unloaded chunk into the void — and the
+flora-mow corner read at y = -1 THREW IllegalArgumentException EVERY TICK, the
+SEVERE swallowing the handler's WHOLE TAIL (the furnace sweep and everything
+after the vehicles section) while totalTicks kept counting. THE FIX
+(World.getBlockState's contains law, 1:1): the vehicle adapter's blockIdAt
+answers AIR for the out-of-bounds y band — the hull reads air, the mow passes
+on, exactly vanilla's void; the adapter's collision surface and probe already
+carried the band (the mow's consult was the one miss). The ring RETIRED with
+the pass. LANES: the bukkit module green whole (the furnace pair's smelt await
+green), the vehicle lane green. OPEN: the void kill (Entity.tick's y < -64
+voidTick — the boat would die at -64 in vanilla rather than fall forever), its
+own row above.
 
 WAVE JC2 — THE JOCKEY CHASE HAND-OFF LANDED (2026-11-08, commit f21dc5ae
 — the architecture's own named open row from the CJ session, read from
