@@ -27734,8 +27734,14 @@ public final class EngineServer implements Server, EngineBridge {
             return null;
         }
 
-        /** The live mob carrying the engine id, or null. */
-        private MobEntity mobById(int entityId) {
+        /**
+         * Wave JC2 — the mob-seat resolution (the hand-off's own consult,
+         * the WorldQuery override of the facade's default): the live mob
+         * carrying the engine id, or null. The dead and the departed
+         * answer null — a handed route never crosses to a corpse.
+         */
+        @Override
+        public MobEntity mobById(int entityId) {
             for (MobEntity mob : mobManager.all()) {
                 if (!mob.dead() && mob.entityId() == entityId) {
                     return mob;

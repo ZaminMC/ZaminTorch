@@ -130,13 +130,23 @@ class ChickenJockeyParityDiscoveryTest {
 
     @Test
     void theRiderSitsForwardOfTheYawAtHalfTheHeightAndFollowsIt() throws Exception {
+        // Wave JC2's rig repair: the pair spawns ON the surface (the flat
+        // world's grass top at y 5) — the pre-JC2 engine parked the ridden
+        // chicken's whole body (the frozen mid-air spawn answered the seat
+        // math by accident); the faithful body keeps its physics, so the
+        // spawn must stand on the ground for the exact seat read.
         MobEntity chicken = server.mobs().spawnAt(MobType.CHICKEN,
-                new Position(0.5, 8.0, 0.5));
+                new Position(0.5, 5.0, 0.5));
         MobEntity zombie = server.mobs().spawnAt(MobType.ZOMBIE,
-                new Position(0.5, 8.0, 0.5));
+                new Position(0.5, 5.0, 0.5));
         zombie.setBreedingAge(-24_000); // the baby zombie — the jockey's rider
         // The seat's own yaw (updateRiderPositon's sin/cos pair): 90
-        // degrees puts the 0.1 forward offset wholly on X.
+        // degrees puts the 0.1 forward offset wholly on X. The chicken
+        // carries the NoAI pin (Slice 75's mind gate — the physics and
+        // the seat anchor keep running): the JC2 mind restoration means
+        // a live chicken strolls on its own dice, and the seat math
+        // wants the mount's cell exact.
+        chicken.setNoAi(true);
         chicken.setBodyYaw(90.0f);
         chicken.setRider(zombie.entityId());
         EngineAwaits.awaitTicks(server.world(), 3, "the seat anchors");

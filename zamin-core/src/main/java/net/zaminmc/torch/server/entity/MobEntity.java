@@ -327,6 +327,18 @@ public final class MobEntity implements LivingEntity {
         }
 
         /**
+         * Wave JC2 — THE MOB-SEAT RESOLUTION (the reference's
+         * {@code this.vehicle} read over the engine's id-stamp): the live
+         * mob carrying the given engine id, or null when the id names no
+         * live body. The hand-off's own consult (the mount the rider
+         * hands its route to); the stub worlds answer null — no pair
+         * without a live manager, the isolated stub seats never steer.
+         */
+        default MobEntity mobById(int entityId) {
+            return null;
+        }
+
+        /**
          * The hunt scan's same-team refusal ({@code TrackTargetGoal
          * .isTarget} lines 102-106: the hunter's team non-null and the
          * candidate's the same team — refused): the nearest live mob of
@@ -1489,6 +1501,68 @@ public final class MobEntity implements LivingEntity {
     /** The seat consult ({@code this.vehicle != null}). */
     public boolean seatedInVehicle() {
         return seatedVehicleId >= 0;
+    }
+
+    // Wave JC2 — THE MOB-SEAT PAIR (the reference's rider/vehicle rows for
+    // the MOBS' own seats — Entity.startRiding's both-sides write carried
+    // in the engine's single-side + per-tick stamp convention, the Wave SM
+    // precedent): the RIDER side holds the mount's engine id + kind (the
+    // hand-off's resolution and the reference's {@code vehicle instanceof
+    // ChickenEntity} consult), the MOUNT side holds the mob-rider flag
+    // (the ridden-body park's carve-out — the reference's AI park is the
+    // horse's own isDead override ALONE, HorseBaseEntity line 817; every
+    // OTHER ridden body keeps its mind, the jockey chicken's goal layer +
+    // the hand-off's mount-side drive the law that needs it). The manager
+    // stamps both at the tick head from the mobs' own seats; a mid-tick
+    // seating (the jockey spawn's arms) catches up on the next tick's
+    // stamp, the seat's own anchor (tickMobRiders) holding the pair whole
+    // in between.
+    private int mountedMobId = -1;
+    private MobType mountedMobType;
+    private boolean mobRiderSeat;
+
+    /** The manager's per-tick stamp (the mob seat's mount id + kind). */
+    public void setMountedMob(int mountEntityId, MobType mountType) {
+        this.mountedMobId = mountEntityId;
+        this.mountedMobType = mountType;
+    }
+
+    /** @return the mount whose seat the body holds (−1 = walking free). */
+    public int mountedMobId() {
+        return mountedMobId;
+    }
+
+    /** @return the mount's kind (null when walking free). */
+    public MobType mountedMobType() {
+        return mountedMobType;
+    }
+
+    /** The rider-side seat consult ({@code this.vehicle != null}). */
+    public boolean ridingAMob() {
+        return mountedMobId >= 0;
+    }
+
+    /** The manager's per-tick stamp (the mount side: the seat's rider is a mob). */
+    public void setMobRiderSeat(boolean mobRider) {
+        this.mobRiderSeat = mobRider;
+    }
+
+    /** @return whether a MOB holds this body's seat (the park's carve-out). */
+    public boolean mobRiderSeat() {
+        return mobRiderSeat;
+    }
+
+    /**
+     * The zombie-on-chicken consult (the reference's
+     * {@code isRiding() && instanceof ZombieEntity && vehicle
+     * instanceof ChickenEntity} — the pigman rides its parent's walks):
+     * the jockey pair's own gate, the navigation's canUpdatePath arm and
+     * the hand-off's mount consult both read it.
+     */
+    public boolean ridingChickenJockey() {
+        return mountedMobId >= 0
+                && (type == MobType.ZOMBIE || type == MobType.ZOMBIE_PIGMAN)
+                && mountedMobType == MobType.CHICKEN;
     }
 
     // The EntityNbt rows (Slice 89 — the reference's Entity base rows the
@@ -2876,8 +2950,28 @@ public final class MobEntity implements LivingEntity {
         // rider, its dice ride every tick of the seat — the PE-25
         // carve-out, now the SADDLE consult the reference itself
         // carries, never the tame bit).
-        if (hasRider() && !(type == MobType.HORSE && !saddled())
-                || type == MobType.HORSE && (eating() || rearing())) {
+        //
+        // Wave JC2 — THE PARK'S FAITHFUL SET (the reference parks the
+        // horse ALONE, LivingEntity's own isDead being the health gate
+        // every other kind carries): the SADDLED horse parks for ANY
+        // rider kind (the isDead override's own {@code rider != null}
+        // — a mob-seated saddled horse included), the pig's PLAYER
+        // seat parks in the engine's rein-walk adaptation (the rider's
+        // carrot steering owning the movement — the net observable of
+        // PigBaseEntity.moveRelative's rider arm), and EVERY OTHER
+        // ridden body keeps its mind whole: the jockey chicken's goal
+        // layer + the hand-off's mount-side drive (Wave JC2's own
+        // need), the mob-ridden and exotic-seated kinds' walks (the
+        // reference's plain serverTickAi — a player seated on a
+        // chicken rides a bird that still wanders, vanilla's own
+        // comedy).
+        boolean parksRiddenMind = type == MobType.HORSE
+                && (hasRider() && saddled() || eating() || rearing());
+        if (!parksRiddenMind && hasRider() && type == MobType.PIG
+                && !mobRiderSeat()) {
+            parksRiddenMind = true; // the pig's player seat (the rein walk)
+        }
+        if (parksRiddenMind) {
             if (jumpCooldown > 0) {
                 jumpCooldown--;
             }
@@ -2914,7 +3008,49 @@ public final class MobEntity implements LivingEntity {
                 || type == MobType.SKELETON) {
             tickDaylightBurn();
         }
+        // WAVE JC2 — THE JOCKEY CHASE HAND-OFF (ZombieEntity.mobTick lines
+        // 184-187, the pigman riding its parent's walk): a mounted zombie
+        // family body with a live attack target hands ITS OWN navigation
+        // route to the CHICKEN mount's navigation at the hand-off's own
+        // 1.5 — the famous jockey chase: the zombie's melee goal paths
+        // (the rider's navigation ADVANCING through the zombie-on-chicken
+        // canUpdatePath arm), and every tick the route + the speed cross
+        // to the mount — the LAST WRITER of the chicken's navigation, the
+        // reference's own cross-body moveAlong. The mount-side drive
+        // (the body walk's handed-route band below) walks the chicken
+        // along the SHARED route object at walkSpeed x 1.5; the chicken's
+        // own re-pathing lanes stand down while the steer stands (the
+        // documented adaptation — the reference's held-but-inert wander
+        // claim never re-paths, the engine's stroll would). A null route
+        // (the target beyond the pathfinder's reach) clears the mount's
+        // path whole — the pair STANDS, the reference's own shape.
+        if ((type == MobType.ZOMBIE || type == MobType.ZOMBIE_PIGMAN)
+                && ridingAMob() && mountedMobType == MobType.CHICKEN
+                && hasLiveAttackTarget()) {
+            MobEntity mount = world.mobById(mountedMobId);
+            if (mount != null) {
+                mount.receiveJockeyHandoff(navigation.getPath());
+            }
+        }
         return fixedPoint() != before || beforeYaw != yaw || beforeHeadYaw != headYaw;
+    }
+
+    /**
+     * Wave JC2 — the hand-off's target gate (the reference's
+     * {@code this.getAttackTarget() != null}, ZombieEntity.mobTick line
+     * 185): a live attack target in ANY of the engine's target shapes —
+     * the mob-vs-mob single target (16b), the forced player hunt (the
+     * reinforcement callee), or the live player hunt (the scan's own
+     * read this tick).
+     */
+    private boolean hasLiveAttackTarget() {
+        if (mobAttackTarget != null && !mobAttackTarget.dead()) {
+            return true;
+        }
+        if (forcedHuntPlayerId >= 0 && forcedHuntPosition() != null) {
+            return true;
+        }
+        return targetHuntable && visibleTarget != null;
     }
 
     /**
@@ -4512,6 +4648,13 @@ public final class MobEntity implements LivingEntity {
      * attribute)}, the goal parameter over the 0.25 movement base).
      */
     private static final double GOLEM_FLANK_SPEED = 0.9;
+    /**
+     * Wave JC2 — THE JOCKEY HAND-OFF'S SPEED (ZombieEntity.mobTick line
+     * 186's own literal: {@code moveAlong(this.getNavigation().getPath(),
+     * 1.5)} — the chicken mount walks the zombie's route at 1.5 x its
+     * own movement attribute, the movement control's multiplier law).
+     */
+    private static final double JOCKEY_HANDOFF_SPEED = 1.5;
     /**
      * THE FLANK CLAIM'S STEAL POLL CADENCE (GoalSelector.tick line 45's
      * own law: {@code this.ticks++ % this.constantThree == 0},
@@ -11870,6 +12013,32 @@ public final class MobEntity implements LivingEntity {
         navigation.stop();
     }
 
+    /**
+     * Wave JC2 — THE JOCKEY HAND-OFF'S RECEIVING SIDE (ZombieEntity
+     * .mobTick lines 184-187: {@code ((MobEntity)this.vehicle)
+     * .getNavigation().moveAlong(this.getNavigation().getPath(), 1.5)}
+     * — the cross-body moveAlong at the hand-off's own speed, the
+     * literal 1.5 of the reference's line): the mount's navigation
+     * adopts the rider's route with the steer flag armed — the
+     * mount-side drive's gate. The speed is the hand-off's OWN
+     * constant, never the caller's band.
+     */
+    public void receiveJockeyHandoff(
+            net.zaminmc.torch.server.entity.ai.pathing.Path path) {
+        navigation.receiveHandoff(path, JOCKEY_HANDOFF_SPEED);
+    }
+
+    /** @return the body's standing navigation route (the hand-off's read). */
+    public net.zaminmc.torch.server.entity.ai.pathing.Path navigationPath() {
+        return navigation.getPath();
+    }
+
+    /** @return whether the standing route came from a rider's hand-off
+     *  (the mount-side drive's own gate — the test pin's read). */
+    public boolean navigationHanded() {
+        return navigation.isHanded();
+    }
+
     /** @return the path heading override the feet walk (or NaN when none). */
     boolean goalHasPathHeading() {
         return pathYawValid;
@@ -15782,6 +15951,25 @@ public final class MobEntity implements LivingEntity {
             strollActive = false; // the hunt's walk replaced the stroll's
             leashWanderActive = false; // and the leash wander's (the hunt's claim)
         }
+        // WAVE JC2 — THE JOCKEY STEER'S LANE REFUSALS: while the rider's
+        // handed route stands (the steer flag + a live route), the
+        // re-pathing idle lanes stand down — the reference's held wander
+        // claim never re-paths (WanderAroundGoal has no tick — its
+        // start's one moveTo the last writer overwrites every rider
+        // tick), while the engine's stroll walk re-paths on its cooldown
+        // and would fight the chase long-term; the claim is refused
+        // outright and an active claim RETIRES (the one-tick steal the
+        // reference's chicken-first interleave allows is retired with it
+        // — the documented adaptation). The lane reopens the moment the
+        // handed route spends (the drive walks it to its end) or an own
+        // write took the navigation.
+        boolean jockeySteer = navigation.isHanded() && !navigation.isDone();
+        if (jockeySteer && (strollActive || leashWanderActive)) {
+            strollActive = false; // the steer owns the walk — the claim retires
+            leashWanderActive = false;
+            mode = Mode.IDLE;
+            modeTicks = 0;
+        }
         switch (mode) {
             case IDLE -> {
                 // The historical glance RETIRED (Wave PE-23): the idle
@@ -15815,10 +16003,12 @@ public final class MobEntity implements LivingEntity {
                 // shouldContinue keeps the claim while the leash follow's
                 // own path runs — the plain stroll's band-7 start is
                 // refused under both.
-                if (leechedNavigation && leashWanderBeyondPin()
+                if (!jockeySteer
+                        && leechedNavigation && leashWanderBeyondPin()
                         && pickLeashWanderTarget()) {
                     startLeashWander();
-                } else if (!sitGoalHolds()
+                } else if (!jockeySteer
+                        && !sitGoalHolds()
                         && !leashWanderClaimHolds()
                         && goals.hasBuiltIn("stroll")
                         && farFromPlayerTicks() < 100
@@ -16294,8 +16484,10 @@ public final class MobEntity implements LivingEntity {
         // the same law the jockey family rides). Belt-and-braces beside
         // the movement freeze (the frozen body never applies a move for
         // the step band to read) — the gate carried for the law's own
-        // row and any future caller.
-        if (seatedInVehicle()) {
+        // row and any future caller. Wave JC2 extends the consult to
+        // the MOB seat (the jockey zombie's own walk — the same
+        // {@code vehicle == null} row over the mobs' own seats).
+        if (seatedInVehicle() || ridingAMob()) {
             return;
         }
         // The feet cell (Entity.move line 568-573): floor(y - 0.2), and
@@ -16625,8 +16817,11 @@ public final class MobEntity implements LivingEntity {
         // the postures, the targets, the look-around the wire sees, the
         // vanilla seated zombie still turning its head); the velocity
         // decays like the NoAI pin's own form (the walk's inputs never
-        // integrate).
-        if (seatedInVehicle()) {
+        // integrate). Wave JC2 extends the freeze to the MOB seat (the
+        // jockey zombie — the same anchor-owns-the-position law over the
+        // mobs' own seats: the seated rider's mind runs whole (the chase
+        // that feeds the hand-off), the body's own drift invisible).
+        if (seatedInVehicle() || ridingAMob()) {
             decayVelocity();
             return;
         }
@@ -16894,6 +17089,36 @@ public final class MobEntity implements LivingEntity {
             }
             tickSlimeMovement(inFluid);
             walk = 0.0; // the hop cycle owns the movement (the input model)
+        }
+        // WAVE JC2 — THE JOCKEY STEER'S DRIVE (the mount-side movement
+        // control): while the standing route came from the rider's
+        // hand-off, the mount's own walk bands (the mode band, the goal
+        // layer's speed) STAND DOWN — the reference's serverTickAi ticks
+        // the navigation and the movement control UNCONDITIONALLY, and
+        // the control walks the CURRENT route at the LAST moveAlong's
+        // speed ({@code setSpeed(nav.speed x attribute)},
+        // MovementControl.tick): the jockey chicken walks the ZOMBIE'S
+        // route at walkSpeed x 1.5 whatever its own goals hold (the
+        // panic's claim rides inert beneath the drive, exactly the
+        // reference's held-but-inert claim). The navigation tick here is
+        // the mount's OWN — advancing the SHARED route object the rider
+        // also advances (the reference's both-navigations-tick-one-path
+        // shape) and arming the stuck check the per-tick hand-off's own
+        // moveAlong re-anchors (the clock never elapses while the steer
+        // stands, the reference's own artifact). The drive is the LAST
+        // WORD: an own lane that wrote a path since the last hand-off
+        // retired the steer flag, and its own walk owns the tick.
+        if (navigation.isHanded()) {
+            navigation.tick();
+            if (navigation.hasTarget) {
+                pathYaw = angleTo(navigation.currentTargetX - position.x(),
+                        navigation.currentTargetZ - position.z());
+                pathYawValid = true;
+                walk = walkSpeed() * navigation.getSpeed();
+            } else {
+                pathYawValid = false;
+                walk = 0.0; // the handed route spent or cleared — the mount stands
+            }
         }
         if (inFluid && walk > 0) {
             walk *= 0.5; // wading drag
@@ -17268,6 +17493,11 @@ public final class MobEntity implements LivingEntity {
         @Override
         public boolean inLava() {
             return world.inLava(position.x(), position.y() + 0.2, position.z());
+        }
+
+        @Override
+        public boolean ridingChickenJockey() {
+            return MobEntity.this.ridingChickenJockey();
         }
     }
 

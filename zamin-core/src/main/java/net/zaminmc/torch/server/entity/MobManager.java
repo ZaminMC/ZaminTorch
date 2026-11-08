@@ -1767,9 +1767,13 @@ public final class MobManager {
         int feetY = (int) Math.floor(at.y());
         int feetZ = (int) Math.floor(at.z());
         // The gated collision consult (PortalBlock.onEntityCollision
-        // lines 158-162: vehicle == null && rider == null — the engine's
-        // mobs never ride, so the rider consult alone carries the pair).
-        var match = mob.hasRider() ? null : world.portalFrameAt(feetX, feetY, feetZ);
+        // lines 158-162: vehicle == null && rider == null — both seat
+        // families carry the refusal since Wave JC2 brought the mobs'
+        // own seats: a mount carrying a rider never arms, a rider
+        // seated on its mount never arms — the pair crosses whole on
+        // the mount's own arm or not at all).
+        var match = mob.hasRider() || mob.ridingAMob()
+                ? null : world.portalFrameAt(feetX, feetY, feetZ);
         if (match != null) {
             // The entry memory's derive (onPortalCollision lines 1432-1451:
             // the same-cell re-collision re-derives nothing).
@@ -1866,6 +1870,34 @@ public final class MobManager {
             }
         }
 
+        // Wave JC2 — THE MOB-SEAT STAMP (the reference's rider/vehicle
+        // pair over the MOBS' own seats — Entity.startRiding's both-sides
+        // write in the engine's single-side stamp convention, the Wave SM
+        // precedent above): every mob whose seat a MOB holds stamps the
+        // rider with the mount's id + kind (the hand-off's resolution and
+        // the zombie-on-chicken consults) and the mount with the
+        // mob-rider flag (the ridden-body park's carve-out — the
+        // reference parks the horse alone). Player seats (the horse/pig
+        // rein seats) carry no mob stamp — the rider resolves to no mob,
+        // the mount's flag stands false. A mid-tick seating (the jockey
+        // spawn's arms at the spawn walk) catches up on the next tick's
+        // stamp, the seat's own anchor (tickMobRiders) holding the pair
+        // whole in between.
+        java.util.Map<Integer, Integer> mobSeatMounts = new java.util.HashMap<>();
+        java.util.Map<Integer, MobType> mobSeatMountTypes = new java.util.HashMap<>();
+        for (MobEntity mob : mobs) {
+            boolean mobRider = false;
+            if (mob.hasRider()) {
+                MobEntity mobRiderBody = byId(mob.riderId());
+                if (mobRiderBody != null && !mobRiderBody.dead()) {
+                    mobSeatMounts.put(mob.riderId(), mob.entityId());
+                    mobSeatMountTypes.put(mob.riderId(), mob.type());
+                    mobRider = true;
+                }
+            }
+            mob.setMobRiderSeat(mobRider);
+        }
+
         // The breeds defer to the loop's end (the reference's own order:
         // children join the world after the walk closes — and the
         // copy-on-write iterator below would not visit a mid-walk add
@@ -1890,6 +1922,12 @@ public final class MobManager {
             // for this body's whole tick.
             mob.setSeatedVehicleId(seatedPassengers.getOrDefault(
                     mob.entityId(), -1));
+
+            // Wave JC2 — the mob-seat stamp (the rider's mount id + kind,
+            // −1/null when the body walks free): the hand-off's consult
+            // state for this body's whole tick.
+            mob.setMountedMob(mobSeatMounts.getOrDefault(mob.entityId(), -1),
+                    mobSeatMountTypes.get(mob.entityId()));
 
             // Wave EK — THE ENVIRONMENTAL KILL'S PUBLICATION (the drain
             // the loop's own head serves): the body-level arms — the
@@ -5537,7 +5575,13 @@ public final class MobManager {
                 && pushed.velocityX() * pushed.velocityX()
                         + pushed.velocityZ() * pushed.velocityZ() > 0.01
                 && !pushed.hasPassenger()
-                && !pusher.seatedInVehicle()) {
+                && !pusher.seatedInVehicle()
+                && !pusher.ridingAMob()) {
+            // Wave JC2 — the second seat consult (MinecartEntity.push
+            // line 663's {@code entity.vehicle == null} over the MOB
+            // seats too): a jockey zombie seated on its chicken never
+            // mounts the passing cart — the seat it holds is the
+            // refusal, whatever the seat's family.
             vehicleMount.mount(pushed, pusher.entityId());
         }
         double d0 = pusher.position().x() - b.x();

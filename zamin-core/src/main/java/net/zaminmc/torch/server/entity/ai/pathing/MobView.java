@@ -30,4 +30,16 @@ public interface MobView {
 
     /** Whether any part of the body is in lava. */
     boolean inLava();
+
+    /**
+     * Wave JC2 — the zombie-on-chicken riding consult (the reference's
+     * {@code isRiding() && instanceof ZombieEntity && vehicle instanceof
+     * ChickenEntity}, GroundPathNavigation.canUpdatePath line 33's own
+     * arm): whether this body is the zombie jockey seated on its chicken
+     * mount — the navigation's waypoint walk opens while it rides. The
+     * stub bodies answer false (no mob seats without a live manager).
+     */
+    default boolean ridingChickenJockey() {
+        return false;
+    }
 }

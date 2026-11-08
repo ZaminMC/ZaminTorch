@@ -36,6 +36,9 @@ public class MobNavigation {
     /** The sun-avoidance flag (GroundPathNavigation line 16): set by the
      *  skeleton's AvoidSunlightGoal start/stop pair while the sun stands. */
     private boolean avoidSunLight;
+    /** Wave JC2 — the jockey steer flag: the standing route came from the
+     *  rider's hand-off (see {@link #receiveHandoff}). */
+    private boolean handedPath;
     private final PathFinder pathFinder;
     private final WalkNodeEvaluator nodeEvaluator;
 
@@ -131,11 +134,47 @@ public class MobNavigation {
      * (+0.5 on every axis) — the search targets the cell's center, exactly
      * {@code findPath(new BlockPos(floor x, (int) y, floor z))}. */
     public boolean moveTo(double x, double y, double z, double speed) {
+        this.handedPath = false; // an OWN write retires the rider's steer
         Path path = this.findPath(Math.floor(x) + 0.5, (int) y + 0.5, Math.floor(z) + 0.5);
-        return this.moveAlong(path, speed);
+        return this.moveAlongCore(path, speed);
     }
 
     public boolean moveAlong(Path path, double speed) {
+        this.handedPath = false; // an OWN write retires the rider's steer
+        return this.moveAlongCore(path, speed);
+    }
+
+    /**
+     * Wave JC2 — THE JOCKEY HAND-OFF'S WRITE (ZombieEntity.mobTick
+     * lines 184-187: {@code ((MobEntity)this.vehicle).getNavigation()
+     * .moveAlong(this.getNavigation().getPath(), 1.5)} — the cross-body
+     * moveAlong, the LAST WRITER of the mount's navigation): the mount's
+     * navigation adopts the RIDER's route object (the SAME {@link Path}
+     * instance the rider walks — both navigations advance the one
+     * walking index, the reference's own shared-object shape) at the
+     * hand-off's own speed, and the STEER flag arms — the mount-side
+     * drive's gate (the body walk at the navigation's speed, the
+     * movement control's {@code setSpeed(nav.speed x attribute)} law).
+     * A null route CLEARS the mount's path whole (the reference's own
+     * {@code moveAlong(null)} — a target-less rider stops the mount).
+     * The flag retires at the mount's NEXT OWN path write ({@link #moveTo},
+     * {@link #moveAlong}, {@link #stop} — the reference's last-writer
+     * law: whichever goal or hand-off wrote last owns the walk) and
+     * stands past the last hand-off so the mount FINISHES the handed
+     * route after the rider dismounts or dies (the movement control
+     * walks the standing path to its end — the vanilla tail).
+     */
+    public void receiveHandoff(Path path, double speed) {
+        this.handedPath = true;
+        this.moveAlongCore(path, speed);
+    }
+
+    /** @return whether the standing route came from the rider's hand-off. */
+    public boolean isHanded() {
+        return this.handedPath;
+    }
+
+    private boolean moveAlongCore(Path path, double speed) {
         if (path == null) {
             this.path = null;
             return false;
@@ -289,6 +328,7 @@ public class MobNavigation {
     }
 
     public void stop() {
+        this.handedPath = false; // an OWN write retires the rider's steer
         this.path = null;
         this.hasTarget = false;
     }
@@ -318,7 +358,15 @@ public class MobNavigation {
 
     protected boolean canUpdatePath() {
         return this.mob.onGround()
-                || this.canFloat() && (this.mob.inWater() || this.mob.inLava());
+                || this.canFloat() && (this.mob.inWater() || this.mob.inLava())
+                // Wave JC2 — the zombie-on-chicken arm (GroundPathNavigation
+                // lines 30-34: {@code this.mob.isRiding() && this.mob
+                // instanceof ZombieEntity && this.mob.vehicle instanceof
+                // ChickenEntity} — the mounted jockey's navigation ADVANCES
+                // while it rides: the seat holds the body airborne, the arm
+                // alone opens the waypoint walk; without it the rider's route
+                // never advances and the hand-off hands a FROZEN index)
+                || this.mob.ridingChickenJockey();
     }
 
     protected boolean canFloat() {
