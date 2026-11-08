@@ -202,9 +202,26 @@ class PanicFleeParityDiscoveryTest {
                 "the wounded wolf never panics (no EscapeDangerGoal registered)");
 
         melee(attacker, cow);
-        EngineAwaits.awaitCondition(server.world(),
-                () -> cow.mode() == MobEntity.Mode.PANIC, 100,
-                "the wounded cow panics (the census's own member)");
+        try {
+            EngineAwaits.awaitCondition(server.world(),
+                    () -> cow.mode() == MobEntity.Mode.PANIC, 100,
+                    "the wounded cow panics (the census's own member)");
+        } catch (AssertionError missed) {
+            // Runs #686's + the full-lane load flake's first-occurrence
+            // read (the same convention the furnace and hunger seats
+            // carry): the engine COMPLETED its hundred ticks (the
+            // tick-deadline verdict, never the stall's or the patience
+            // cap's) and the cow still never claimed the panic — the
+            // next landing dumps the body's own live state so the miss
+            // speaks: the wound's recency window, the mode the mind
+            // carried, and the goal layer's own claim.
+            throw new AssertionError(missed.getMessage()
+                    + " [state: health=" + cow.health()
+                    + " mode=" + cow.mode()
+                    + " walkMult=" + cow.goalWalkMultiplier()
+                    + " attackerAt=" + attacker.position()
+                    + " wolfMode=" + wolf.mode() + "]", missed);
+        }
     }
 
     // ------------------------------------------------------------------
