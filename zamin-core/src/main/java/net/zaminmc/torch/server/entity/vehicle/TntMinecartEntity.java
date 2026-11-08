@@ -186,7 +186,7 @@ public class TntMinecartEntity extends MinecartEntity
      */
     @Override
     protected void tickKind(net.zaminmc.torch.server.entity.vehicle.VehicleEntity.WorldQuery world) {
-        boolean wasOnRail = railAxisAt(world, position()) != -1;
+        boolean wasOnRail = railShapeAt(world, position()) != -1;
         double speedSquaredBefore = velocityX() * velocityX() + velocityZ() * velocityZ();
         super.tickKind(world);
         if (fuseTicks > 0) {

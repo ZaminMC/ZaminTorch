@@ -133,6 +133,24 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         }
 
         /**
+         * @return the rail SHAPE of the point's cell (Wave SL — the
+         * reference's AbstractRailBlock.Shape ids, the ADJACENT_RAIL_
+         * POSITIONS_BY_SHAPE table's own index): 0 north_south, 1
+         * east_west, 2-5 the four ascents (east/west/north/south), 6-9
+         * the plain rail's four curves (south_east, south_west,
+         * north_west, north_east), -1 not rail. The shape carries what
+         * the axis alone flattens away — the ascent's climb face (the
+         * walk's ±0.0078125 arm and the interpolated ride height) and
+         * the curve's diagonal (the position's mid-rail projection).
+         * Default: the flat shape over {@link #railAxisAt} — the stub
+         * queries' flat tracks keep their semantics untouched.
+         */
+        default int railShapeAt(double x, double y, double z) {
+            int axis = railAxisAt(x, y, z);
+            return axis == 0 ? 0 : axis == 1 ? 1 : -1;
+        }
+
+        /**
          * @return the point's cell's powered-rail walk (Slice 38 —
          * MinecartEntity.moveOnRail lines 345-349 + 478-495): 1 the
          * powered GOLDEN rail's boost, -1 the unpowered golden rail's
@@ -630,6 +648,18 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         if (hurtCooldown > 0) {
             hurtCooldown--;
         }
+    }
+
+    /**
+     * The hull's break OUTSIDE the damage walk (Wave BS — the reference's
+     * crash remove, BoatEntity.tick lines 315-316: the tick's own
+     * {@code this.remove()} after the high-speed wall hit, never
+     * {@code damage()}'s i-frame — a boat that just took a hit still
+     * breaks on the crash). The manager's dead() sweep carries the
+     * removal, the drops, and the wire.
+     */
+    public void crashBreak() {
+        this.health = 0.0f;
     }
 
     /** The mount: takes the seat (refused when occupied). */

@@ -21797,6 +21797,30 @@ public final class EngineServer implements Server, EngineBridge {
             return -1;
         }
 
+        /**
+         * The rail SHAPE read (Wave SL — the reference's
+         * AbstractRailBlock.Shape ids over the engine's own whole
+         * registration band): the plain family's ten states (the bare
+         * north_south 0, the historical {@code rail_ew} 1, the four
+         * ascents 2-5, the four curves 6-9 — the curves walkable for the
+         * first time here, the pre-shape walk's {@code railAxisAt}
+         * flattening them away as dead cells) and the trio's six straight
+         * shapes with the POWERED bit — every family read through
+         * {@code RailBlocks.familyShapeOf}, the ACTIVE dimension's own
+         * cell (the TF-11 convention).
+         */
+        @Override
+        public int railShapeAt(double x, double y, double z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return -1;
+            }
+            BlockType block = activeVehicleWorld().getBlock(vehicleCellAt(x, y, z));
+            return net.zaminmc.torch.server.block.RailBlocks.isRailFamily(block)
+                    ? net.zaminmc.torch.server.block.RailBlocks.familyShapeOf(block)
+                    : -1;
+        }
+
         @Override
         public int railPowerAt(double x, double y, double z) {
             if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y

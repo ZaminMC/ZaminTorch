@@ -109,13 +109,27 @@ class VehicleIntegrationTest extends ProtocolTestBase {
             // the first publication after the spawn keeps the teleport).
             // A floating boat emits no move until it actually moves, so
             // the anchor is the spawn packet's own fixed-point position.
-            for (int i = 0; i < 10; i++) {
+            // WAVE BS: the paddling builds on the momentum's own 35-tick
+            // ramp (the reference's law — the drive is speedBoost x
+            // forward x 0.05, the boost climbing 0.07 to 0.35 as the hull
+            // accelerates), so the window spans the ramp's whole curve;
+            // the pool-settle's own vertical moves are drained until a
+            // HORIZONTAL move names the steer.
+            for (int i = 0; i < 80; i++) {
                 client.sendSteerVehicle(0.0f, 1.0f, 0);
                 Thread.sleep(60);
             }
-            int[] after = client.readEntityMoveFamilyOf(boatId, 20_000);
-            boolean moved = after[0] != Protocol18.S2C_ENTITY_TELEPORT
-                    || after[1] != spawn[2] || after[3] != spawn[4];
+            long moveDeadline = System.currentTimeMillis() + 20_000;
+            boolean moved = false;
+            while (!moved && System.currentTimeMillis() < moveDeadline) {
+                int[] after = client.readEntityMoveFamilyOf(boatId,
+                        Math.max(1, moveDeadline - System.currentTimeMillis()));
+                if (after[0] == Protocol18.S2C_ENTITY_TELEPORT) {
+                    moved = after[1] != spawn[2] || after[3] != spawn[4];
+                } else {
+                    moved = after[1] != 0 || after[3] != 0;
+                }
+            }
             assertTrue(moved, "the steered boat left its spawn spot");
 
             // The unmount: the jump bit's 0x02 opens the seat.

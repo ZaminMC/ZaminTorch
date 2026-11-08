@@ -111,6 +111,8 @@ class VehicleManagerTest {
     @Test
     void theBoatFloatsOnWaterAndLookSteers() {
         BoatEntity boat = new BoatEntity(1, new Position(0.5, 4.5, 0.5), new Random(1));
+        assertTrue(boat.mount(777_001), "the rider takes the seat (Wave BS — the"
+                + " paddling is the rider's own, never a riderless drive)");
         boat.followRiderLook(new Rotation(-90.0f, 0.0f)); // facing east
         var world = waterWorld();
         for (int i = 0; i < 40; i++) {

@@ -7,14 +7,18 @@ import java.util.Random;
 
 /**
  * The minecart (community entities.json object type 10): it rides rails —
- * the rail block under the body names the axis (the metadata's flat
- * orientations), the steer accelerates along it, and an L-corner turns
- * when the current axis runs out. Off the rail it grinds to a halt under
- * heavy drag and falls with gravity.
+ * the rail block under the body names the travel (the shape's own axis,
+ * the ascent's climb face, the curve's diagonal), the steer accelerates
+ * along it, and an L-corner turns when the current axis runs out. Off the
+ * rail it grinds to a halt under heavy drag and falls with gravity.
  *
- * <p>Slice 21a opens the family: the chest variant extends this body with
- * the 27-slot container and its own rail drag (the reference's
- * {@code applySlowdown} fullness walk).</p>
+ * <p>Wave SL carries the shape model whole: the reference's own
+ * ADJACENT_RAIL_POSITIONS_BY_SHAPE geometry (MinecartEntity lines 34-44)
+ * — the four ASCENT shapes now roll (the ±0.0078125 climb arm, the
+ * interpolated ride height, the d14 grade trim) and the four CURVE
+ * shapes walk (the mid-rail diagonal projection, the exit re-point),
+ * where the pre-shape walk flattened the ascents to their axis and read
+ * the curves as dead cells.</p>
  */
 public class MinecartEntity extends VehicleEntity {
 
@@ -78,13 +82,55 @@ public class MinecartEntity extends VehicleEntity {
     public static final double BRAKE_STOP_SPEED = 0.03;
     /** The unpowered golden rail's halving brake. */
     public static final double BRAKE_FACTOR = 0.5;
+    /**
+     * The ascent's climb arm (moveOnRail lines 350-368: the d0 constant
+     * 0.0078125 — the flat ± the axis component each tick on an
+     * ascending rail's cell, resisting the climb, aiding the descent).
+     */
+    public static final double SLOPE_ACCEL = 0.0078125;
+    /**
+     * The grade's trim (moveOnRail lines 456-461: {@code d14 = (vec3d.y
+     * - vec3d1.y) * 0.05} — the tick's altitude change scaled onto the
+     * dragged state: a climb of one full cell costs 5% of the speed per
+     * tick, a descent pays it back; the exact reference form, the
+     * (speed + d14) < 0 flip allowed — a slow cart onto a big step
+     * rolls back).
+     */
+    public static final double SLOPE_TRIM = 0.05;
+
+    /** The reference's rail-shape ids (AbstractRailBlock.Shape). */
+    static final int SHAPE_NORTH_SOUTH = 0;
+    static final int SHAPE_EAST_WEST = 1;
+    static final int SHAPE_ASCENDING_EAST = 2;
+    static final int SHAPE_ASCENDING_WEST = 3;
+    static final int SHAPE_ASCENDING_NORTH = 4;
+    static final int SHAPE_ASCENDING_SOUTH = 5;
+    static final int SHAPE_FIRST_CURVE = 6;
+
+    /**
+     * The reference's own rail geometry table (MinecartEntity lines
+     * 34-44 — ADJACENT_RAIL_POSITIONS_BY_SHAPE): each shape's two rail
+     * ends as {x, y, z} cell deltas — the end pair names the travel
+     * line (the curve's diagonal, the slope's low/high ends) and the
+     * y-deltas the slope's own arithmetic.
+     */
+    static final int[][][] ADJACENT_RAIL_POSITIONS = {
+            {{0, 0, -1}, {0, 0, 1}},      // 0 north_south
+            {{-1, 0, 0}, {1, 0, 0}},      // 1 east_west
+            {{-1, -1, 0}, {1, 0, 0}},     // 2 ascending_east
+            {{-1, 0, 0}, {1, -1, 0}},     // 3 ascending_west
+            {{0, 0, -1}, {0, -1, 1}},     // 4 ascending_north
+            {{0, -1, -1}, {0, 0, 1}},     // 5 ascending_south
+            {{0, 0, 1}, {1, 0, 0}},       // 6 south_east
+            {{0, 0, 1}, {-1, 0, 0}},      // 7 south_west
+            {{0, 0, -1}, {-1, 0, 0}},     // 8 north_west
+            {{0, 0, -1}, {1, 0, 0}},      // 9 north_east
+    };
 
     /** The flat rail orientations (the engine's rail-axis band). */
     private static final int AXIS_Z = 0; // north-south rail: travel along Z
     private static final int AXIS_X = 1; // east-west rail: travel along X
     private static final int AXIS_NONE = -1;
-
-    private int lastAxis = AXIS_NONE;
 
     public MinecartEntity(int entityId, Position position, Random random) {
         this(entityId, Kind.MINECART, position, random);
@@ -147,68 +193,124 @@ public class MinecartEntity extends VehicleEntity {
         Position at = position();
         SteerInput input = consumeSteer();
 
-        int rail = railAxisAt(world, at);
-        if (rail == AXIS_NONE) {
+        // THE RAIL SEARCH (the reference's two-band priority form — tick
+        // lines 258-263: the cart's own y-cell first, and when the rail
+        // stands one cell BELOW, that one is the rail — the slope's high
+        // end (the cart rides a full cell above the ascent's own cell)
+        // and the falling coupling both resolve here; the pre-shape
+        // walk's single y+0.4 band missed both).
+        int cellX = (int) Math.floor(at.x());
+        int cellZ = (int) Math.floor(at.z());
+        int cellY = (int) Math.floor(at.y());
+        int shape = world.railShapeAt(at.x(), cellY - 0.5, at.z());
+        if (shape >= 0) {
+            cellY--;
+        } else {
+            shape = world.railShapeAt(at.x(), cellY + 0.5, at.z());
+        }
+        if (shape < 0) {
             tickOffRail(at);
             return;
         }
 
-        int cellX = (int) Math.floor(at.x());
-        int cellZ = (int) Math.floor(at.z());
-        int cellY = (int) Math.floor(at.y() + 0.4); // the rail's own cell
+        if (shape >= SHAPE_FIRST_CURVE) {
+            tickOnCurve(world, at, cellX, cellY, cellZ, shape, input);
+            return;
+        }
+
+        int rail = axisOf(shape);
+
+        // THE ASCENT'S CLIMB ARM (moveOnRail lines 350-368): the flat
+        // ±0.0078125 on the axis component BEFORE the projection — the
+        // reference's own d0, eastward ascents resisting +X, westward
+        // ones aiding it (and the y++ the walk's own mid-tick altitude
+        // below).
+        if (shape == SHAPE_ASCENDING_EAST) {
+            setVelocity(velocityX() - SLOPE_ACCEL, velocityY(), velocityZ());
+        } else if (shape == SHAPE_ASCENDING_WEST) {
+            setVelocity(velocityX() + SLOPE_ACCEL, velocityY(), velocityZ());
+        } else if (shape == SHAPE_ASCENDING_NORTH) {
+            setVelocity(velocityX(), velocityY(), velocityZ() + SLOPE_ACCEL);
+        } else if (shape == SHAPE_ASCENDING_SOUTH) {
+            setVelocity(velocityX(), velocityY(), velocityZ() - SLOPE_ACCEL);
+        }
+        // THE WALK'S MID-TICK ALTITUDE (line 341's this.y = pos.getY()
+        // + the ascent cases' y++): one whole cell up on an ascending
+        // rail — the post-move snap below resolves the final cell.
+        double walkY = cellY + (isAscending(shape) ? 1.0 : 0.0);
+        // THE TICK-HEAD SNAP (the reference's vec3d — snapPositionToRail
+        // at the tick head, line 340): the interpolated ride height at
+        // the CURRENT position over the CURRENT cell, the d14 trim's own
+        // pre-tick read — a just-coupled body (its raw y still off the
+        // line) carries NO spurious grade: both the trim's sides read
+        // the snap, never the raw position.
+        double headSnapY = cellY + RIDE_Y_OFFSET
+                + (isAscending(shape)
+                        ? slopeProgressTowardHighFace(shape, cellX, cellZ, at.x(), at.z())
+                        : 0.0);
 
         // THE STATE (the reference's velocity field): the rail projection
         // (moveOnRail lines 379-386) reads the 2-D magnitude — a diagonal
         // push folds its whole magnitude onto the travel axis — with the
         // ceiling 2.0 (lines 381-383) the only bound. The direction rides
         // the axis component's sign; the zero-component edge (a purely
-        // perpendicular push) falls to the look pick below — the engine's
-        // documented adaptation for the reference's canonical-shape unit.
+        // perpendicular push) falls to the +1 default — the reference's
+        // own un-flipped d4 (the end0→end1 direction).
         double velocityAlong = rail == AXIS_X ? velocityX() : velocityZ();
         double speed = Math.sqrt(velocityX() * velocityX() + velocityZ() * velocityZ());
         if (speed > RAIL_STATE_CEILING) {
             speed = RAIL_STATE_CEILING;
         }
         double direction = velocityAlong >= 0 ? 1.0 : -1.0;
-        if (speed < 0.01) {
-            // Starting from rest: the direction consult keeps the
-            // travel-facing pick (the yaw bookkeeping and the continues
-            // probe) — the state stays zero, an un-ridden cart never
-            // self-launches (the reference's own answer: no rider, no
-            // kick, no move).
+        if (speed < 0.01 && !isAscending(shape)) {
+            // Starting from rest on a FLAT rail: the direction consult
+            // keeps the travel-facing pick (the yaw bookkeeping and the
+            // continues probe) — the state stays zero, an un-ridden cart
+            // never self-launches (the reference's own answer: no rider,
+            // no kick, no move). THE ASCENT EXEMPT (Wave SL): the climb
+            // arm's own ±0.0078125 from rest rides UNDER this band —
+            // the reference has no floor at all, and a cart placed on an
+            // ascent SLIDES (the arm is the slide's whole cause); the
+            // floor stays the flat decay's own dead-stop approximation.
             direction = lookDirection(rail);
             speed = 0.0;
         }
-        // THE RIDER'S W-KICK (moveOnRail lines 387-399, read 1:1): a
-        // mounted body holding the forward input, from rest alone (the
-        // squared state under 0.01 — the second tick's 0.0997 still
-        // inside the band), kicks 0.1 along the RIDER'S OWN LOOK — and
-        // CANCELS the brake flag (line 395's {@code flag1 = false}: a
-        // kicked cart on an unpowered golden rail never takes the
-        // halving that tick). A rolling cart gains NOTHING from the
-        // input — the vanilla W key never accelerates a moving cart —
-        // and a riderless cart never kicks at all (the consult reads
-        // the rider's own forward speed, {@code this.rider instanceof
-        // LivingEntity} the gate). The pre-fix engine's continuous
-        // +0.02 drive (the W-key adaptation) retired whole: it fed any
-        // steered cart forever, rider or none, rolling or not.
+        // THE RIDER'S W-KICK (moveOnRail lines 387-399, the 2-D add
+        // whole): a mounted body holding the forward input, from rest
+        // alone (the squared state under 0.01 — the second tick's 0.0997
+        // still inside the band), kicks 0.1 along the RIDER'S OWN LOOK —
+        // the full 2-D vector, the reference's own add: the PERPENDICULAR
+        // component folds onto the travel line at the projection (a
+        // perpendicular look still kicks — the axis's un-flipped +1
+        // default, the reference's own d4=0 edge; the pre-fix engine
+        // refused the kick whole) — and CANCELS the brake flag (line
+        // 395's {@code flag1 = false}: a kicked cart on an unpowered
+        // golden rail never takes the halving that tick). A rolling cart
+        // gains NOTHING from the input — the vanilla W key never
+        // accelerates a moving cart — and a riderless cart never kicks
+        // at all (the consult reads the rider's own forward speed,
+        // {@code this.rider instanceof LivingEntity} the gate). The
+        // pre-fix engine's continuous +0.02 drive (the W-key
+        // adaptation) retired whole: it fed any steered cart forever,
+        // rider or none, rolling or not.
         boolean brakeCancelled = false;
         if (hasPassenger() && input.forward() > 0.0f
                 && velocityX() * velocityX() + velocityZ() * velocityZ() < 0.01) {
             float riderYaw = input.riderYaw();
             double radians = Math.toRadians(Float.isNaN(riderYaw)
                     ? rotation().yaw() : riderYaw);
-            double lookAlong = rail == AXIS_X ? -Math.sin(radians) : Math.cos(radians);
-            if (lookAlong != 0.0) {
-                // The signed add onto the axis state (the reference's 2-D
-                // add re-points whole onto the axis at the next
-                // projection — the axis model folds it at the kick
-                // itself; the exactly-perpendicular look never starts
-                // the cart, the axis model's own documented edge).
-                double kicked = velocityAlong + lookAlong * RIDER_KICK;
-                direction = kicked >= 0.0 ? 1.0 : -1.0;
-                speed = Math.abs(kicked);
-            }
+            double kickX = -Math.sin(radians) * RIDER_KICK;
+            double kickZ = Math.cos(radians) * RIDER_KICK;
+            double alongAfter = velocityAlong + (rail == AXIS_X ? kickX : kickZ);
+            double perpAfter = (rail == AXIS_X ? velocityZ() : velocityX())
+                    + (rail == AXIS_X ? kickZ : kickX);
+            // The 2-D add's fold onto the axis: the whole magnitude
+            // (the perpendicular component included — the reference's
+            // next-tick projection re-points it whole), the direction
+            // the along component's sign with the zero case the axis's
+            // own +1 default.
+            speed = Math.sqrt(alongAfter * alongAfter + perpAfter * perpAfter);
+            direction = alongAfter >= 0.0 ? 1.0 : -1.0;
             brakeCancelled = true;
         }
         // THE BRAKE (flag1 — moveOnRail lines 402-414, the consult BEFORE
@@ -232,11 +334,11 @@ public class MinecartEntity extends VehicleEntity {
         double moveScale = hasPassenger() ? RIDER_MOVE_SCALE : 1.0;
         double moveMagnitude = Math.min(speed * moveScale, getMaxSpeedOnRail());
 
-        // The next cell on the axis: a rail continues it; otherwise an
-        // L-corner turns onto the perpendicular rail, or the track ends.
-        int nextCellAlong = (rail == AXIS_X ? cellX : cellZ) + (int) direction;
-        boolean continues = railAxisOfCell(world, rail == AXIS_X ? nextCellAlong : cellX,
-                cellY, rail == AXIS_Z ? nextCellAlong : cellZ) != AXIS_NONE;
+        // The next cell on the axis: a rail continues it (the shape's own
+        // exit level — an ascent heading to its high face exits one cell
+        // up); otherwise an L-corner turns onto the perpendicular rail,
+        // or the track ends.
+        boolean continues = railContinues(world, shape, cellX, cellY, cellZ, rail, direction);
         double nx = at.x();
         double nz = at.z();
         int travel = rail;
@@ -284,7 +386,6 @@ public class MinecartEntity extends VehicleEntity {
         } else {
             setVelocity(0.0, 0.0, speed * direction);
         }
-        lastAxis = travel;
         // The cart's yaw faces the travel (the observer-facing heading);
         // a zero-move tick (the end-of-track halt) keeps the previous
         // heading — flipping it here would reverse the next start.
@@ -294,13 +395,59 @@ public class MinecartEntity extends VehicleEntity {
                     : (moved > 0 ? 0.0f : 180.0f);
             setRotation(new Rotation(yaw, 0.0f));
         }
-        // Flat rails: the body rides the rail cell's floor + the offset.
-        commit(nx, cellY + RIDE_Y_OFFSET, nz, true);
+
+        // THE POST-MOVE SNAP (the reference's vec3d1 —
+        // snapPositionToRail at the moved position, lines 454-464): the
+        // same two-band search from the walk's mid-tick altitude, then
+        // the cell family's own ride height — the flat cell's
+        // +RIDE_Y_OFFSET, the ascent's progress interpolation (the
+        // reference's d2 + d8×d0 form: a full cell's rise across the
+        // cell, measured from the low face). The boundary crossings
+        // resolve here — a cart stepping onto an ascent climbs from its
+        // current altitude, one leaving the high face lands on the upper
+        // flat's own line, and the walk's y++ folds into the search's
+        // own band (the reference's explicit aint[][1] carry).
+        int snapCellY = (int) Math.floor(walkY);
+        int snapShape = world.railShapeAt(nx, snapCellY - 0.5, nz);
+        if (snapShape >= 0) {
+            snapCellY--;
+        } else {
+            snapShape = world.railShapeAt(nx, snapCellY + 0.5, nz);
+        }
+        double commitY;
+        if (snapShape < 0) {
+            // No rail under the moved position: the walk's own altitude
+            // stands (the reference's skipped final setPosition — the
+            // off-end body keeps the walk's y, the fall's start height).
+            commitY = walkY;
+        } else if (isAscending(snapShape)) {
+            int snapCellX = (int) Math.floor(nx);
+            int snapCellZ = (int) Math.floor(nz);
+            commitY = snapCellY + RIDE_Y_OFFSET
+                    + slopeProgressTowardHighFace(snapShape, snapCellX, snapCellZ, nx, nz);
+        } else {
+            commitY = snapCellY + RIDE_Y_OFFSET;
+        }
+        commit(nx, commitY, nz, true);
 
         // THE DRAG (the reference's own call site — moveOnRail line 454,
         // AFTER the move): the rider-gated triple lands on the CARRY
         // alone — this tick's move already ran at the un-damped state.
         applySlowdown();
+
+        // THE GRADE'S TRIM (moveOnRail lines 456-461 — d14): the tick's
+        // altitude change ((the tick-head snap y) - (the post-move snap
+        // y)) × 0.05, scaled onto the dragged state along its own
+        // direction — the climb's 5%-per-cell resistance, the descent's
+        // aid; the exact reference form (the flip allowed: a slow body
+        // onto a big step rolls back), a no-op on every flat tick (the
+        // y never changes, d14 = 0).
+        double d14 = (headSnapY - commitY) * SLOPE_TRIM;
+        double dragged = Math.sqrt(velocityX() * velocityX() + velocityZ() * velocityZ());
+        if (dragged > 0.0) {
+            setVelocity(velocityX() / dragged * (dragged + d14), 0.0,
+                    velocityZ() / dragged * (dragged + d14));
+        }
 
         // THE BOOST (flag — moveOnRail lines 478-495, the consult AFTER
         // the drag, the walk's own tail): the powered golden rail adds
@@ -324,6 +471,125 @@ public class MinecartEntity extends VehicleEntity {
                 } else {
                     setVelocity(0.0, 0.0, launch);
                 }
+            }
+        }
+    }
+
+    /**
+     * THE CURVE WALK (Wave SL — the plain rail's four curves, shapes
+     * 6-9, the reference's own diagonal): the projection re-points the
+     * whole 2-D state onto the curve's travel line (the end-to-end
+     * diagonal — the average of the two legs, the reference's lines
+     * 379-386 over the curve's own d1/d2), the position projects onto
+     * the same line and advances along it (the d18 walk, lines 414-434:
+     * the mid-rail interpolation the engine's cell-center snap
+     * replaced), and the cell crossing at the exit re-points the FULL
+     * magnitude toward the new cell (lines 466-472) — the pure exit
+     * axis. The curve is a plain-rail cell alone (the trio's
+     * alwaysStraight band): never a boost, never a brake.
+     */
+    private void tickOnCurve(WorldQuery world, Position at, int cellX, int cellY,
+                             int cellZ, int shape, SteerInput input) {
+        int[][] ends = ADJACENT_RAIL_POSITIONS[shape];
+        // The curve's travel line: end0's face center to end1's.
+        double p0x = cellX + 0.5 + ends[0][0] * 0.5;
+        double p0z = cellZ + 0.5 + ends[0][2] * 0.5;
+        double p1x = cellX + 0.5 + ends[1][0] * 0.5;
+        double p1z = cellZ + 0.5 + ends[1][2] * 0.5;
+        double ddx = p1x - p0x;
+        double ddz = p1z - p0z;
+        double lineLen = Math.sqrt(ddx * ddx + ddz * ddz);
+
+        // THE PROJECTION (lines 379-386 over the diagonal): the 2-D
+        // magnitude with the 2.0 ceiling, the direction the d4 fold —
+        // the un-flipped default the end0→end1 diagonal.
+        double speed = Math.sqrt(velocityX() * velocityX() + velocityZ() * velocityZ());
+        if (speed > RAIL_STATE_CEILING) {
+            speed = RAIL_STATE_CEILING;
+        }
+        double d4 = velocityX() * ddx + velocityZ() * ddz;
+        double sign = d4 < 0.0 ? -1.0 : 1.0;
+        // THE W-KICK (the same 2-D add, the diagonal's own fold): from
+        // rest, any look direction kicks the full 0.1 — the magnitude
+        // survives the fold whole, the direction the d4 sign.
+        boolean brakeCancelled = false;
+        if (hasPassenger() && input.forward() > 0.0f
+                && velocityX() * velocityX() + velocityZ() * velocityZ() < 0.01) {
+            float riderYaw = input.riderYaw();
+            double radians = Math.toRadians(Float.isNaN(riderYaw)
+                    ? rotation().yaw() : riderYaw);
+            double kickX = -Math.sin(radians) * RIDER_KICK;
+            double kickZ = Math.cos(radians) * RIDER_KICK;
+            speed = Math.sqrt((velocityX() + kickX) * (velocityX() + kickX)
+                    + (velocityZ() + kickZ) * (velocityZ() + kickZ));
+            d4 = (velocityX() + kickX) * ddx + (velocityZ() + kickZ) * ddz;
+            sign = d4 < 0.0 ? -1.0 : 1.0;
+            brakeCancelled = true;
+        }
+        // THE BRAKE consult (the golden-alone gate — the curve's plain
+        // family answers 0 over the real query; the stub tracks their
+        // own).
+        int railPower = world.railPowerAt(cellX + 0.5, cellY + 0.06, cellZ + 0.5);
+        if (railPower < 0 && !brakeCancelled) {
+            if (speed < BRAKE_STOP_SPEED) {
+                speed = 0.0;
+            } else {
+                speed *= BRAKE_FACTOR;
+            }
+        }
+
+        // THE MOVE (lines 436-446): the rider's 0.75 scale, the clamp —
+        // the advance rides the diagonal's own length (the curve's path
+        // through the cell is the half+half diagonal, sqrt(0.5) — the
+        // corner cuts faster than the straight crossing, the reference's
+        // own geometry).
+        double moveScale = hasPassenger() ? RIDER_MOVE_SCALE : 1.0;
+        double advance = Math.min(speed * moveScale, getMaxSpeedOnRail());
+
+        // THE d18 POSITION PROJECTION (lines 414-434): the position
+        // pulled onto the curve's line, then advanced along it.
+        double d18 = ((at.x() - p0x) * ddx + (at.z() - p0z) * ddz) * 2.0;
+        d18 += (advance * sign) / lineLen;
+        double nx = p0x + ddx * d18;
+        double nz = p0z + ddz * d18;
+
+        // THE CARRY: the diagonal velocity (the reference's projected
+        // field — the state IS the diagonal while the body rides the
+        // curve).
+        double ux = ddx * sign / lineLen;
+        double uz = ddz * sign / lineLen;
+        setVelocity(ux * speed, 0.0, uz * speed);
+        // The cart's yaw faces the diagonal travel (the engine's look
+        // convention — the same form the flat walk's ±90/0/180 carry).
+        if (advance > 0.0) {
+            setRotation(new Rotation(
+                    (float) Math.toDegrees(Math.atan2(-ux, uz)), 0.0f));
+        }
+        // The curve rides flat (the ends' y-deltas are zero): the cell's
+        // own floor + the offset, the grade trim a no-op.
+        commit(nx, cellY + RIDE_Y_OFFSET, nz, true);
+
+        // THE DRAG, then THE EXIT RE-POINT (lines 453, 466-472): the
+        // dragged state's FULL magnitude redirected toward the cell the
+        // body crossed into — the pure exit axis off the curve's
+        // diagonal.
+        applySlowdown();
+        int newCellX = (int) Math.floor(nx);
+        int newCellZ = (int) Math.floor(nz);
+        if (newCellX != cellX || newCellZ != cellZ) {
+            double mag = Math.sqrt(velocityX() * velocityX() + velocityZ() * velocityZ());
+            setVelocity(mag * (newCellX - cellX), 0.0, mag * (newCellZ - cellZ));
+        }
+
+        // THE BOOST (the same tail consult — the plain curve answers 0
+        // over the real query; the family's uniform walk).
+        if (railPower > 0) {
+            double rolling = Math.sqrt(velocityX() * velocityX() + velocityZ() * velocityZ());
+            if (rolling > 0.01) {
+                setVelocity(
+                        velocityX() + velocityX() / rolling * POWERED_RAIL_BOOST,
+                        velocityY(),
+                        velocityZ() + velocityZ() / rolling * POWERED_RAIL_BOOST);
             }
         }
     }
@@ -420,6 +686,115 @@ public class MinecartEntity extends VehicleEntity {
         return along >= 0 ? 1.0 : -1.0;
     }
 
+    /**
+     * The continuation consult (the shape-aware form): the next cell on
+     * the travel axis at the shape's OWN exit level — an ascent heading
+     * to its high face exits one cell up (the reference's geometry: the
+     * upper flat rides the ascent's cell + 1) — with the down-step
+     * beside it: an ascent one cell BELOW whose high face looks back
+     * (the descent's start, and the crest — two ascents back to back).
+     * ANY rail at the exit level continues the advance (the reference's
+     * own junction fold: the body rolls INTO the perpendicular cell and
+     * the next tick's projection folds the velocity onto the new axis,
+     * the un-flipped d4 the default direction) — the same-axis gate
+     * would strand the cart one cell short of every junction.
+     */
+    private boolean railContinues(WorldQuery world, int shape, int cellX, int cellY,
+                                  int cellZ, int rail, double direction) {
+        int stepX = rail == AXIS_X ? (int) direction : 0;
+        int stepZ = rail == AXIS_Z ? (int) direction : 0;
+        int nextX = cellX + stepX;
+        int nextZ = cellZ + stepZ;
+        int exit = exitLevelOffset(shape, rail, direction);
+        if (shapeOfCell(world, nextX, cellY + exit, nextZ) >= 0) {
+            return true;
+        }
+        int below = shapeOfCell(world, nextX, cellY + exit - 1, nextZ);
+        return axisMatches(below, rail) && isAscending(below)
+                && highFaceFacesBack(below, stepX, stepZ);
+    }
+
+    /** @return the cell's rail shape, -1 when no rail. */
+    private int shapeOfCell(WorldQuery world, int x, int y, int z) {
+        return world.railShapeAt(x + 0.5, y + 0.5, z + 0.5);
+    }
+
+    /**
+     * The exit level's offset for a shape and heading (the ascent's high
+     * face: +1 toward it, the low face level).
+     */
+    private int exitLevelOffset(int shape, int rail, double direction) {
+        if (!isAscending(shape)) {
+            return 0;
+        }
+        boolean towardHigh = (shape == SHAPE_ASCENDING_EAST && rail == AXIS_X && direction > 0)
+                || (shape == SHAPE_ASCENDING_WEST && rail == AXIS_X && direction < 0)
+                || (shape == SHAPE_ASCENDING_NORTH && rail == AXIS_Z && direction < 0)
+                || (shape == SHAPE_ASCENDING_SOUTH && rail == AXIS_Z && direction > 0);
+        return towardHigh ? 1 : 0;
+    }
+
+    /**
+     * Whether a shape's travel line matches the walk's axis (the curves
+     * match both — the corner's own turn target).
+     */
+    private boolean axisMatches(int shape, int rail) {
+        if (shape < 0) {
+            return false;
+        }
+        if (shape >= SHAPE_FIRST_CURVE) {
+            return true;
+        }
+        boolean shapeIsX = shape == SHAPE_EAST_WEST
+                || shape == SHAPE_ASCENDING_EAST || shape == SHAPE_ASCENDING_WEST;
+        return shapeIsX == (rail == AXIS_X);
+    }
+
+    /**
+     * An ascent's high face looking back toward the cell the walk came
+     * from (the descent's start / the crest's far side).
+     */
+    private boolean highFaceFacesBack(int shape, int stepX, int stepZ) {
+        return (shape == SHAPE_ASCENDING_EAST && stepX < 0)
+                || (shape == SHAPE_ASCENDING_WEST && stepX > 0)
+                || (shape == SHAPE_ASCENDING_NORTH && stepZ > 0)
+                || (shape == SHAPE_ASCENDING_SOUTH && stepZ < 0);
+    }
+
+    /**
+     * The ascent's ride-height progress toward its HIGH face (the
+     * reference's snapPositionToRail interpolation — d2 + d8×d0 with
+     * the y++/y+=0.5 fold: a full cell's rise across the cell, 0 at the
+     * low face, 1 at the high one).
+     */
+    private double slopeProgressTowardHighFace(int shape, int cellX, int cellZ,
+                                               double x, double z) {
+        switch (shape) {
+            case SHAPE_ASCENDING_EAST:
+                return x - cellX;
+            case SHAPE_ASCENDING_WEST:
+                return cellX + 1.0 - x;
+            case SHAPE_ASCENDING_NORTH:
+                return cellZ + 1.0 - z;
+            case SHAPE_ASCENDING_SOUTH:
+                return z - cellZ;
+            default:
+                return 0.0;
+        }
+    }
+
+    /** @return whether the shape is one of the four ascents. */
+    static boolean isAscending(int shape) {
+        return shape >= SHAPE_ASCENDING_EAST && shape <= SHAPE_ASCENDING_SOUTH;
+    }
+
+    /** The shape's travel axis (the curves': the Z band — a rail is a rail). */
+    static int axisOf(int shape) {
+        boolean isX = shape == SHAPE_EAST_WEST
+                || shape == SHAPE_ASCENDING_EAST || shape == SHAPE_ASCENDING_WEST;
+        return isX ? AXIS_X : AXIS_Z;
+    }
+
     /** @return the perpendicular rail's direction at this cell, 0 if none. */
     private int crossRailDirection(WorldQuery world, int cellX, int cellY, int cellZ, int rail) {
         int other = rail == AXIS_X ? AXIS_Z : AXIS_X;
@@ -427,19 +802,20 @@ public class MinecartEntity extends VehicleEntity {
         for (int delta : deltas) {
             int probeX = other == AXIS_X ? cellX + delta : cellX;
             int probeZ = other == AXIS_Z ? cellZ + delta : cellZ;
-            if (railAxisOfCell(world, probeX, cellY, probeZ) != AXIS_NONE) {
+            if (shapeOfCell(world, probeX, cellY, probeZ) >= 0) {
                 return delta;
             }
         }
         return 0;
     }
 
-    private int railAxisOfCell(WorldQuery world, int x, int y, int z) {
-        return world.railAxisAt(x + 0.5, y + 0.06, z + 0.5);
-    }
-
-    /** The rail axis under a point (protected for the variants' own walks). */
-    protected int railAxisAt(WorldQuery world, Position at) {
-        return world.railAxisAt(at.x(), at.y() + 0.4, at.z());
+    /** The rail shape under a point (protected for the variants' own walks). */
+    protected int railShapeAt(WorldQuery world, Position at) {
+        int cellY = (int) Math.floor(at.y());
+        int below = world.railShapeAt(at.x(), cellY - 0.5, at.z());
+        if (below >= 0) {
+            return below;
+        }
+        return world.railShapeAt(at.x(), cellY + 0.5, at.z());
     }
 }

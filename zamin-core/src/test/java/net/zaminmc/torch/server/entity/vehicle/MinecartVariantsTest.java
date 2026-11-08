@@ -103,8 +103,14 @@ class MinecartVariantsTest {
         // interact lines 106-117 + tick lines 44-52: the coal feeds 3600
         // ticks, the push aims away from the player, the fuel burns down,
         // and the empty tank zeroes the push.
+        // Wave SL: the placement rides mid-cell (64.35) — the reference's
+        // two-band rail search couples a body whose y sits inside the rail
+        // cell's own band [64, 65); the swapped-world sequence below drops
+        // the body one off-rail tick (the -0.04 fall) before the rail
+        // world's tick, and a floor-level placement would fall below the
+        // band whole (the old +0.4 probe's overreach retired).
         FurnaceMinecartEntity cart = new FurnaceMinecartEntity(9720,
-                new Position(10.5, 64.0, 10.5), new Random(73L));
+                new Position(10.5, 64.35, 10.5), new Random(73L));
         assertFalse(cart.lit(), "unfueled at placement");
         assertEquals(0, cart.fuel());
 
