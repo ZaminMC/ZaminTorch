@@ -253,4 +253,146 @@ class GolemFlankWalkParityDiscoveryTest {
                         + " opens");
     }
 
+    // ------------------------------------------------------------------
+    // Seat 4 — the steal's cadence, MID-FLANK (tail (b)'s unblocked seat)
+    // ------------------------------------------------------------------
+
+    /**
+     * WAVE FT(b) — THE STEAL AT THE SELECTOR'S OWN SETUP-PASS CADENCE
+     * (the flank claim LIVE when the wall opens — the rig's own law: the
+     * wall opens MID-FLANK, the golem mid-slide along the picked route):
+     * the melee goal's canStart consult runs at every third tick of the
+     * selector's own counter ({@code ticks++ % 3 == 0}, constantThree =
+     * 3 — canUse passes over the live flank: the melee's band-1
+     * precedence beats the flank's band 2, the flank's canStop() true),
+     * and the consult's findPath verdict TRUE claims the body the very
+     * same pass — start() adopting the CONSULT'S OWN ROUTE
+     * (MeleeAttackGoal.start line 74), the eastbound walk crossing the
+     * wall's line within 2 more at the chase band's own 0.275.
+     *
+     * <p>The prior session's beeline carried this seat's crossing on its
+     * own (the retired probe's conflation); the movement-control law
+     * retired the beeline and the crossing is the STEAL'S alone now.</p>
+     */
+    @Test
+    void theMidFlankStealLandsAtTheSetupPassCadence() {
+        WallWorld world = new WallWorld();
+        world.wallX = 8;
+        // NIGHT (18000 — midnight): the target zombie stands in the open,
+        // and a noon seat would burn it down mid-window (the undead
+        // daylight walk) before the steal's own story finishes.
+        MobManager manager = managerIn(world, 90L);
+        MobEntity golem = manager.spawnAt(MobType.IRON_GOLEM,
+                new Position(7.5, 8.0, 0.5));
+        MobEntity zombie = manager.spawnAt(MobType.ZOMBIE,
+                new Position(20.5, 8.0, 0.5));
+        assert golem != null && zombie != null : "the spawns never cancel here";
+        world.mobs.add(golem);
+        world.mobs.add(zombie);
+        zombie.setNoAi(true); // the target stands still, dead ahead
+        golem.setMobAttackTarget(zombie);
+
+        // The closed phase: 4 ticks — the flank claim armed and LIVE (the
+        // golem mid-slide along the picked route), the face held every
+        // tick (the movement-control law's own pin: a body with no live
+        // route writes no walk input — the box never enters the wall
+        // cell).
+        for (int tick = 0; tick < 4; tick++) {
+            manager.tick(List.of(), 18000L);
+            assertTrue(golem.position().x() < 8.0,
+                    "the wall's face holds the golem's box west of the wall"
+                            + " line (tick " + tick + ", x=" + golem.position().x()
+                            + ")");
+        }
+        // THE WALL OPENS, MID-FLANK — the direct route stands from this
+        // tick on, the flank claim still holding the golem's MOVE.
+        world.wallX = Integer.MIN_VALUE;
+        int openTick = 4;
+        int crossingTick = -1;
+        for (int tick = openTick; tick < openTick + 40; tick++) {
+            manager.tick(List.of(), 18000L);
+            if (golem.position().x() >= 8.0) {
+                crossingTick = tick;
+                break;
+            }
+        }
+        assertTrue(crossingTick != -1,
+                "the opened route's chase crosses the wall's line (the steal"
+                        + " claims — the golem measured at x="
+                        + golem.position().x() + ")");
+        assertTrue(crossingTick - openTick <= 5,
+                "the steal lands at the selector's own setup-pass cadence —"
+                        + " the direct-route probe within 3 ticks of the"
+                        + " opening (MeleeAttackGoal.start adopting the"
+                        + " consult's own route the landing pass), the"
+                        + " eastbound walk crossing within 2 more (measured "
+                        + (crossingTick - openTick) + " ticks)");
+    }
+
+    // ------------------------------------------------------------------
+    // Seat 5 — the claim-hold's standing + the wall's face (the freeze's
+    // own pin, the movement-control law)
+    // ------------------------------------------------------------------
+
+    /**
+     * WAVE FT(b) — THE MOVEMENT-CONTROL LAW'S OWN SEAT (the flank-tail
+     * (b) pass): the flank route's completion ends the flank claim, the
+     * fall-through chase consult finds the TRIVIAL PARTIAL (the adjacent
+     * cell closer to the target — a 1-block route the 1.4-wide golem's
+     * own within-radius advance swallows whole, both trees alike), and
+     * the melee claim HOLDS at the wall's local minimum — the vanilla
+     * golem STANDS there forever (the claim-hold law, IronGolemEntity's
+     * pauseWhenMobIdle arm). The pre-fix engine's yaw-beeline marched
+     * the box PAST the wall's face instead (+0.275/tick at its facing,
+     * the stub clip's center-point check letting the flank in, every
+     * subsequent move clipped — the frozen body, the box 0.63 into the
+     * wall cell, 150+ ticks): the seat pins BOTH the face-hold (the box
+     * never enters the wall cell) and the standing itself (the held
+     * claim's dice-gated re-paths re-find the trivial partial — the
+     * body's position settles).
+     */
+    @Test
+    void theClaimHeldBodyStandsAtTheWallFaceAndNeverEntersTheCell() {
+        WallWorld world = new WallWorld();
+        world.wallX = 8;
+        MobManager manager = managerIn(world, 90L);
+        MobEntity golem = manager.spawnAt(MobType.IRON_GOLEM,
+                new Position(7.5, 8.0, 0.5));
+        MobEntity zombie = manager.spawnAt(MobType.ZOMBIE,
+                new Position(20.5, 8.0, 0.5));
+        assert golem != null && zombie != null : "the spawns never cancel here";
+        world.mobs.add(golem);
+        world.mobs.add(zombie);
+        zombie.setNoAi(true);
+        golem.setMobAttackTarget(zombie);
+
+        Position settled = null;
+        for (int tick = 0; tick < 60; tick++) {
+            manager.tick(List.of(), 18000L);
+            assertTrue(golem.position().x() < 8.0,
+                    "the wall's face holds the golem's box west of the wall"
+                            + " line the whole claim-held window (tick " + tick
+                            + ", x=" + golem.position().x() + " — the"
+                            + " movement-control law: no live route, no walk"
+                            + " input, the body never enters the wall cell;"
+                            + " the pre-fix beeline carried the box 0.63"
+                            + " blocks into it and froze)");
+            if (tick == 10) {
+                settled = golem.position();
+            }
+        }
+        // The standing: after the flank route's completion and the trivial
+        // steal, the held claim's re-paths re-find the swallowed partial —
+        // the body's position settles (the vanilla golem stands at the
+        // local minimum forever).
+        double drift = Math.sqrt(
+                (golem.position().x() - settled.x()) * (golem.position().x() - settled.x())
+                        + (golem.position().z() - settled.z()) * (golem.position().z() - settled.z()));
+        assertTrue(drift < 0.1,
+                "the claim-held body STANDS at the wall's local minimum (the"
+                        + " trivial partial swallowed by the wide body's own"
+                        + " within-radius advance, the re-paths re-finding it"
+                        + " — measured drift " + drift + " over 50 ticks)");
+    }
+
 }

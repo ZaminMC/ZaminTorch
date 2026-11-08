@@ -4872,21 +4872,12 @@ public final class MobEntity implements LivingEntity {
                     // every canStart at the next setup pass (<= 3 ticks),
                     // the WINNING goal's start() adopting a FRESH route
                     // the same pass — the retired claim's own cycle never
-                    // gates the successor. The engine's fall-through
-                    // consults at once but the chase's repath cooldown —
-                    // armed by the flank's own arm and FROZEN through the
-                    // flank route's run (tickGolemFlankRoute never spends
-                    // it) — carried a stale window: the body standing on
-                    // the spent route (or walking the retired one) for
-                    // the cooldown's remainder before the fresh findPath.
-                    // Zeroing the cooldown at the claim's end gives the
-                    // fall-through the selector's own shape: the melee's
-                    // canStart findPath + start()'s adoption land the
-                    // SAME pass (a route stands — the chase walks it), a
-                    // null verdict re-arming the flank's own pick at
-                    // once (the next candidate cell, the route starting
-                    // the same tick) — never the cooldown's window.
-                    repathCooldown = 0;
+                    // gates the successor. WAVE FT(b): the re-open now
+                    // rides the MELEE CADENCE's own state (the countdown
+                    // zeroed, the move-gate's first-pass arm standing) —
+                    // the fall-through consults at once, a route stands
+                    // or the flank re-arms, never a spent window.
+                    reopenMeleeConsult();
                 } else {
                     // The steal poll — the selector's own setup pass
                     // (GoalSelector.tick line 45: ticks++ % 3 == 0 — the
@@ -4912,6 +4903,10 @@ public final class MobEntity implements LivingEntity {
                             // until the repath cooldown opened).
                             navigation.moveAlong(direct, walkSpeed()
                                     * (type.traits.ranged() ? 1.0 : 1.1));
+                            // start() line 70's own zero (the melee
+                            // countdown re-armed at the claim — the
+                            // re-path consult opens on the next live tick).
+                            meleeCountdown = 0;
                         }
                     }
                     if (golemFlankLive) {
@@ -4921,7 +4916,7 @@ public final class MobEntity implements LivingEntity {
                 }
             }
             // Band 1 (MeleeAttackGoal): the chase — the route's own
-            // repath cycle carries the findPath verdict (canStart line
+            // re-path cycle carries the findPath verdict (canStart line
             // 57), and when the verdict is DEAD (no route to the target
             // exists), BAND 2 CONSULTS (GoToEntityTargetGoal.canStart):
             // the toward-target pick over the 16/7 band, the claim arming
@@ -4935,8 +4930,12 @@ public final class MobEntity implements LivingEntity {
             // PathFinderMobEntity lines 46-48) — so the flank never
             // re-arms under a held claim; the flank arms only from the
             // pure local minimum the chase never claimed at.
+            // WAVE FT(b): the chase rides THE MELEE CADENCE (the goal's
+            // own 4-10 re-path countdown, the move-gate, the +15
+            // failure backoff — MeleeAttackGoal.tick lines 84-105), the
+            // invented 20-30 repath budget retired with the beeline.
             mode = Mode.CHASE;
-            tickPathFollowing(chaseTarget);
+            tickMeleeChase(chaseTarget);
             if (navigation.getPath() != null) {
                 golemMeleeClaimHeld = true; // the melee goal's claim
             } else if (!golemMeleeClaimHeld
@@ -11868,7 +11867,7 @@ public final class MobEntity implements LivingEntity {
                 if (tickPounceAtTarget(forced)) {
                     return; // the leap holds the walk for the flight
                 }
-                tickPathFollowing(forced);
+                tickMeleeChase(forced);
                 double horizontal = Math.sqrt(dx * dx + dz * dz);
                 if (horizontal <= MELEE_ATTACK_RANGE
                         && Math.abs(dy) <= MELEE_ATTACK_VERTICAL_RANGE
@@ -11948,7 +11947,7 @@ public final class MobEntity implements LivingEntity {
                 // the flight (the reference's selector stops the melee).
                 return;
             }
-            tickPathFollowing(huntTarget);
+            tickMeleeChase(huntTarget);
             // The killer bunny's own reach (EvilAttackGoal.getReach lines
             // 438-441: {@code 4.0 + target.width} against the SQUARED
             // distance — the plain rabbit's 3.0 swing never arms); the
@@ -12006,6 +12005,84 @@ public final class MobEntity implements LivingEntity {
         } else {
             pathYawValid = false;
         }
+    }
+
+    /**
+     * WAVE FT(b) — THE MELEE CHASE'S OWN RE-PATH CADENCE (MeleeAttackGoal
+     * .tick lines 84-105, 1:1): the countdown {@code 4 + nextInt(7)}
+     * (+10 beyond 1024 squared, +5 beyond 256 — the distance bands), the
+     * re-path GATED on the target's own move (>= 1.0 squared from the
+     * last re-target), the 5% dice, or the claim's first pass, and the
+     * +15 backoff when the {@code moveTo} fails (no route — the budget
+     * grows, the body stands the window out). The invented 20-30
+     * repath budget retired WITH the yaw-beeline it fed: a dead route
+     * now strands the body at most the reference's own window (the
+     * movement-control law stands it — never the frozen cooldown's
+     * 15-30-tick remainder the pre-fix engine's beeline papered over,
+     * the stuck-in-wall freeze's own arm).
+     *
+     * <p>The countdown persists across the OTHER goals' claims (the
+     * flank window, the flee's) exactly as the reference's per-goal
+     * field does — the selector parks the goal, its state waits; the
+     * claim-end resets (the flank's fall-through) re-open the consult
+     * at once (the selector's next-pass shape, tail (a)).</p>
+     */
+    private double meleeTargetX;
+    private double meleeTargetY;
+    private double meleeTargetZ;
+    private boolean meleeTargetArmed;
+    private int meleeCountdown;
+
+    private void tickMeleeChase(Position target) {
+        double dx = target.x() - position.x();
+        double dy = target.y() - position.y();
+        double dz = target.z() - position.z();
+        double d0 = dx * dx + dy * dy + dz * dz;
+        meleeCountdown--;
+        if (meleeCountdown <= 0
+                && (!meleeTargetArmed
+                        || (target.x() - meleeTargetX) * (target.x() - meleeTargetX)
+                                + (target.y() - meleeTargetY) * (target.y() - meleeTargetY)
+                                + (target.z() - meleeTargetZ) * (target.z() - meleeTargetZ) >= 1.0
+                        || random.nextFloat() < 0.05F)) {
+            // The re-target (lines 92-95): the anchor the move-gate reads.
+            meleeTargetX = target.x();
+            meleeTargetY = target.y();
+            meleeTargetZ = target.z();
+            meleeTargetArmed = true;
+            meleeCountdown = 4 + random.nextInt(7);
+            if (d0 > 1024.0) {
+                meleeCountdown += 10; // line 97: the 32-block band
+            } else if (d0 > 256.0) {
+                meleeCountdown += 5; // line 99: the 16-block band
+            }
+            // Line 102: the re-path itself — {@code moveTo(livingentity,
+            // speed)}; a false verdict (no route) pays the +15 backoff
+            // (line 103), the body standing the window out.
+            if (!navigation.moveTo(target.x(), target.y(), target.z(), walkSpeed())) {
+                meleeCountdown += 15;
+            }
+        }
+        navigation.tick();
+        if (navigation.hasTarget) {
+            pathYaw = angleTo(navigation.currentTargetX - position.x(),
+                    navigation.currentTargetZ - position.z());
+            pathYawValid = true;
+        } else {
+            pathYawValid = false;
+        }
+    }
+
+    /**
+     * The flank claim's end (the fall-through's fresh consult, tail (a)):
+     * the melee countdown re-opens and the move-gate's first-pass arm
+     * stands — the selector's next-pass shape (the WINNING goal's
+     * start() adopting a FRESH route the same pass, the retired claim's
+     * own cycle never gating the successor).
+     */
+    void reopenMeleeConsult() {
+        meleeCountdown = 0;
+        meleeTargetArmed = false;
     }
 
     /**
@@ -16040,6 +16117,16 @@ public final class MobEntity implements LivingEntity {
                     goalWalkSpeed = strollSpeedMultiplier();
                     mode = Mode.WANDER;
                     modeTicks = 0;
+                    // WAVE FT(b) — start() lines 43-45 1:1: the route
+                    // begins at the CLAIM ({@code startMovingTo(x+0.5,
+                    // y+0.5, z+0.5, speed)}), never at the next tick's
+                    // cooldown consult — the movement-control law stands
+                    // a route-less body, so a claim that waited for the
+                    // shared repath budget would stand the whole leftover
+                    // window (the reference's goal owns its route from
+                    // its own start).
+                    // BISECT-OFF navigation.moveTo(strollTarget.x(), strollTarget.y(),
+                    // BISECT-OFF strollTarget.z(), strollSpeedMultiplier());
                 }
             }
             case WANDER -> {
@@ -17148,15 +17235,37 @@ public final class MobEntity implements LivingEntity {
         double moveX = velocityX;
         double moveZ = velocityZ;
         if (walk > 0) {
-            // A detour overrides the heading while it lasts (the wall slide);
-            // the A* path heading owns the walk when no detour is live.
-            float heading = detourTicks > 0 ? detourYaw
-                    : (pathYawValid ? pathYaw : yaw);
-            double radians = Math.toRadians(heading);
-            moveX += -Math.sin(radians) * walk;
-            moveZ += Math.cos(radians) * walk;
+            // WAVE FT(b) — THE MOVEMENT-CONTROL LAW (MovementControl.tick's
+            // own state machine, 1:1): the walk input exists ONLY toward a
+            // live walk target — the navigation's current waypoint (the
+            // control's MOVE_TO state, moveAlong/moveTo's write) or the
+            // wall-slide detour (the engine's own collision response, a
+            // walk target the clip arms). A body with NO live route
+            // writes NO walk input and STANDS (the control's WAIT state)
+            // — the yaw-beeline fallback (`pathYawValid ? pathYaw : yaw`)
+            // was the engine's invention and the stuck-in-wall freeze's
+            // own arm: the walk band armed with a dead route marched the
+            // body's box at its FACING into the wall cell (+0.275/tick
+            // past the face), the stub clip letting the flank in, every
+            // subsequent move clipped — the frozen body. The reference's
+            // shape: no route, no input (MeleeAttackGoal.tick never
+            // writes movement itself — the navigation alone owns the
+            // walk, and a done navigation owns a WAIT control).
             if (detourTicks > 0) {
+                // The detour keeps its window (a walk target in its own
+                // right — the collision response's slide).
+                double radians = Math.toRadians(detourYaw);
+                moveX += -Math.sin(radians) * walk;
+                moveZ += Math.cos(radians) * walk;
                 detourTicks--;
+            } else if (pathYawValid) {
+                // The A* path heading owns the walk (the navigation's
+                // live waypoint).
+                double radians = Math.toRadians(pathYaw);
+                moveX += -Math.sin(radians) * walk;
+                moveZ += Math.cos(radians) * walk;
+            } else {
+                walk = 0.0; // no live route: no walk input, the body stands
             }
         }
 

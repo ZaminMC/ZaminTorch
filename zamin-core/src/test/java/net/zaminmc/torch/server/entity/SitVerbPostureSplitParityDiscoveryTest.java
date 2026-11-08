@@ -210,13 +210,28 @@ class SitVerbPostureSplitParityDiscoveryTest {
                         + " down (the pre-fix engine's XOR did)");
 
         // The control: a NORMALLY-sitted pet (the verb up) DOES stand —
-        // the same verb computes !true = false and the claim stops.
-        cat.setSitVerb(true);
-        cat.tick(false);
-        assertTrue(cat.wolfSitting());
-        cat.ownerSitVerbFlip(); // !true = false — the stand command
-        cat.tick(false);
-        assertFalse(cat.wolfSitting(),
+        // the same verb computes !true = false and the claim stops. The
+        // control rides its own CLEAN rig (a fresh body in a chest-less
+        // world): the verb cannot re-arm on the PERCHED cat at all — the
+        // block-sit's own arm disables it (the chest-quirk law, the
+        // reference's OcelotSitOnBlockGoal.start line 31), so the
+        // setSitVerb(true) above is an engine-only state on a perched
+        // body, and the perch's own claim rightly holds the posture
+        // through the flip (the vanilla perched cat stays perched); the
+        // stand-down's honest pin is the plain sit alone.
+        SplitWorld plain = new SplitWorld(); // chestPerch stays false
+        MobManager plainManager = managerIn(plain, 93L);
+        MobEntity plainCat = plainManager.spawnAt(MobType.OCELOT,
+                new Position(0.5, 8.0, 0.5));
+        assert plainCat != null;
+        plainCat.tick(false);
+        plainCat.tameOcelot("Owner", "owner-2", 2);
+        plainCat.tick(false); // the verb-sit's claim pass seats the posture
+        assertTrue(plainCat.wolfSitting(),
+                "the control's normally-sitted pet seats");
+        plainCat.ownerSitVerbFlip(); // !true = false — the stand command
+        plainCat.tick(false);
+        assertFalse(plainCat.wolfSitting(),
                 "the control: the owner's verb stands a normally-sitted"
                         + " pet down (the claim stops at the next pass)");
     }

@@ -21692,10 +21692,22 @@ public final class EngineServer implements Server, EngineBridge {
         /**
          * The block identity at a cell (the beforeCollision consult — the
          * slime pad's bounce reads the ACTIVE dimension's own blocks, the
-         * TF-11 convention).
+         * TF-11 convention). THE OUT-OF-BOUNDS BAND (World.getBlockState's
+         * own {@code contains} law, 1:1: a position outside y ∈ [0, 256)
+         * answers AIR, never a throw): a hull below the world (the bukkit
+         * harness's void-fallen boat, the furnace-bridge residual's own
+         * root cause — the flora mow's corner read at y = −1 threw
+         * IllegalArgumentException EVERY tick, the handler's tail sections
+         * (the furnace sweep whole) aborting while the tick counter walked
+         * on) reads air and the mow consult passes on, exactly vanilla's
+         * void.
          */
         @Override
         public net.zaminmc.torch.util.Identifier blockIdAt(int x, int y, int z) {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return activeVehicleWorld().airType().identifier();
+            }
             return activeVehicleWorld().getBlock(
                     new net.zaminmc.torch.block.BlockPosition(x, y, z)).identifier();
         }
