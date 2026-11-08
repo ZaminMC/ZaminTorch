@@ -234,6 +234,56 @@ class FishingSystemTest {
     }
 
     @Test
+    void theBobberBelowTheKillPlaneEndsWhole() {
+        // Entity.tick line 342 through FishingBobberEntity.tick line
+        // 173's super.tick(): the bobber is the one thrown-family body
+        // whose walk still runs the base tick, so the kill plane consults
+        // — past y -64 the bobber is REMOVED (the base voidTick's plain
+        // remove: no damage, no drop, the rod's own gates governing the
+        // recast). The cast into the endless dry fall (blockHit null,
+        // waterFraction 0) integrates down through the plane.
+        // The endless dry fall: nothing grounds it, no water — straight
+        // through the plane.
+        FishingSystem.WorldQuery freeFall = new FishingSystem.WorldQuery() {
+            @Override public Position blockHit(Position from, Position to) {
+                return null;
+            }
+
+            @Override public net.zaminmc.torch.util.Identifier blockIdAt(int x, int y, int z) {
+                return net.zaminmc.torch.util.Identifier.parse("minecraft:stone");
+            }
+
+            @Override public double waterFraction(double minX, double minY, double minZ,
+                                                  double maxX, double maxY, double maxZ) {
+                return 0.0;
+            }
+
+            @Override public boolean hasSkyAccess(int x, int y, int z) {
+                return true;
+            }
+
+            @Override public boolean raining() {
+                return false;
+            }
+        };
+        FishingSystem fishing = new FishingSystem(freeFall,
+                new Recording(), new Recording(), new Random(108L), 10_700);
+        fishing.cast(14, new Position(0.0, 65.0, 0.0), 0.0f, -90.0f, 0);
+        FishingSystem.Bobber bobber = fishing.bobberOf(14);
+        assertNotNull(bobber, "the cast armed");
+        int ticks = 0;
+        while (fishing.bobberOf(14) != null && ticks < 600) {
+            fishing.tick();
+            ticks++;
+        }
+        assertNull(fishing.bobberOf(14),
+                "the bobber below the kill plane is gone (Entity.tick line 342)");
+        assertTrue(ticks < 600, "the fall reached the plane well inside the cap");
+        assertTrue(bobber.y < FishingSystem.VOID_KILL_Y,
+                "the removal fired past the plane, not before it");
+    }
+
+    @Test
     void theLootTablesRollTheReferenceWeights() {
         // The statistical shape: with zero enchant levels, junk ~10%,
         // treasure ~5%, fish ~85% — the fish table's own cod/salmon/

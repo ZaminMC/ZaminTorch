@@ -9810,18 +9810,133 @@ command-cart, detector-rail, drop-stamp, falling-anvil, hopper,
 piston-push, armorstand, seated-mob) 85/85, the entity lane run at
 close.
 
-NEXT WORK (re-pinned after the FLANK-TAIL (b) + FURNACE-RESIDUAL session, in
-order): the verifier's PRs when they open (none open at this session's close —
-the agent's first branch, fix/furnace-fuel-parity-audit, still carries no PR);
-THE CI WATCH on the first runs carrying today's three repairs (the chunk-dedupe
-stripe lock, the bed consume await, the out-of-bounds band — run #693 in flight
-at the session's start carried none of them, the first carrying them follows
-the push); THE VOID KILL ROW (Entity.tick's y < -64 voidTick over the vehicle
-family — the bukkit harness's void-fallen boat now reads air and falls forever;
-vanilla kills it at -64, a 1:1 row for its own pass); the vanilla-grade
-census's next family pick; the panic seat's own watch (the documented
-single-JVM load flake — green isolated and on every re-run, one red under the
-full parallel entity load this session again).
+NEXT WORK (re-pinned after the CI-WATCH + VOID-CENSUS session, in
+order): the verifier's PRs when they open (none open at this session's
+close — the agent's branch fix/furnace-fuel-parity-audit still carries
+no PR); the vanilla-grade census's next family pick; the panic seat's
+own watch (the documented single-JVM load flake — green isolated and on
+every re-run, one red under the full parallel entity load; the
+enderman-hunt seat joined the family this session — the same shape,
+green isolated x4); THE PEARL-ENDERMITE HUNT SEAT (the census row the
+CI forensics armed: the pearl's 5% passenger hunting the hovering
+thrower is itself UNSEATED — EndermiteEntity's MeleeAttackGoal over
+PlayerEntity with the reach consult against the hovering target's box
+minY, the reference's own laws, a discovery seat for its own pass);
+the CI watch on the runs carrying today's seats (run #696 GREEN whole
+— torch-1.8.8-159 published; the next runs carry the pearl fix + the
+void census).
+
+THE CI WATCH CLOSED GREEN + THE VOID KILL ROW RESOLVED AS A CENSUS +
+THE PEARL SEAT ROOT-CAUSED WHOLE (2026-11-08, this session — each law
+read from the reference source 1:1 and RED-verified on the neutralized
+engine by the no-op patches):
+
+THE CI WATCH (the re-pin's first row): RUN #696 — THE FIRST GREEN
+RELEASE RUN CARRYING ALL THREE REPAIRS (the chunk-dedupe stripe lock,
+the bed consume await, the out-of-bounds band) + the furnace residual
+fix, 22m31s whole, torch-1.8.8-159 PUBLISHED (the jar + the server
+zip). #694/#695's six red seats read from the artifacts first: the
+furnace pair green since the fix (#695/#696), the bed-placement and
+chunk-dedupe seats green since theirs (#694-#696), and the four #695
+one-run reds (the bed-facing await, the wolf-collar await, the
+piston-slice pig, the survival-flow wire) all green in #696 —
+single-run load flakes, no action. ONE REPEAT OFFENDER STOOD:
+HungerExhaustionParityTest.thePearlTeleportPaysNoPhantomJump, red in
+#693 AND #695 with BYTE-IDENTICAL forensics
+(exhaustion=0.3 y=6.62 ticks=12) — root-caused below.
+
+THE PEARL SEAT ROOT-CAUSED WHOLE (the repeat offender, the engine 1:1
+and the seat's own uncontrolled variable the defect): the forensics'
+exact 0.3 is the DAMAGE-TAKEN charge of an ORDINARY source, and y=6.62
+is the pearl's own block-arm teleport target (the pre-move origin =
+the thrower's eye height — resolveBlockHit's pearl arm passes `from`
+whole). The pearl's 5% ENDERMITE PASSENGER spawns at the thrower's
+pre-teleport feet, DIRECTLY BENEATH the hovering teleport landing, and
+the reference's endermite HUNTS PLAYERS (EndermiteEntity's ctor:
+MeleeAttackGoal(this, PlayerEntity.class, 1.0, false) at band 2 over
+ActiveTargetGoal<>(this, PlayerEntity.class, true)) — vanilla's melee
+reach (MeleeAttackGoal.attack's d0 = width*2*2 + target.width = 2.2
+against the target's box minY) covers the 1.62 gap, the first bite
+lands INSIDE the seat's 4-tick window, and the melee family's
+damageOnTick charges the legitimate 0.3. THE ENGINE IS 1:1 AT EVERY
+ARM (the spawn, the goal set, the reach, the charge); the SEAT left
+the 5% roll uncontrolled and asserted a bound the endermite
+legitimately breaks. THE FIX AT THE REFERENCE'S OWN GATE: the seat
+turns doMobSpawning OFF for its world — the roll's own consult
+(EnderPearlEntity.onCollision line 52) reads the rule before the roll,
+so the rule OFF is exactly vanilla's shape for a world without the
+passenger, and the teleport itself always runs (the roll alone is
+gated). VERIFIED BOTH WAYS: the forced-roll diagnostic (the endermite
+chance temporarily 1.0) reproduced the CI red BYTE-IDENTICAL
+(exhaustion=0.3 y=6.62 ticks=12 — the mechanism proven), and the fixed
+seat ran GREEN under the same forced roll (the rule gates the roll,
+the passenger never spawns); 25/25 green at the true 5% locally. The
+engine's pearl sink untouched. LANES: the class 18/0 whole.
+
+THE VOID KILL ROW RESOLVED AS A WHOLE-FAMILY CENSUS (the row's premise
+was the prior session's UNVERIFIED inference — "the boat falls
+forever" — never observed past the fall's start): the vehicle
+family's kill ALREADY STANDS (Slice 21a's consult — VehicleManager
+.tick's inVoid() head arm, removeVehicle("fell out of world"), no
+drop, the reference's base voidTick 1:1), LIVE-VERIFIED this session
+in BOTH shapes (a carved void column over generated ground — the hull
+falls from 6.0 past -64 and is GONE at tick 115; and the bukkit
+harness's exact ungenerated-chunk spawn at (85, 40, 85) — GONE at tick
+154, y=-64.007), and already seated (VehicleManagerTest.
+theVoidConsumesTheVehicleWithoutADrop). THE CENSUS OVER EVERY FAMILY
+(reference Entity.tick line 342's consult + the three voidTick forms
+— the base remove, LivingEntity's 4.0 OUT_OF_WORLD per tick, and the
+families that never call super): vehicles, items, XP orbs,
+projectiles, armor stands, mobs (4.0/tick through the hurt frame),
+players (4.0/tick, the creative pierce, the 0.0 exhaustion, "fell out
+of the world"), primed TNT (NO consult — the reference's own tick
+never calls super, the fuse governs), ender crystals (NO consult —
+same), decorations (NO consult — DecorationEntity's own validation
+governs) — ALL 1:1. TWO REAL GAPS the census surfaced, both FIXED:
+
+(1) THE FALLING BLOCK'S BOTH DROP ARMS MISSED THE doEntityDrops GATE
+(FallingBlockEntity.tick lines 123 + 129: BOTH the occupied-landing
+drop and the lifetime/void drop gate on {@code this.dropping && world
+.getGameRules().getBoolean("doEntityDrops")} — the engine dropped
+UNCONDITIONALLY, so a rule-off world popped items vanilla never pops).
+THE FIX: the manager consults the rule through a new entityDropsRule
+supplier (wired to the live gameRules in EngineServer; the pre-gate
+constructor retained for the rig surfaces, defaulting to the rule's
+own true), BOTH arms gated; the {@code dropping} flag keeps its true
+default 1:1 (the engine's falling bodies are transient — never
+persisted, never NBT-loaded — so the DropItem NBT row is unreachable
+by construction). SEATS: FallingDropRuleParityDiscoveryTest 3 NEW —
+the rule-off lifetime arm leaves no item, the rule-off occupied
+landing leaves no item (the blocker intact), the rule-on control
+drops both — the two law seats RED on the no-op patch (the ungated
+drops), the control green both ways. LANES: the falling-block family
+whole (FallingBlockEntityTest, GravityFalls, BlockUpdateSystem,
+GrassDecayShade, RailPlacement, SignRotation), the anvil family
+(crush bounds, import API, falling-anvil dimension), the block
+package, the bukkit module green.
+
+(2) THE FISHING BOBBER NEVER CONSULTED THE KILL PLANE (the reference's
+FishingBobberEntity.tick line 173 runs super.tick() — the bobber is
+the one thrown-family body whose walk still runs the base tick, so
+Entity.tick line 342's y < -64 consult REMOVES it; the engine's
+FishingSystem tickOne had no consult — a bobber falling below the
+world ticked forever). THE FIX: the kill-plane consult at tickOne's
+head (the super.tick precedence — before the hooked follow, the stuck
+consult, and the flight alike), the base voidTick's plain remove
+shape riding the existing removal (no damage, no drop, the rod's own
+gates governing the recast). SEAT: FishingSystemTest +1 — the
+endless-fall cast integrates down through the plane and the bobber is
+GONE (the removal past the plane, never before), RED on the no-op
+patch (the bobber never dies), GREEN on the landed law. LANES: the
+fishing package whole.
+
+LANES THE SESSION WHOLE: the entity package (one first-run red — the
+enderman-hunt seat's mite-lock under the full parallel load, the
+documented single-JVM flake family, green isolated x4 + on the class
+re-run), the vehicle package, the block package, the fishing package,
+the anvil family, the hunger/item/mob void seats, the bukkit module —
+all green; the four new seats 4/4 (3 law seats RED-verified, 1
+control).
 
 RUN #690'S THREE RED SEATS FIXED AT THE SOURCE + THE FLANK-TAIL (b) PASS
 LANDED + THE FURNACE-BRIDGE RESIDUAL ROOT-CAUSED WHOLE (2026-11-08, commits

@@ -1247,6 +1247,9 @@ public final class EngineServer implements Server, EngineBridge {
                         (position, stack, dimension) -> itemEntities.spawnDropAtBlock(
                                 new Position(position.x(), position.y(), position.z()), stack,
                                 ItemEntity.PICKUP_DELAY_DROP_TICKS, dimension),
+                        // The doEntityDrops consult (FallingBlockEntity.tick
+                        // lines 123 + 129 — BOTH drop arms gate on the rule).
+                        () -> gameRules().getBoolean("doEntityDrops"),
                         new java.util.Random(),
                         FALLING_ID_BASE);
                 this.fallingEntities = falling;

@@ -3453,3 +3453,75 @@ AT CLOSE: pushing the docs; the next runs carry the gradle hardening +
 the JC2 wave whole; the flank-tail (b) pass (the stand-down/steal
 interleave + the (a) seat it unblocks) and the furnace-bridge residual
 the next picks; the verifier's PR when it opens.
+
+---
+Task ID: 2026-11-08 session (ninth run)
+Agent: main (ZaminTorch session)
+Task: The CI watch closed green + the pearl seat's repeat CI red
+root-caused whole + the void kill row resolved as a whole-family
+census (the prior session's 5d2bf909/017d87b0 records live in the
+architecture file; this entry covers the run after 621075c6).
+
+Work Log:
+- Read the worklog, synced develop (621075c6 clean), checked the PRs:
+  0 open (the verifier's branch still carries no PR — left alone per
+  the standing instruction).
+- THE CI WATCH (the re-pin's first row): read runs #694/#695's
+  artifacts from the API — #696 (the first run carrying all three
+  repairs + the furnace fix) came back GREEN WHOLE, 22m31s,
+  torch-1.8.8-159 PUBLISHED. #695's four reds all one-run flakes
+  (green in #696); the furnace pair green since its fix. ONE REPEAT
+  OFFENDER: HungerExhaustionParityTest.thePearlTeleportPaysNoPhantomJump
+  — red #693 AND #695 with BYTE-IDENTICAL forensics (exhaustion=0.3
+  y=6.62 ticks=12).
+- THE PEARL SEAT ROOT-CAUSED WHOLE: the 0.3 is a damage-taken charge
+  and y=6.62 is the pearl's block-arm teleport target (the pre-move
+  origin = eye height). The pearl's 5% ENDERMITE PASSENGER spawns
+  directly beneath the hovering teleport landing, and the reference's
+  endermite HUNTS PLAYERS (MeleeAttackGoal(PlayerEntity.class) over
+  ActiveTargetGoal) — vanilla's melee reach (d0 = 2.2 against the
+  box minY) covers the 1.62 gap, the bite lands inside the seat's
+  window, the melee path charges the legitimate 0.3. THE ENGINE IS
+  1:1; the SEAT left the 5% roll uncontrolled. FIXED AT THE
+  REFERENCE'S OWN GATE (doMobSpawning off — the roll's own consult,
+  EnderPearlEntity.onCollision line 52). VERIFIED BOTH WAYS: the
+  forced-roll diagnostic (chance temporarily 1.0) reproduced the CI
+  red byte-identical, and the fixed seat ran green under the same
+  forced roll; 25/25 green at the true 5%. Class 18/0.
+- THE VOID KILL ROW RESOLVED AS A CENSUS: the row's premise (the boat
+  "falls forever") was the prior session's unverified inference — the
+  vehicle kill ALREADY STANDS (Slice 21a), LIVE-VERIFIED in both
+  shapes (the carved column: GONE at tick 115; the bukkit harness's
+  exact ungenerated-chunk spawn (85,40,85): GONE at tick 154), and
+  already seated. The census over EVERY family found all 1:1 (items,
+  orbs, projectiles, armor stands, mobs 4.0/tick, players 4.0/tick
+  with the creative pierce, TNT/crystals/decorations with NO consult
+  per the reference's own tick shapes) EXCEPT TWO REAL GAPS:
+  (1) the falling block's BOTH drop arms (the occupied landing AND
+  the lifetime/void timeout) missed the doEntityDrops gate
+  (reference FallingBlockEntity.tick lines 123 + 129) — FIXED: a new
+  entityDropsRule supplier wired to the live gameRules (the pre-gate
+  constructor retained for the rigs), both arms gated, the dropping
+  flag's true default kept 1:1 (the engine's falling bodies are
+  transient, the DropItem NBT row unreachable by construction);
+  (2) the fishing bobber never consulted the kill plane (the
+  reference's FishingBobberEntity.tick line 173 runs super.tick() →
+  Entity.tick line 342 removes it) — FIXED: the consult at tickOne's
+  head, the base voidTick's plain remove shape.
+- SEATS: FallingDropRuleParityDiscoveryTest 3 NEW + FishingSystemTest
+  +1 — the three law seats RED-verified on the no-op patches (the
+  ungated drops x2, the missing consult), the control green both
+  ways. LANES: the falling-block family whole (6 classes), the anvil
+  family, the fishing package, the block package, the vehicle
+  package, the hunger/item/mob void seats, the bukkit module, the
+  entity package (one first-run red — the enderman-hunt seat under
+  the full parallel load, the documented flake family, green isolated
+  x4) — all green.
+- The architecture's record appended + the NEXT WORK re-pinned (the
+  verifier's PRs, the census's next family pick, the panic/hunt
+  flake watch, the pearl-endtermite hunt seat, the CI watch on the
+  runs carrying today's seats); the README refreshed (badge 3,840).
+
+AT CLOSE: pushing the wave; the next runs carry the pearl fix + the
+void census; the census's next family pick and the pearl-endtermite
+hunt seat the next picks.

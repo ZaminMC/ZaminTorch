@@ -77,6 +77,7 @@ public final class FallingBlockEntityManager {
     private final FallingBlockEntity.Ground ground;
     private final java.util.function.IntFunction<net.zaminmc.torch.server.world.EngineWorld> worldRouter;
     private final DropSink dropSink;
+    private final java.util.function.BooleanSupplier entityDropsRule;
     private final Random random;
     private final List<FallingBlockEntity> entities = new ArrayList<>();
     private final List<Listener> listeners = new ArrayList<>();
@@ -89,15 +90,38 @@ public final class FallingBlockEntityManager {
      *                   commit routes the body's OWN world by its stamp;
      *                   the pre-fix single overworld field flew a nether
      *                   fall's landing through the overworld's cells.
+     * @param entityDropsRule the doEntityDrops consult (FallingBlockEntity
+     *                       .tick lines 123 + 129: BOTH drop arms — the
+     *                       occupied-landing drop and the lifetime/void
+     *                       drop — gate on {@code this.dropping && world
+     *                       .getGameRules().getBoolean("doEntityDrops")};
+     *                       the engine's falling bodies are transient
+     *                       (never persisted, never NBT-loaded), so the
+     *                       {@code dropping} flag keeps its true default
+     *                       and the rule alone gates).
+     */
+    public FallingBlockEntityManager(FallingBlockEntity.Ground ground,
+                                     java.util.function.IntFunction<net.zaminmc.torch.server.world.EngineWorld> worldRouter,
+                                     DropSink dropSink,
+                                     java.util.function.BooleanSupplier entityDropsRule,
+                                     Random random, int firstEntityId) {
+        this.ground = Objects.requireNonNull(ground, "ground");
+        this.worldRouter = Objects.requireNonNull(worldRouter, "worldRouter");
+        this.dropSink = Objects.requireNonNull(dropSink, "dropSink");
+        this.entityDropsRule = Objects.requireNonNull(entityDropsRule, "entityDropsRule");
+        this.random = Objects.requireNonNull(random, "random");
+        this.nextEntityId = firstEntityId;
+    }
+
+    /**
+     * The pre-gate signature retained for the rig surfaces: the rule
+     * consult defaults to the vanilla {@code doEntityDrops = true} (the
+     * rule's own default) — the engine wiring passes the live consult.
      */
     public FallingBlockEntityManager(FallingBlockEntity.Ground ground,
                                      java.util.function.IntFunction<net.zaminmc.torch.server.world.EngineWorld> worldRouter,
                                      DropSink dropSink, Random random, int firstEntityId) {
-        this.ground = Objects.requireNonNull(ground, "ground");
-        this.worldRouter = Objects.requireNonNull(worldRouter, "worldRouter");
-        this.dropSink = Objects.requireNonNull(dropSink, "dropSink");
-        this.random = Objects.requireNonNull(random, "random");
-        this.nextEntityId = firstEntityId;
+        this(ground, worldRouter, dropSink, () -> true, random, firstEntityId);
     }
 
     public void addListener(Listener listener) {
@@ -190,7 +214,13 @@ public final class FallingBlockEntityManager {
                     iterator.remove();
                     LOGGER.fine(() -> "Falling block " + entity.entityId()
                             + " ended by the vanilla lifetime rule");
-                    dropAsItem(entity, entity.blockType());
+                    // The drop gate (FallingBlockEntity.tick line 129): the
+                    // lifetime/void arm pops the item ONLY when the rule
+                    // allows — doEntityDrops off and the stack simply
+                    // vanishes with the entity.
+                    if (entityDropsRule.getAsBoolean()) {
+                        dropAsItem(entity, entity.blockType());
+                    }
                     for (Listener listener : listeners) {
                         listener.onFallingEnded(entity, false);
                     }
@@ -241,7 +271,13 @@ public final class FallingBlockEntityManager {
             world.setBlock(landing, toPlace);
             return true;
         }
-        dropAsItem(entity, toPlace);
+        // The drop gate (FallingBlockEntity.tick line 123): the occupied
+        // landing pops the item ONLY when the rule allows — doEntityDrops
+        // off and the stack vanishes with the entity, exactly the void
+        // arm's own gate.
+        if (entityDropsRule.getAsBoolean()) {
+            dropAsItem(entity, toPlace);
+        }
         return false;
     }
 

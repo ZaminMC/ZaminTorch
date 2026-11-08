@@ -432,6 +432,27 @@ class HungerExhaustionParityTest {
     void thePearlTeleportPaysNoPhantomJump() throws Exception {
         EngineServer server = boot();
         try {
+            // THE ENDERMITE VARIABLE, CONTROLLED AT THE REFERENCE'S OWN
+            // GATE: the pearl's 5% passenger consult (EnderPearlEntity
+            // .onCollision line 52) reads doMobSpawning before the roll,
+            // and the spawned body HUNTS the thrower (EndermiteEntity's
+            // MeleeAttackGoal(this, PlayerEntity.class, 1.0, false) at
+            // band 2 over ActiveTargetGoal(PlayerEntity.class) — the
+            // reference's own goal set). The teleport lands the thrower
+            // hovering at the pearl's origin, the endermite spawns at
+            // the pre-teleport feet directly beneath it, and vanilla's
+            // melee reach (MeleeAttackGoal.attack's d0 = width*2*2 +
+            // target.width = 2.2 against the target's box minY — the
+            // 1.62 gap inside the band) lets the first bite land INSIDE
+            // this seat's window: a legitimate 0.3 damage-taken charge
+            // (EntityPlayer.attackEntityFrom's addExhaustion(0.3F), the
+            // ordinary mob-melee source) that has nothing to do with the
+            // position carry this seat measures. The rule OFF is the
+            // reference's own shape for a world without the passenger —
+            // the teleport itself always runs (the roll alone is gated).
+            server.ticker().submit(() -> server.gameRules()
+                    .set("doMobSpawning", "false"));
+            EngineAwaits.awaitTicks(server.world(), 1, "the rule settles");
             PlayerSession body = join(server, "Pearlist");
             EngineAwaits.awaitTicks(server.world(), 3, "the scratch seeds");
             double x = body.position().x();

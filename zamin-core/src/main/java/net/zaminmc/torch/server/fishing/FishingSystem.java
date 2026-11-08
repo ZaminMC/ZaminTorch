@@ -78,6 +78,12 @@ public final class FishingSystem {
      * arm alone; the live un-stick cycle resets the clock every tick, so a
      * live bobber never reaches it — the NBT-restored bobber's own law). */
     public static final int STUCK_TIMEOUT = 1200;
+    /** The vanilla kill plane (Entity.tick line 342, reached through
+     * FishingBobberEntity.tick line 173's {@code super.tick()} — the only
+     * thrown-family body whose walk still runs the base tick): a bobber
+     * below -64 is REMOVED, the base voidTick's plain {@code remove()} — no
+     * damage, no drop, the rod's own gates governing the recast. */
+    public static final double VOID_KILL_Y = -64.0;
     /** The angler's leash (squaredDistanceTo > 1024 removes). */
     public static final double LEASH_SQUARED = 1024.0;
     /** The throw's power and scale (the ctor's own 0.4F and 1.5F). */
@@ -696,6 +702,14 @@ public final class FishingSystem {
     }
 
     private void tickOne(Bobber bobber) {
+        // The kill plane (Entity.tick line 342 over the base tick the
+        // reference's own walk opens with — super.tick() precedes the
+        // hooked follow, the stuck consult, and the flight alike): past
+        // -64 the bobber ends whole, the base voidTick's remove shape.
+        if (bobber.y < VOID_KILL_Y) {
+            remove(bobber);
+            return;
+        }
         // The hooked follow (lines 192-203): the bobber rides the body.
         if (bobber.hooked != null) {
             if (hooks.hookedAlive(bobber.hooked)) {
