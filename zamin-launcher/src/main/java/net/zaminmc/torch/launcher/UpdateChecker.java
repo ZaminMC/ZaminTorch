@@ -34,7 +34,7 @@ import java.util.logging.Logger;
 final class UpdateChecker {
 
     /** The running build's version — stamped by the release workflow. */
-    static final String BUILD_VERSION = "1.8.8-160";
+    static final String BUILD_VERSION = "1.8.8-161";
 
     private static final Logger LOGGER = Logger.getLogger(UpdateChecker.class.getName());
     /** The first page of the release list — newest first, prereleases included
