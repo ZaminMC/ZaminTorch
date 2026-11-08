@@ -331,4 +331,5 @@ class GolemFlankWalkParityDiscoveryTest {
                         + " route at the chase band for ~30 ticks past the"
                         + " opening)");
     }
+
 }
