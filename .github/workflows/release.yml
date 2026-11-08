@@ -89,6 +89,33 @@ jobs:
           java-version: '21'
           cache: gradle
 
+      # The Gradle DISTRIBUTION, cached apart from the user-home cache
+      # above (setup-java's gradle cache covers dependencies, never the
+      # wrapper's own download): three consecutive release runs
+      # (#686-#688, 2026-11-08) died on the wrapper's 10-second
+      # services.gradle.org timeout — a transient 504/timeout on the
+      # runner's side, never a code failure. The cache serves every run
+      # after the first; the retry warm-up survives the first.
+      - name: Cache the Gradle distribution
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/wrapper/dists
+          key: gradle-dists-${{ runner.os }}-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties') }}
+
+      - name: Warm the Gradle distribution (retry the flaky download)
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3 4 5; do
+            if ./gradlew --version >/dev/null 2>&1; then
+              echo "distribution ready (attempt $attempt)"
+              exit 0
+            fi
+            echo "attempt $attempt failed — retrying in 15s"
+            sleep 15
+          done
+          # The last attempt's error surfaces whole.
+          ./gradlew --version
+
       - name: Compute the next build number (dual tag ledger)
         id: version
         env:
