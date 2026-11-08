@@ -349,9 +349,20 @@ class WitherSummonDimensionDiscoveryTest {
         server.blockInteraction().submitMiningStart(builder, offPatternMount.offset(0, 1, 0));
         EngineAwaits.awaitTicks(server.world(), 12, "the dig accumulates past the accept band");
         server.blockInteraction().submitMiningFinished(builder, offPatternMount.offset(0, 1, 0));
+        // The ITEM is the awaited observable (run #680's CI red seat
+        // root-caused: the block-break await alone leaves a one-tick race
+        // to the item spawn — under the loaded runner the assert could
+        // poll between the break and the drop; the drop itself is the
+        // law this seat pins, so the drop is the condition).
         EngineAwaits.awaitCondition(server.world(),
-                () -> nether.getBlock(offPatternMount.offset(0, 1, 0)).equals(nether.airType()),
-                40, "the off-pattern nether skull broke");
+                () -> nether.getBlock(offPatternMount.offset(0, 1, 0)).equals(nether.airType())
+                        && server.itemEntities().all().stream().anyMatch(item ->
+                                item.dimension() == -1
+                                        && Math.abs(item.position().x() - 66.5) < 1.5
+                                        && Math.abs(item.position().z() - 64.5) < 1.5
+                                        && item.stack().type().identifier().toString()
+                                                .equals("minecraft:skull")),
+                40, "the off-pattern nether skull broke with its typed drop in the nether");
         assertTrue(server.itemEntities().all().stream().anyMatch(item ->
                         item.dimension() == -1
                                 && Math.abs(item.position().x() - 66.5) < 1.5

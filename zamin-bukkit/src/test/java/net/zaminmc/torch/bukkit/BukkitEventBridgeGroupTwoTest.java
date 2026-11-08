@@ -6,6 +6,7 @@ import net.zaminmc.torch.event.EventSubscription;
 import net.zaminmc.torch.server.block.BuiltinBlocks;
 import net.zaminmc.torch.server.block.FluidBlocks;
 import net.zaminmc.torch.server.entity.MobType;
+import net.zaminmc.torch.testing.EngineAwaits;
 import net.zaminmc.torch.server.furnace.FurnaceBlockEntity;
 import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.server.piston.PistonBlocks;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.TestMethodOrder;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
@@ -294,26 +296,54 @@ class BukkitEventBridgeGroupTwoTest {
         // The smelt commit: the input/result views ride, the commit lands
         // (the 200-tick cook cycle needs the long await).
         loadFurnace(harness, smeltAt, "minecraft:iron_ore", "minecraft:coal");
-        awaitLong(() -> harness.probeLogContains(
-                "event:smelt at=(50,40,52) source=IRON_ORE result=IRON_INGOT"),
-                "the bridged smelt carried the input and result views");
-        awaitLong(() -> {
+        try {
+            awaitLong(harness, () -> harness.probeLogContains(
+                    "event:smelt at=(50,40,52) source=IRON_ORE result=IRON_INGOT"),
+                    600,
+                    "the bridged smelt carried the input and result views");
+        } catch (AssertionError missed) {
+            // The forensics dump (the run's own first-occurrence reads):
+            // the furnace's live state and the probe's furnace lines.
+            FurnaceBlockEntity furnace = harness.server.furnaceManager().at(smeltAt);
+            String state = furnace == null ? "GONE (no block entity)"
+                    : "burning=" + furnace.burning()
+                    + " burnRemaining=" + furnace.burnTimeRemaining()
+                    + " cook=" + furnace.cookTime()
+                    + " input=" + furnace.input().type().identifier()
+                    + " fuel=" + furnace.fuel().type().identifier()
+                    + " output=" + furnace.output().type().identifier();
+            String furnaceLog;
+            try {
+                furnaceLog = harness.probeLogLines().stream()
+                        .filter(line -> line.contains("(50,40,52)")
+                                || line.contains("(50,40,50)"))
+                        .reduce("", (a, b) -> a + "\n  " + b);
+            } catch (IOException unreadable) {
+                furnaceLog = " <unreadable>";
+            }
+            throw new AssertionError(missed.getMessage()
+                    + " [state: " + state + "; ticks="
+                    + harness.server.world().totalTicks()
+                    + "; furnace log:" + furnaceLog + "]", missed);
+        }
+        awaitLong(harness, () -> {
             FurnaceBlockEntity furnace = harness.server.furnaceManager().at(smeltAt);
             return furnace != null && !furnace.output().isEmpty()
                     && furnace.output().type().identifier().value().equals("iron_ingot");
-        }, "the uncancelled smelt committed the ingot");
+        }, 600, "the uncancelled smelt committed the ingot");
         // The cancelled twin: the gold smelt refuses — the output stays
         // empty while the fuel keeps burning (the engine's own law).
         loadFurnace(harness, goldAt, "minecraft:gold_ore", "minecraft:coal");
-        awaitLong(() -> harness.probeLogContains(
+        awaitLong(harness, () -> harness.probeLogContains(
                 "event:smelt at=(50,40,54) source=GOLD_ORE result=GOLD_INGOT"),
+                600,
                 "the gold smelt event dispatched");
         harness.await(() -> harness.probeLogContains("cancel:smelt-gold"),
                 "the legacy listener cancelled the gold smelt");
-        awaitLong(() -> {
+        awaitLong(harness, () -> {
             FurnaceBlockEntity furnace = harness.server.furnaceManager().at(goldAt);
             return furnace == null || furnace.output().isEmpty();
-        }, "the cancelled smelt never commits an output");
+        }, 100, "the cancelled smelt never commits an output");
     }
 
     @Test
@@ -435,24 +465,20 @@ class BukkitEventBridgeGroupTwoTest {
                 + " own law)");
     }
 
-    /** The longer await (the smelt cycle is 200 real-time ticks). */
-    private static void awaitLong(BooleanSupplier condition, String description)
-            throws InterruptedException {
-        // The liveness bound's own load headroom (run #679's CI red seat
-        // root-caused: the deadline burned to the full 40s under the
-        // release run's PARALLEL module load — the runner's ticker thread
-        // starved and the 200-tick cook cycle covered fewer ticks per
-        // wall second; the conditions themselves stay engine-visible
-        // polls, the bound is liveness alone, so the headroom widens
-        // rather than the seat joining the retry census).
-        long deadline = System.currentTimeMillis() + 120_000;
-        while (System.currentTimeMillis() < deadline) {
-            if (condition.getAsBoolean()) {
-                return;
-            }
-            Thread.sleep(25);
-        }
-        throw new AssertionError("Condition not met in time: " + description);
+    /**
+     * The longer await — THE TICK-DENOMINATED FORM (run #679/#680's CI red
+     * seats root-caused: the WALL deadline burned under the release run's
+     * PARALLEL module load — the runner's ticker thread starved and the
+     * 200-tick cook cycle covered fewer ticks per wall second; a wall
+     * bound expires by wall time even when the engine simply runs slow,
+     * a tick budget never does). The conditions stay engine-visible
+     * polls; the liveness guard inside covers a stopped engine and the
+     * patience cap bounds a crawling one with its own honest message.
+     */
+    private static void awaitLong(BukkitTestHarness harness, BooleanSupplier condition,
+            long tickBudget, String description) throws InterruptedException {
+        EngineAwaits.awaitCondition(harness.server.world(), condition,
+                tickBudget, description);
     }
 
     private static int countOf(List<String> lines, String needle) {

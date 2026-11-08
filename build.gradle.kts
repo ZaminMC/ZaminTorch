@@ -83,14 +83,13 @@ subprojects {
                 includeClasses.add("*MultiplayerSleepWireTest")
                 includeClasses.add("*SurvivalFlowIntegrationTest")
                 includeClasses.add("*DonkeyChestIntegrationTest")
-                // The 2026-11-08 run-#679 extension — the release run's
-                // furnace-bridge seat (the smelt-event await burned its
-                // full deadline under the parallel module load; the solo
-                // class green x3, the full-module miss intermittent ~1/4
-                // even at the widened 120s bound — the conditions
-                // engine-visible polls, the census row carries the
-                // evidence):
-                includeClasses.add("*BukkitEventBridgeGroupTwoTest")
+                // (The 2026-11-08 run-#679 furnace-bridge entry RETIRED
+                // the same day: the seat's WALL-deadline await was the
+                // defect — the parallel module load starved the runner's
+                // ticker and the 40s/120s bounds burned by WALL time while
+                // the engine simply ran slow. Converted to the
+                // tick-denominated EngineAwaits form at the source; see the
+                // census's run-#679/#680 rows.)
             }
         }
     }

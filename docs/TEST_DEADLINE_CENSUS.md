@@ -135,16 +135,27 @@ becomes eligible by recurring. The seed membership, with the evidence:
 - The 2026-11-08 run-#679 extension — the release run's own four red
   seats, each root-caused the same day from the run's log (three fixed
   at the source, one allowlisted):
-  - `BukkitEventBridgeGroupTwoTest` (the furnace-bridge seat) — the
-    smelt-event await (an engine-visible probe-log poll, the C-C
-    liveness form) burned its FULL 40s deadline under the release run's
-    parallel module load (the runner's ticker starved; the test's own
-    wall burn measured exactly the bound). The class's `awaitLong` bound
-    widened to 120s for the load headroom, and the residual intermittent
-    miss (1-in-4 full-module runs locally at the widened bound, green
-    solo x3, green on 3 of 4 full-module runs) joins the allowlist per
-    the membership law: the conditions are engine-visible polls, the
-    miss is load-shape-only, the solo evidence is the diagnosis.
+  - `BukkitEventBridgeGroupTwoTest` (the furnace-bridge seat) — NOT a
+    flake: the seat's `awaitLong` was a WALL-deadline poll (40s, widened
+    to 120s in the first repair) — under the release run's parallel
+    module load (the gradle cross-module `--parallel`, the approved Phase
+    A baseline) the runner's engine-ticker thread starved and the 200-
+    tick cook cycle covered fewer ticks per wall second, the bound
+    burning by WALL time while the engine simply ran slow (runs #679
+    AND #680 both red the same way, the #680 retry re-failing — the
+    retry cannot cure a wall-clock starvation). FIXED AT THE SOURCE: the
+    seat's awaits converted to the tick-denominated
+    `EngineAwaits.awaitCondition` form (the repo's own honest bound — a
+    wall deadline expires by wall time even when the engine runs slow,
+    a tick budget never does; the liveness guard covers the stopped
+    engine and the patience cap bounds the crawling one with its own
+    message). The one-day allowlist entry RETIRED with the fix; the
+    class never joins the retry census.
+  - `WitherSummonDimensionDiscoveryTest` (the off-pattern skull drop,
+    run #680) — NOT a flake: the seat awaited the BLOCK break then
+    asserted the ITEM drop — a one-tick race to the item spawn the
+    loaded runner could poll between. FIXED AT THE SOURCE: the drop
+    itself is the awaited condition now.
   - `PistonSliceDOwnershipAcceptanceTest` (the nether-body seat) — NOT
     a flake: the observation pig was a FULL-AI body whose own stroll
     family could wander it inside the await window (the seat's 1e-9 pin
