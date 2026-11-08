@@ -468,7 +468,10 @@ class HungerExhaustionParityTest {
             assertTrue(body.exhaustion() < 0.005f,
                     "the upward pearl's position carry never charges the jump arm "
                             + "(the reference's setPositionAndUpdate never reaches "
-                            + "the stats walk — PlayerEntity lines 1287-1303)");
+                            + "the stats walk — PlayerEntity lines 1287-1303)."
+                            + " [forensics: exhaustion=" + body.exhaustion()
+                            + " y=" + body.position().y() + " (thrown from " + y + ")"
+                            + " ticks=" + server.world().totalTicks() + "]");
         } finally {
             server.shutdown(null);
         }
