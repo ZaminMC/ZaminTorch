@@ -275,6 +275,9 @@ public final class BoatEntity extends VehicleEntity {
                 crashBreak();
                 return;
             }
+            if (swept.collidingHorizontally()) {
+                markCollidingHorizontally(); // the move's clip flag
+            }
             setVelocity(velocityX() * GLIDE_DRAG, velocityY() * VERTICAL_DRAG,
                     velocityZ() * GLIDE_DRAG);
             applyHeadingLaw(at);
@@ -331,6 +334,9 @@ public final class BoatEntity extends VehicleEntity {
         if (hitWall && headSpeed > CRASH_SPEED) {
             crashBreak();
             return;
+        }
+        if (hitWall) {
+            markCollidingHorizontally(); // the move's clip flag
         }
         setVelocity(velocityX() * GLIDE_DRAG, velocityY() * VERTICAL_DRAG,
                 velocityZ() * GLIDE_DRAG);

@@ -171,7 +171,11 @@ class BoatSteerParityDiscoveryTest {
         boat.tick(water);
         assertEquals(BoatEntity.HORIZONTAL_CAP * GLIDE, boat.velocityX(), 1e-12,
                 "the 0.35 cap then the glide drag");
-        assertEquals(0.0, boat.velocityY(), 1e-12, "the water rest holds the vertical");
+        // The 5-slice buoyancy (census row BB-1) replaced the water rest:
+        // the hull deep in the band is fully submerged — the vertical
+        // carries the +0.007 rise (the drag after the move).
+        assertEquals(BoatEntity.SUBMERGED_RISE * BoatEntity.VERTICAL_DRAG,
+                boat.velocityY(), 1e-12, "the submerged rise carries the vertical");
     }
 
     // ------------------------------------------------------------------

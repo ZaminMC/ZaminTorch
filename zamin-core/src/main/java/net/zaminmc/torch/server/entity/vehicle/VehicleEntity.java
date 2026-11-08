@@ -261,6 +261,12 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
      * lines 396-411).
      */
     private boolean wreck;
+    /**
+     * The move's horizontal-collision flag (the reference's Entity.move
+     * line 564: {@code d3 != dx || d5 != dz} — assigned every move, the
+     * TNT cart's impact detonation reads it after the walk).
+     */
+    private boolean collidingHorizontally;
     /** The query of the current tick (set by the manager's tick loop). */
     protected WorldQuery query;
 
@@ -774,7 +780,27 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
      */
     public final void tick(WorldQuery world) {
         this.query = Objects.requireNonNull(world, "world");
+        // The move's collision flag (the reference's own Entity field,
+        // assigned by every move): cleared at the tick's head, set by
+        // the walks' collision arms — the TNT cart's impact detonation
+        // reads it beside the post-move speed.
+        this.collidingHorizontally = false;
         tickKind(world);
+    }
+
+    /**
+     * The move's horizontal-collision verdict (the reference's
+     * {@code collidingHorizontally}, Entity.move line 564: the x/z clip
+     * this tick — the blocked axis zeroed beside it, the surviving
+     * perpendicular axis carrying on).
+     */
+    public boolean collidingHorizontally() {
+        return collidingHorizontally;
+    }
+
+    /** The walks' collision arm marks the flag (the move's clip). */
+    protected void markCollidingHorizontally() {
+        this.collidingHorizontally = true;
     }
 
     /**

@@ -67,35 +67,45 @@ class MinecartVariantsTest {
     }
 
     @Test
-    void theTntCartDetonatesOnAFastHalt() {
-        // tick lines 54-60 (collidingHorizontally): a cart that stops dead
-        // at speed squared >= 0.01 detonates — the engine's track-end halt
-        // is the matching surface.
+    void theTntCartDetonatesOnAFastWallClip() {
+        // tick lines 54-60 (collidingHorizontally + the POST-move speed):
+        // a cart that clips a wall while its perpendicular axis still
+        // carries speed squared >= 0.01 detonates — the blocked axis
+        // zeroed by the clip, the survivor paying the drag. A HEAD-ON
+        // halt (no perpendicular carry) never detonates, exactly
+        // vanilla. The pre-TR engine keyed on the track-end halt — a
+        // surface the run-off retired; the move's collision flag is the
+        // reference's own.
         Blasts blasts = new Blasts();
         TntMinecartEntity cart = new TntMinecartEntity(9710,
                 new Position(0.5, 64.0, 0.5), new Random(72L));
         cart.setBlastSink(blasts);
-        cart.setVelocity(0.3, 0.0, 0.0); // the full rail speed
-        // The off-rail world never halts the cart through the rail walk —
-        // the impact arm keys on the halted state (velocity zeroed with a
-        // pre-halt speed), which the tick's off-rail tail never produces.
-        // The unit: the arm's own gate (the pre-halt speed + the zeroed
-        // velocity) through a rail world that ends the track.
-        VehicleEntity.WorldQuery endingRail = new VehicleEntity.WorldQuery() {
+        // The angled approach: +X into the wall, +Z the surviving
+        // perpendicular carry (0.2 -> the post-drag 0.19, squared
+        // 0.0361 >= 0.01).
+        cart.setVelocity(0.3, 0.0, 0.2);
+        // The off-rail world with the wall: the manual walk's horizontal
+        // clip zeroes the blocked axis and marks the collision flag.
+        VehicleEntity.WorldQuery walled = new VehicleEntity.WorldQuery() {
             @Override public boolean isSolid(double x, double y, double z) {
-                return false;
-            }
-
-            @Override public int railAxisAt(double x, double y, double z) {
-                // A single north-south rail cell at (0, 64, 0): the track
-                // ends immediately — the walk halts the cart.
-                return (int) Math.floor(x) == 0 && (int) Math.floor(y + 0.4) == 64
-                        && (int) Math.floor(z) == 0 ? 0 : -1;
+                return x >= 0.7; // the first tick's 0.8 advance clips
             }
         };
-        cart.tick(endingRail); // the halt: the pre-halt speed detonates
-        assertTrue(cart.dead(), "the fast halt detonated");
+        cart.tick(walled); // the clip: the impact detonation
+        assertTrue(cart.dead(), "the angled wall clip detonated");
         assertEquals(1, blasts.detonations.size(), "the impact detonation");
+
+        // THE HEAD-ON REFUSAL (the reference's own edge): a cart whose
+        // perpendicular axis carries nothing clips the wall with a
+        // post-move speed of exactly zero — no detonation.
+        Blasts none = new Blasts();
+        TntMinecartEntity headOn = new TntMinecartEntity(9711,
+                new Position(0.5, 64.0, 0.5), new Random(72L));
+        headOn.setBlastSink(none);
+        headOn.setVelocity(0.3, 0.0, 0.0);
+        headOn.tick(walled);
+        assertFalse(headOn.dead(), "the head-on halt never detonates");
+        assertEquals(0, none.detonations.size(), "no detonation without the carry");
     }
 
     @Test

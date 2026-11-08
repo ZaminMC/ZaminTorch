@@ -655,6 +655,9 @@ public class MinecartEntity extends VehicleEntity {
                 solverMove(query, HALF_HEIGHT, CART_WIDTH,
                         velocityX(), velocityY(), velocityZ());
         if (swept != null) {
+            if (swept.collidingHorizontally()) {
+                markCollidingHorizontally(); // the move's clip flag
+            }
             // Lines 333-337: the AIR 0.95 on all three (the post-move
             // onGround consult — a landed cart pays nothing further).
             if (!onGround()) {
@@ -666,6 +669,21 @@ public class MinecartEntity extends VehicleEntity {
         double newX = at.x() + velocityX();
         double newZ = at.z() + velocityZ();
         double newY = at.y() + velocityY();
+        // THE HORIZONTAL CLIP (the reference's move, Entity lines
+        // 553-594 — the standing gap the 2026-11-08 impact row closed:
+        // the off-rail manual walk now stops at walls like every other
+        // move, the blocked axis zeroed and the collision flag marked —
+        // the TNT cart's impact detonation reads both).
+        if (blocked(query, newX, at.z(), at.y() + HALF_HEIGHT)) {
+            newX = at.x();
+            setVelocity(0.0, velocityY(), velocityZ());
+            markCollidingHorizontally();
+        }
+        if (blocked(query, newX, newZ, at.y() + HALF_HEIGHT)) {
+            newZ = at.z();
+            setVelocity(velocityX(), velocityY(), 0.0);
+            markCollidingHorizontally();
+        }
         boolean grounded = false;
         if (velocityY() <= 0 && query.isSolidAt(newX, newY - HALF_HEIGHT - GROUND_EPSILON, newZ)) {
             newY = Math.floor(newY - HALF_HEIGHT - GROUND_EPSILON) + 1.0 + HALF_HEIGHT;

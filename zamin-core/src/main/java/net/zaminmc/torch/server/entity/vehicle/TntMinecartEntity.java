@@ -180,14 +180,17 @@ public class TntMinecartEntity extends MinecartEntity
 
     /**
      * The kind's tick (tick lines 39-60, 1:1): the fuse burns, the
-     * detonation at zero, and the impact arm (the track-end halt at
-     * speed squared >= 0.01 — the reference's collidingHorizontally
-     * surface in the engine's rail walk).
+     * detonation at zero, and the impact arm — the reference's own
+     * {@code collidingHorizontally} gate over the POST-move speed (the
+     * blocked axis zeroed by the clip, the surviving perpendicular axis
+     * carrying the 0.01 band — a head-on halt carries nothing and never
+     * detonates, exactly vanilla). The pre-TR engine keyed on the
+     * track-end halt's zeroed pair — a surface the run-off retired; the
+     * move's collision flag (the off-rail walk's wall clip) is the
+     * reference's own surface.
      */
     @Override
     protected void tickKind(net.zaminmc.torch.server.entity.vehicle.VehicleEntity.WorldQuery world) {
-        boolean wasOnRail = railShapeAt(world, position()) != -1;
-        double speedSquaredBefore = velocityX() * velocityX() + velocityZ() * velocityZ();
         super.tickKind(world);
         if (fuseTicks > 0) {
             fuseTicks--;
@@ -195,12 +198,14 @@ public class TntMinecartEntity extends MinecartEntity
             detonateAndDie();
             return;
         }
-        // The impact arm: the reference's collidingHorizontally (a wall
-        // hit at speed) — the engine's track-end halt with the pre-halt
-        // speed is the matching surface (the cart stopped dead this tick).
-        if (wasOnRail && speedSquaredBefore >= IMPACT_SPEED_SQUARED
-                && velocityX() == 0.0 && velocityZ() == 0.0) {
-            detonateAndDie();
+        // The impact arm (tick lines 54-60): the move's horizontal
+        // collision this tick, the speed read AFTER the walk — the drag
+        // included, the clipped axis zero.
+        if (collidingHorizontally()) {
+            double d0 = velocityX() * velocityX() + velocityZ() * velocityZ();
+            if (d0 >= IMPACT_SPEED_SQUARED) {
+                detonateAndDie();
+            }
         }
     }
 
