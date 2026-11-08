@@ -24,13 +24,13 @@ architecture, decisions and milestones.
 [![1.8.8 vanilla parity](https://img.shields.io/badge/1.8.8_vanilla_parity-%E2%89%8895%25-brightgreen)](#status)
 [![dimension ownership](https://img.shields.io/badge/dimension_ownership-%E2%89%8897%25-brightgreen)](#status)
 [![CI pipeline](https://img.shields.io/badge/CI_pipeline-%E2%89%8897%25-brightgreen)](#status)
-[![automated seats](https://img.shields.io/badge/automated_seats-3%2C795-brightgreen)](#status)
+[![automated seats](https://img.shields.io/badge/automated_seats-3%2C811-brightgreen)](#status)
 
 | Workstream | Done | State |
 |------------|------|-------|
-| 1.8.8 vanilla parity (the mechanics ledger, §22/§29) | ≈95% | 3,300+ engine seats green; the minecart's whole rail walk closed through the shapes (the roll law, the ascents' climb/ride/grade-trim, the curve diagonals, the perpendicular kick) and the boat's own steer model landed (the paddling, the momentum ramp, the cap, the crash) |
+| 1.8.8 vanilla parity (the mechanics ledger, §22/§29) | ≈95% | 3,300+ engine seats green; the vehicle family's body laws closed through the census rows (the track-end run-off, the boat's 5-slice buoyancy / movement heading / wreck drops / flora mow, the cart's wire-yaw convention) on top of the rail walk's shape model and the boat's own steer |
 | Dimension ownership (the FL4 waves — every system ranges its own world) | ≈97% | chests, containers, tiles, pistons, decorations, leads, beacons, the wither — each dimension's own family, redstone and wire |
-| CI pipeline (Phase A + publishing) | ≈97% | parallelised with selective retry and failure forensics; **torch-1.8.8-158 published** — the six-day stuck-release window closed whole and the pipeline green again on every push |
+| CI pipeline (Phase A + publishing) | ≈97% | parallelised with selective retry and failure forensics; **torch-1.8.8-159 published**; run #678's two red seats root-caused from the uploaded forensics the same day (the engine 1:1 at both — the bench's own probability and death-race forms repaired) |
 | Engine infrastructure (§22/§35: ownership, scheduling, transport) | ≈90% | the region model, the cross-owner protocol, the encode-once transport landed and pinned; the B-gaps wait for their triggers per §X.8 |
 | Concurrency Phase 5 — parallel pre-gen lighting | 90% (gated) | landed, measured 1.4–1.6×, OFF by default (`torch.parallel-pregen-light`) |
 | Concurrency Phase 6 — further parallel gameplay lanes | ≈20% | the random-tick lane landed; each further lane gated on its own evidence |
@@ -41,7 +41,7 @@ architecture, decisions and milestones.
 
 [Progress history](WORKLOG.md)
 
-<sub>Every row's estimate is measured against its own ledger — the wave/section named in the row — not a feeling; percentages move as work lands and a row leaves the table at 100%. The landed record behind these numbers lives in [`Torch-Arcetecture.txt`](Torch-Arcetecture.txt) §22/§29, [`VANILLA_1_8_8_COMPATIBILITY.md`](VANILLA_1_8_8_COMPATIBILITY.md), [`NATIVE_API_CAPABILITIES.md`](NATIVE_API_CAPABILITIES.md) and [`WORKLOG.md`](WORKLOG.md). Last full re-verification of the table: 2026-10-31 (the FL4-F10 redstone world-binding wave + the parity PR wave #101/#102/#104); latest landing: 2026-11-08 (Waves SL + BS — the rail walk's shape model: the ascents' climb arm, interpolated ride height and grade trim, the curve diagonals, the two-band rail search, the perpendicular-look kick; the boat's own steer: the paddling drive, the momentum ramp, the 0.35 cap, the glide drag, the wall crash — and torch-1.8.8-158 published, the release pipeline green).</sub>
+<sub>Every row's estimate is measured against its own ledger — the wave/section named in the row — not a feeling; percentages move as work lands and a row leaves the table at 100%. The landed record behind these numbers lives in [`Torch-Arcetecture.txt`](Torch-Arcetecture.txt) §22/§29, [`VANILLA_1_8_8_COMPATIBILITY.md`](VANILLA_1_8_8_COMPATIBILITY.md), [`NATIVE_API_CAPABILITIES.md`](NATIVE_API_CAPABILITIES.md) and [`WORKLOG.md`](WORKLOG.md). Last full re-verification of the table: 2026-10-31 (the FL4-F10 redstone world-binding wave + the parity PR wave #101/#102/#104); latest landing: 2026-11-08 (Waves TR + BB + CY — the SL+BS session's six census rows closed whole: the track-end run-off with the TNT impact arm re-shaped to the reference's own wall-clip surface, the boat's 5-slice buoyancy, movement-following heading, 3-planks-2-sticks wreck drops and snow/lily flora mow, and the cart's fastAtan2 wire-yaw convention with the flip pair).</sub>
 
 ## Downloading a dev build (no build tools needed)
 

@@ -3223,3 +3223,94 @@ AT CLOSE: the next session's first acts per the re-pin: the CI watch
 torch-1.8.8-159 out), the verifier's PRs when they open (none at
 close), the six new census rows' three-pass verification, and the
 flank walk's steal-poll cadence row.
+
+---
+## 2026-11-08 — Waves TR + BB + CY + the #678 forensics (session 4)
+
+Task: the re-pin's first acts — the CI watch on run #678's red tree,
+the verifier's PRs (none open), then the SL+BS session's own six
+census rows closed whole.
+
+Work Log:
+- Read the worklog, synced develop (1833e0c5 clean), checked the PRs
+  (0 open — the verifier's lane still empty) and the CI: run #678
+  RED on d20a8ae7 (a docs-only tree — both seats load flakes, not
+  regressions), the pipeline idle on the [skip ci] bump.
+- RUN #678'S TWO RED SEATS ROOT-CAUSED FROM THE UPLOADED FORENSICS
+  (commit 9d1de3a4 — the engine 1:1 at both, the bench's own
+  vanilla-validity the defect, the wall-clip seat's pattern):
+  (1) DragonContactBounds' edge-stand player — the survival body
+  standing in a flying dragon's path died to the HEAD arm mid-seat,
+  and a dead body's every teleport is silently dropped
+  (teleportOnTick's own dead gate) with the fling walk skipping it
+  whole: all 30 rounds ran against a body frozen at its death spot.
+  The seat joins CREATIVE now — the reference flings every
+  LivingEntity with no gamemode gate (creative players ARE flung by
+  the wing hulls) while the creative body takes no head wound — and
+  both seats' round windows count COMPLETED ENGINE TICKS (14 in
+  2-tick steps, the census's ML-002 law). (2) PistonBreakDrop's
+  mature-wheat seat — WheatBlock.dropItems rolls the seed bonus
+  3 x nextInt(15) <= 7 at age 7, so a single break drops NO seeds
+  (7/15)^3 ~ 10.2% of the time: a LEGITIMATE 1:1 outcome the
+  single-sample await blamed as a divergence. The seat re-breaks
+  (retract, re-place, re-extend, each round's rolls fresh, bounded
+  12) with the wheat await still gating every round. Both classes
+  2/2 green.
+- WAVES TR + BB + CY LANDED (commit 20aafdc1 — the six census rows,
+  each law read from the reference source and each verified RED on
+  the neutralized engine by the no-op patches): TR the track-end
+  run-off (the flat walk's advance UNCONDITIONAL — the reference
+  consults no continuation; the halt and the beside-rail corner turn
+  retired whole); BB-1 the 5-slice buoyancy (the hull's band sliced
+  into five, each shifted -0.125, the wet fraction steering the
+  ±0.04 bob — the d0=0 form IS the gravity — and the submerged
+  +0.007 rise; the WorldQuery's waterInBox with the production
+  per-cell WATER-only walk); BB-2 the heading law (the yaw follows
+  the MOVEMENT — fastAtan2 over the NEGATED displacement, clamped
+  ±20°/tick, never the rider's look; followRiderLook retired); BB-3
+  the wreck drops (the crash and the 3.0+ dry fall break into 3
+  planks + 2 sticks through the new wreck arm — the real wiring,
+  five drops merging into their stacks; the damage walk's own break
+  keeps the boat item; the fall debt gated on the below-not-water
+  consult); BB-4 the flora mow (the four corners x the two y-bands —
+  snow layers vanish, lily pads break with drops); CY the cart's
+  wire-yaw convention (fastAtan2(d2, d0)·180/π over the NEGATED
+  displacement with the flipped flag's +180 and the ±170 wrap pair —
+  VehicleMath ports the reference's fastAtan2/wrapDegrees/fastInvSqrt
+  verbatim, the 2^44 index trick documented; the internal consults
+  convert through wireYawAsLook).
+- THE TNT CART'S IMPACT ARM RE-SHAPED (commit 33c43f68 — the TR
+  row's adjacent tail, surfaced by the vehicle package's rerun): the
+  old arm keyed on the track-end halt's zeroed pair; the reference's
+  law is the move's collidingHorizontally flag over the POST-move
+  speed (the blocked axis zeroed, the surviving PERPENDICULAR axis
+  carrying the 0.01 band — a head-on halt never detonates, exactly
+  vanilla). VehicleEntity gains the collision flag (cleared at the
+  tick's head, marked by the walks' arms), and the off-rail manual
+  walk's standing gap closed: the horizontal clip the reference's
+  move always ran now stops the off-rail cart at walls.
+- SEATS: BoatBodyLawsParityDiscoveryTest 11 NEW +
+  MinecartYawConventionParityDiscoveryTest 5 NEW; the stale seats
+  updated to the landed laws (the float seat's waterline bob, the
+  track-end seat's run-off, the TNT wall-clip law with the head-on
+  refusal, the cap seat's submerged rise, the relog seat's bob
+  window — commit e82a385a). Each law RED-verified by the no-op
+  patches in turn.
+- LANES: the vehicle package 117/117, the protocol module 247/247
+  (after the relog pin), the related batch (activator-rail, anvil,
+  command-cart, detector-rail, drop-stamp, falling-anvil, hopper,
+  piston-push, armorstand, seated-mob) 85/85, the entity lane run at
+  close.
+- The architecture's record appended (Waves TR + BB + CY, the
+  census-rows paragraph closed) + the NEXT WORK re-pin (the
+  verifier's PRs, the flank walk's cadence row, the CI watch on the
+  next push's run — the first to carry this wave); the README's
+  rows, badge (3,811 seats) and footnote refreshed.
+
+SESSION COMMITS (all as Abasing): 9d1de3a4 (the #678 bench repairs)
++ 20aafdc1 (the six census rows) + 33c43f68 (the TNT impact arm +
+  the off-rail clip) + e82a385a (the relog pin) + the docs commit.
+
+AT CLOSE: the entity lane's full rerun finishing in the background;
+the next push's release run the first to carry the wave — a red
+run's forensics the census law's first-occurrence reads.
