@@ -98,6 +98,19 @@ public final class VehicleManager {
         void dropVehicleItem(VehicleEntity vehicle);
 
         /**
+         * The boat's WRECK drops (the 2026-11-08 census row BB-3 — the
+         * reference's crash/fall arms, BoatEntity.tick lines 315-325 +
+         * checkFallDamage lines 396-411): THREE planks and TWO sticks,
+         * five separate drops — never the boat item the damage walk's
+         * own break hands (takeDamage line 105). The default delegates
+         * to {@link #dropVehicleItem} so the older test stubs keep
+         * their semantics until they pin the law.
+         */
+        default void dropBoatWreck(VehicleEntity vehicle) {
+            dropVehicleItem(vehicle);
+        }
+
+        /**
          * The chest minecart's death extras (Slice 21a — the reference's
          * dropItems chain): the contents spill first (InventoryMinecart's
          * InventoryUtils.dropItems), then the CHEST block item
@@ -1182,9 +1195,15 @@ public final class VehicleManager {
         }
         boolean broke = "broke".equals(reason);
         if (broke) {
-            // The death drops (takeDamage's dropItems chain): the plain
-            // minecart/boat item first, then the chest variant's extras.
-            drops.dropVehicleItem(vehicle);
+            // The death drops: the boat's WRECK arms (the crash, the
+            // fall — the wreck flag) drop 3 planks + 2 sticks; every
+            // other break hands the plain minecart/boat item first,
+            // then the chest variant's extras.
+            if (vehicle.wrecked()) {
+                drops.dropBoatWreck(vehicle);
+            } else {
+                drops.dropVehicleItem(vehicle);
+            }
             if (vehicle instanceof ChestMinecartEntity cart) {
                 java.util.List<net.zaminmc.torch.item.ItemStack> contents =
                         new java.util.ArrayList<>();

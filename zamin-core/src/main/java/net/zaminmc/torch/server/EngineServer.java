@@ -3237,7 +3237,10 @@ public final class EngineServer implements Server, EngineBridge {
                 // shared body model; the engine owns the mounted rider.
                 VehicleManager vehicles = new VehicleManager(
                         new VehicleWorldQuery(),
-                        vehicle -> {
+                        new VehicleManager.DropSink() {
+                        @Override
+                        public void dropVehicleItem(
+                                net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
                             // The detonation's own death (Slice 66 — explode
                             // line 129's remove()): the annihilated body
                             // drops nothing at all.
@@ -3341,6 +3344,41 @@ public final class EngineServer implements Server, EngineBridge {
                                 itemEntities.spawnDropAtEntity(dropAt,
                                         ItemStack.of(BuiltinItems.HOPPER, 1), vehicle.dimension());
                             }
+                        }
+
+                        /**
+                         * The boat's WRECK drops (the 2026-11-08 census
+                         * row BB-3 — the reference's crash/fall arms,
+                         * BoatEntity.tick lines 315-325 + checkFallDamage
+                         * lines 396-411): THREE planks and TWO sticks,
+                         * five separate drops at the hull's own feet
+                         * anchor, never the boat item the damage walk's
+                         * own break hands (takeDamage line 105 — that arm
+                         * stays above).
+                         */
+                        @Override
+                        public void dropBoatWreck(
+                                net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle) {
+                            // doEntityDrops (the same gate the reference's
+                            // crash arm consults, line 317).
+                            if (!gameRules.getBoolean("doEntityDrops")) {
+                                return;
+                            }
+                            double wreckFeetY = vehicle.position().y()
+                                    - net.zaminmc.torch.server.entity.vehicle.BoatEntity.HALF_HEIGHT;
+                            Position wreckAt = new Position(vehicle.position().x(), wreckFeetY,
+                                    vehicle.position().z());
+                            for (int j1 = 0; j1 < 3; j1++) {
+                                itemEntities.spawnDropAtEntity(wreckAt,
+                                        ItemStack.of(BuiltinItems.PLANKS, 1),
+                                        vehicle.dimension());
+                            }
+                            for (int k1 = 0; k1 < 2; k1++) {
+                                itemEntities.spawnDropAtEntity(wreckAt,
+                                        ItemStack.of(BuiltinItems.STICK, 1),
+                                        vehicle.dimension());
+                            }
+                        }
                         },
                         new java.util.Random(),
                         VEHICLE_ID_BASE);
@@ -21077,9 +21115,12 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
-     * The mounted rider's body rides the seat: the boat's heading follows
-     * the rider's look (the look-steer), and the session position tracks
-     * the vehicle (the wire listener re-anchors the client).
+     * The mounted rider's body rides the seat: the session position
+     * tracks the vehicle (the wire listener re-anchors the client) —
+     * the boat's own heading follows its MOVEMENT inside the kind's
+     * tick now (the 2026-11-08 census row BB-2: fastAtan2 over the
+     * negated displacement, ±20°/tick — the reference's own law, the
+     * rider's look never the heading).
      */
     private void tickVehicleRiders(net.zaminmc.torch.server.entity.vehicle.VehicleManager vehicles) {
         for (net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle : vehicles.all()) {
@@ -21088,9 +21129,6 @@ public final class EngineServer implements Server, EngineBridge {
             }
             PlayerSession rider = sessionByEngineId(vehicle.passengerId());
             if (rider != null && !rider.dead()) {
-                if (vehicle instanceof net.zaminmc.torch.server.entity.vehicle.BoatEntity boat) {
-                    boat.followRiderLook(rider.rotation());
-                }
                 Position beforeSeat = rider.position();
                 // The seat anchor (the reference's updateRiderPositon line
                 // 1353): the player's body lands at the seat law — the
@@ -21708,6 +21746,78 @@ public final class EngineServer implements Server, EngineBridge {
             }
             return FluidBlocks.kindOf(activeVehicleWorld()
                     .getBlock(vehicleCellAt(x, y, z)).identifier()) != null;
+        }
+
+        /**
+         * The 5-slice buoyancy's own box consult (census row BB-1 — the
+         * reference's {@code world.containsLiquid(box,
+         * Material.WATER)}, BoatEntity.tick lines 192-199): WATER alone
+         * in any cell the slice's box spans (lava never buoys a hull) —
+         * the per-cell walk over the box's own span, never a point
+         * sample.
+         */
+        @Override
+        public boolean waterInBox(double minX, double minY, double minZ,
+                                  double maxX, double maxY, double maxZ) {
+            if (minY < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || maxY > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return false;
+            }
+            EngineWorld vehicleWorld = activeVehicleWorld();
+            int x0 = (int) Math.floor(minX);
+            int x1 = (int) Math.floor(maxX);
+            int y0 = (int) Math.floor(minY);
+            int y1 = (int) Math.floor(maxY);
+            int z0 = (int) Math.floor(minZ);
+            int z1 = (int) Math.floor(maxZ);
+            for (int x = x0; x <= x1; x++) {
+                for (int y = y0; y <= y1; y++) {
+                    for (int z = z0; z <= z1; z++) {
+                        if (FluidBlocks.kindOf(vehicleWorld.getBlock(
+                                new net.zaminmc.torch.block.BlockPosition(x, y, z))
+                                .identifier()) == FluidBlocks.Kind.WATER) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        /**
+         * The flora mow's vanish arm (census row BB-4 — the reference's
+         * {@code world.removeBlock(pos)}, BoatEntity.tick line 295): the
+         * snow layer disappears WITHOUT drops.
+         */
+        @Override
+        public void removeBlockAt(int x, int y, int z) {
+            activeVehicleWorld().setBlock(
+                    new net.zaminmc.torch.block.BlockPosition(x, y, z),
+                    world.airType());
+        }
+
+        /**
+         * The flora mow's break arm (the reference's {@code
+         * world.breakBlock(pos, true)}, BoatEntity.tick line 298): the
+         * lily pad breaks WITH its standard no-tool drops (the same
+         * drop walk the fluid spread's displaced block rides).
+         */
+        private final net.zaminmc.torch.server.interaction.DropService floraDrops =
+                new net.zaminmc.torch.server.interaction.DropService(
+                        new java.util.Random());
+
+        @Override
+        public void breakBlockWithDrops(int x, int y, int z) {
+            net.zaminmc.torch.block.BlockPosition at =
+                    new net.zaminmc.torch.block.BlockPosition(x, y, z);
+            net.zaminmc.torch.block.BlockType broken =
+                    activeVehicleWorld().getBlock(at);
+            activeVehicleWorld().setBlock(at, world.airType());
+            for (net.zaminmc.torch.item.ItemStack stack : floraDrops.washedDrops(broken)) {
+                itemEntities.spawnDropAtEntity(
+                        new Position(x + 0.5, y + 0.5, z + 0.5), stack,
+                        activeDimension);
+            }
         }
 
         @Override

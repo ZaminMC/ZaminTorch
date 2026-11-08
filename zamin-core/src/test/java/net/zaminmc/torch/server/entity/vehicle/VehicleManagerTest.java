@@ -16,10 +16,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The vehicle bodies on deterministic stub worlds: the boat floats and
- * look-steers on water, grinds on land; the minecart rides its rail axis,
- * takes the L-corner, halts where the track ends; the seat bookkeeping and
- * the break drop honor the riding contract.
+ * The vehicle bodies on deterministic stub worlds: the boat bobs at
+ * the waterline (the 5-slice buoyancy) and paddles along the rider's
+ * look, grinds on land; the minecart rides its rail axis, takes the
+ * L-corner, runs off the track end (the reference's own carry — never
+ * the halt); the seat bookkeeping and the break drop honor the riding
+ * contract.
  */
 class VehicleManagerTest {
 
@@ -109,21 +111,28 @@ class VehicleManagerTest {
     }
 
     @Test
-    void theBoatFloatsOnWaterAndLookSteers() {
+    void theBoatFloatsAtTheWaterlineAndTheRiderLookPaddles() {
         BoatEntity boat = new BoatEntity(1, new Position(0.5, 4.5, 0.5), new Random(1));
         assertTrue(boat.mount(777_001), "the rider takes the seat (Wave BS — the"
                 + " paddling is the rider's own, never a riderless drive)");
-        boat.followRiderLook(new Rotation(-90.0f, 0.0f)); // facing east
         var world = waterWorld();
+        // The rider LOOKS EAST (the look convention −90) — the paddle
+        // heading reads the rider's own yaw (the 2026-11-08 census row
+        // BB-2 retired the followRiderLook heading: the hull's own yaw
+        // follows its MOVEMENT now, the look never the heading).
         for (int i = 0; i < 40; i++) {
-            boat.steer(new VehicleEntity.SteerInput(0.0f, 1.0f, false, false));
+            boat.steer(new VehicleEntity.SteerInput(0.0f, 1.0f, false, false, -90.0f));
             boat.tick(world);
         }
-        assertTrue(boat.position().x() > 1.5, "the boat steered east: " + boat.position());
+        assertTrue(boat.position().x() > 1.5, "the boat paddled east: " + boat.position());
         assertEquals(0.5, boat.position().z(), 0.01, "the run stays on the heading line");
         assertFalse(boat.onGround(), "a floating body is never grounded");
         double y = boat.position().y();
-        assertTrue(y >= 3.9 && y < 5.0, "the boat rests in the water band: " + y);
+        // The 5-slice buoyancy's equilibrium (census row BB-1): the hull
+        // bobs AT THE WATERLINE — the wet fraction oscillates around the
+        // half-wet point (the water surface at y=5), never the pre-fix
+        // engine's frozen mid-band rest.
+        assertTrue(y >= 4.7 && y < 5.4, "the hull bobs at the waterline: " + y);
     }
 
     @Test
@@ -200,17 +209,30 @@ class VehicleManagerTest {
     }
 
     @Test
-    void theTrackEndStopsTheCartDead() {
+    void theTrackEndRunsOffAndTheFallTakesIt() {
         MinecartEntity cart = new MinecartEntity(2, new Position(0.5, 4.06, 0.5), new Random(1));
         cart.setRotation(new Rotation(-90.0f, 0.0f));
         assertTrue(cart.mount(79), "the rider takes the seat (the kick's own gate)");
-        var world = straightRailWorld(0, 3); // three rail cells, then nothing
+        var world = straightRailWorld(0, 3); // rails at cells [0, 2), then nothing
         for (int i = 0; i < 200; i++) {
             cart.steer(new VehicleEntity.SteerInput(0.0f, 1.0f, false, false));
             cart.tick(world);
         }
-        assertTrue(cart.position().x() < 3.0, "the cart never left the track: " + cart.position());
-        assertEquals(0.0, cart.velocityX(), 1e-9, "the end-of-track halt zeroes the roll");
+        // THE RUN-OFF (the 2026-11-08 census row TR — the reference's
+        // dead-end rail NEVER halts the body): the last rail cell's
+        // advance carries the position PAST the cell edge, the velocity
+        // keeps its FULL magnitude, and the next tick's rail consult
+        // finds no rail — the off-rail walk's gravity takes it down to
+        // the ground, the grounded halving grinding the roll to a stop.
+        assertTrue(cart.position().x() > 2.05,
+                "the cart ran PAST the track end (the last rail cell's east"
+                        + " edge at x=2.0): " + cart.position());
+        assertTrue(cart.position().x() < 4.5,
+                "the run-off coasts to a stop (the grounded halving): " + cart.position());
+        assertEquals(0.0, cart.velocityX(), 1e-3,
+                "the off-rail grind stops the roll");
+        assertEquals(4.0 + MinecartEntity.HALF_HEIGHT, cart.position().y(), 0.05,
+                "the fall took the cart off the rail line to the ground");
     }
 
     @Test

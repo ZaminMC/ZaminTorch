@@ -132,6 +132,18 @@ public class MinecartEntity extends VehicleEntity {
     private static final int AXIS_X = 1; // east-west rail: travel along X
     private static final int AXIS_NONE = -1;
 
+    /**
+     * The yaw-flip bookkeeping (the reference's own {@code flipped}
+     * field, MinecartEntity line 280: the render's two-direction model
+     * — the wire yaw rides the flipped flag's +180, and the ±170°
+     * wrap check toggles the pair to keep the yaw CONTINUOUS tick over
+     * tick, never spinning the interpolated rendering).
+     */
+    private boolean flipped;
+
+    /** The tick-head yaw (the wrap check's own read, line 296). */
+    private float lastYaw;
+
     public MinecartEntity(int entityId, Position position, Random random) {
         this(entityId, Kind.MINECART, position, random);
     }
@@ -210,11 +222,13 @@ public class MinecartEntity extends VehicleEntity {
         }
         if (shape < 0) {
             tickOffRail(at);
+            applyCartYawLaw(at);
             return;
         }
 
         if (shape >= SHAPE_FIRST_CURVE) {
             tickOnCurve(world, at, cellX, cellY, cellZ, shape, input);
+            applyCartYawLaw(at);
             return;
         }
 
@@ -297,8 +311,11 @@ public class MinecartEntity extends VehicleEntity {
         if (hasPassenger() && input.forward() > 0.0f
                 && velocityX() * velocityX() + velocityZ() * velocityZ() < 0.01) {
             float riderYaw = input.riderYaw();
+            // The NaN fallback converts the wire yaw to the look
+            // convention (the kick reads a FACING -- the reference's
+            // rider.yaw is one).
             double radians = Math.toRadians(Float.isNaN(riderYaw)
-                    ? rotation().yaw() : riderYaw);
+                    ? wireYawAsLook() : riderYaw);
             double kickX = -Math.sin(radians) * RIDER_KICK;
             double kickZ = Math.cos(radians) * RIDER_KICK;
             double alongAfter = velocityAlong + (rail == AXIS_X ? kickX : kickZ);
@@ -334,49 +351,36 @@ public class MinecartEntity extends VehicleEntity {
         double moveScale = hasPassenger() ? RIDER_MOVE_SCALE : 1.0;
         double moveMagnitude = Math.min(speed * moveScale, getMaxSpeedOnRail());
 
-        // The next cell on the axis: a rail continues it (the shape's own
-        // exit level — an ascent heading to its high face exits one cell
-        // up); otherwise an L-corner turns onto the perpendicular rail,
-        // or the track ends.
-        boolean continues = railContinues(world, shape, cellX, cellY, cellZ, rail, direction);
-        double nx = at.x();
-        double nz = at.z();
-        int travel = rail;
-        double moved;
-        if (continues) {
-            moved = moveMagnitude * direction;
-            if (rail == AXIS_X) {
-                nx = at.x() + moved;
-                nz = cellZ + 0.5;
-            } else {
-                nz = at.z() + moved;
-                nx = cellX + 0.5;
-            }
+        // THE MOVE — THE ADVANCE IS UNCONDITIONAL (the 2026-11-08 census
+        // row TR: the reference's moveOnRail walk consults NO
+        // continuation at all — the d18 projection snaps the cross axis
+        // to the rail's centre line, then the move, lines 436-446,
+        // advances the travel axis by the clamped magnitude INTO
+        // WHATEVER CELL LIES AHEAD: a rail cell, a perpendicular
+        // junction cell (the next tick's projection folds the state
+        // onto the new axis — the SL wave's junction law), or PAST a
+        // track end — the RUN-OFF: the cell-change re-point below the
+        // snap keeps the FULL magnitude on the travel axis (lines
+        // 466-472), and the next tick's rail consult finds no rail
+        // under the carried body, the off-rail walk's gravity taking it
+        // down. The engine's pre-fix continuation consult — the halt at
+        // the cell centre with the speed zeroed, and the corner turn
+        // onto a BESIDE rail (a layout vanilla's walk never even
+        // consults) — retired whole. The flat walk's shared standing
+        // approximation rides unchanged: the advance consults no wall
+        // (the reference's move() would clip one — the row's law is the
+        // carry, the wall-clip edge the flat walk's own scope).
+        double moved = moveMagnitude * direction;
+        double nx;
+        double nz;
+        if (rail == AXIS_X) {
+            nx = at.x() + moved;
+            nz = cellZ + 0.5;
         } else {
-            int crossDelta = crossRailDirection(world, cellX, cellY, cellZ, rail);
-            if (crossDelta != 0) {
-                // The corner: snap to the cell center, then head across.
-                travel = rail == AXIS_X ? AXIS_Z : AXIS_X;
-                direction = crossDelta;
-                moved = moveMagnitude * direction;
-                if (travel == AXIS_X) {
-                    nx = cellX + 0.5 + moved;
-                    nz = cellZ + 0.5;
-                } else {
-                    nz = cellZ + 0.5 + moved;
-                    nx = cellX + 0.5;
-                }
-            } else {
-                // Track ends: stop dead on the rail line.
-                if (rail == AXIS_X) {
-                    nx = cellX + 0.5;
-                } else {
-                    nz = cellZ + 0.5;
-                }
-                speed = 0.0;
-                moved = 0.0;
-            }
+            nz = at.z() + moved;
+            nx = cellX + 0.5;
         }
+        int travel = rail;
 
         // THE CARRY — the UN-clamped state rides the travel axis (the
         // reference's velocity field keeps the projection's own
@@ -386,15 +390,9 @@ public class MinecartEntity extends VehicleEntity {
         } else {
             setVelocity(0.0, 0.0, speed * direction);
         }
-        // The cart's yaw faces the travel (the observer-facing heading);
-        // a zero-move tick (the end-of-track halt) keeps the previous
-        // heading — flipping it here would reverse the next start.
-        if (moved != 0.0) {
-            float yaw = travel == AXIS_X
-                    ? (moved > 0 ? -90.0f : 90.0f)
-                    : (moved > 0 ? 0.0f : 180.0f);
-            setRotation(new Rotation(yaw, 0.0f));
-        }
+        // (The yaw law moved to the tick's own tail — the reference's
+        // lines 289-298 run AFTER the whole walk, the displacement the
+        // FINAL position's; see applyCartYawLaw at tickKind's end.)
 
         // THE POST-MOVE SNAP (the reference's vec3d1 —
         // snapPositionToRail at the moved position, lines 454-464): the
@@ -473,6 +471,9 @@ public class MinecartEntity extends VehicleEntity {
                 }
             }
         }
+        // THE TICK'S OWN TAIL — the yaw law (lines 289-298) runs after
+        // the WHOLE walk, the displacement the FINAL position's.
+        applyCartYawLaw(at);
     }
 
     /**
@@ -516,8 +517,11 @@ public class MinecartEntity extends VehicleEntity {
         if (hasPassenger() && input.forward() > 0.0f
                 && velocityX() * velocityX() + velocityZ() * velocityZ() < 0.01) {
             float riderYaw = input.riderYaw();
+            // The NaN fallback converts the wire yaw to the look
+            // convention (the kick reads a FACING -- the reference's
+            // rider.yaw is one).
             double radians = Math.toRadians(Float.isNaN(riderYaw)
-                    ? rotation().yaw() : riderYaw);
+                    ? wireYawAsLook() : riderYaw);
             double kickX = -Math.sin(radians) * RIDER_KICK;
             double kickZ = Math.cos(radians) * RIDER_KICK;
             speed = Math.sqrt((velocityX() + kickX) * (velocityX() + kickX)
@@ -559,12 +563,8 @@ public class MinecartEntity extends VehicleEntity {
         double ux = ddx * sign / lineLen;
         double uz = ddz * sign / lineLen;
         setVelocity(ux * speed, 0.0, uz * speed);
-        // The cart's yaw faces the diagonal travel (the engine's look
-        // convention — the same form the flat walk's ±90/0/180 carry).
-        if (advance > 0.0) {
-            setRotation(new Rotation(
-                    (float) Math.toDegrees(Math.atan2(-ux, uz)), 0.0f));
-        }
+        // (The yaw law moved to the tick's own tail -- applyCartYawLaw:
+        // the reference's lines 289-298 run after the WHOLE walk.)
         // The curve rides flat (the ends' y-deltas are zero): the cell's
         // own floor + the offset, the grade trim a no-op.
         commit(nx, cellY + RIDE_Y_OFFSET, nz, true);
@@ -681,84 +681,59 @@ public class MinecartEntity extends VehicleEntity {
 
     /** The look's cardinal sign along the rail axis (the "ahead" of W). */
     private double lookDirection(int rail) {
-        double radians = Math.toRadians(rotation().yaw());
+        // The look-convention reading of the wire yaw (the reference's
+        // atan2 convention sits 90° below the look's — the push pair's
+        // own documented equivalence).
+        double radians = Math.toRadians(wireYawAsLook());
         double along = rail == AXIS_X ? -Math.sin(radians) : Math.cos(radians);
         return along >= 0 ? 1.0 : -1.0;
     }
 
     /**
-     * The continuation consult (the shape-aware form): the next cell on
-     * the travel axis at the shape's OWN exit level — an ascent heading
-     * to its high face exits one cell up (the reference's geometry: the
-     * upper flat rides the ascent's cell + 1) — with the down-step
-     * beside it: an ascent one cell BELOW whose high face looks back
-     * (the descent's start, and the crest — two ascents back to back).
-     * ANY rail at the exit level continues the advance (the reference's
-     * own junction fold: the body rolls INTO the perpendicular cell and
-     * the next tick's projection folds the velocity onto the new axis,
-     * the un-flipped d4 the default direction) — the same-axis gate
-     * would strand the cart one cell short of every junction.
+     * THE CART'S YAW LAW (tick lines 289-298, the 2026-11-08 census row
+     * CY — the WIRE convention whole): the pitch zeroes, and the yaw is
+     * the reference's own {@code fastAtan2(d2, d0)·180/π} over the
+     * NEGATED displacement ({@code lastX − x}, {@code lastZ − z}) —
+     * east 180, south −90, west 0, north 90 — a constant 90° from the
+     * engine's old look-convention ±90/0/180, with the flipped flag's
+     * +180 riding on top and the ±170° wrap check flipping the PAIR
+     * (the yaw += 180 with the flag toggle) to keep the wire yaw
+     * continuous tick over tick. A still cart (the squared displacement
+     * under 0.001) keeps its heading. The wire's rendering stays the
+     * open question the row named — the value on the wire is the law.
      */
-    private boolean railContinues(WorldQuery world, int shape, int cellX, int cellY,
-                                  int cellZ, int rail, double direction) {
-        int stepX = rail == AXIS_X ? (int) direction : 0;
-        int stepZ = rail == AXIS_Z ? (int) direction : 0;
-        int nextX = cellX + stepX;
-        int nextZ = cellZ + stepZ;
-        int exit = exitLevelOffset(shape, rail, direction);
-        if (shapeOfCell(world, nextX, cellY + exit, nextZ) >= 0) {
-            return true;
+    private void applyCartYawLaw(Position tickStart) {
+        lastYaw = rotation().yaw();
+        double d0 = tickStart.x() - position().x();
+        double d2 = tickStart.z() - position().z();
+        if (d0 * d0 + d2 * d2 > 0.001) {
+            float yaw = (float) (VehicleMath.fastAtan2(d2, d0) * 180.0 / Math.PI);
+            if (flipped) {
+                yaw += 180.0f;
+            }
+            setRotation(new Rotation(yaw, 0.0f));
         }
-        int below = shapeOfCell(world, nextX, cellY + exit - 1, nextZ);
-        return axisMatches(below, rail) && isAscending(below)
-                && highFaceFacesBack(below, stepX, stepZ);
+        double d3 = VehicleMath.wrapDegrees(rotation().yaw() - lastYaw);
+        if (d3 < -170.0 || d3 >= 170.0) {
+            setRotation(new Rotation(rotation().yaw() + 180.0f, 0.0f));
+            flipped = !flipped;
+        }
+    }
+
+    /**
+     * The look-convention reading of the stored wire yaw (the 2026-11-08
+     * census row CY: the wire carries the reference's fastAtan2
+     * convention — east 180, south −90 — a constant 90° below the look
+     * convention's east −90 / south 0; every internal consult that
+     * wants a FACING converts through here).
+     */
+    private double wireYawAsLook() {
+        return VehicleMath.wrapDegrees(rotation().yaw() + 90.0);
     }
 
     /** @return the cell's rail shape, -1 when no rail. */
     private int shapeOfCell(WorldQuery world, int x, int y, int z) {
         return world.railShapeAt(x + 0.5, y + 0.5, z + 0.5);
-    }
-
-    /**
-     * The exit level's offset for a shape and heading (the ascent's high
-     * face: +1 toward it, the low face level).
-     */
-    private int exitLevelOffset(int shape, int rail, double direction) {
-        if (!isAscending(shape)) {
-            return 0;
-        }
-        boolean towardHigh = (shape == SHAPE_ASCENDING_EAST && rail == AXIS_X && direction > 0)
-                || (shape == SHAPE_ASCENDING_WEST && rail == AXIS_X && direction < 0)
-                || (shape == SHAPE_ASCENDING_NORTH && rail == AXIS_Z && direction < 0)
-                || (shape == SHAPE_ASCENDING_SOUTH && rail == AXIS_Z && direction > 0);
-        return towardHigh ? 1 : 0;
-    }
-
-    /**
-     * Whether a shape's travel line matches the walk's axis (the curves
-     * match both — the corner's own turn target).
-     */
-    private boolean axisMatches(int shape, int rail) {
-        if (shape < 0) {
-            return false;
-        }
-        if (shape >= SHAPE_FIRST_CURVE) {
-            return true;
-        }
-        boolean shapeIsX = shape == SHAPE_EAST_WEST
-                || shape == SHAPE_ASCENDING_EAST || shape == SHAPE_ASCENDING_WEST;
-        return shapeIsX == (rail == AXIS_X);
-    }
-
-    /**
-     * An ascent's high face looking back toward the cell the walk came
-     * from (the descent's start / the crest's far side).
-     */
-    private boolean highFaceFacesBack(int shape, int stepX, int stepZ) {
-        return (shape == SHAPE_ASCENDING_EAST && stepX < 0)
-                || (shape == SHAPE_ASCENDING_WEST && stepX > 0)
-                || (shape == SHAPE_ASCENDING_NORTH && stepZ > 0)
-                || (shape == SHAPE_ASCENDING_SOUTH && stepZ < 0);
     }
 
     /**
@@ -795,19 +770,6 @@ public class MinecartEntity extends VehicleEntity {
         return isX ? AXIS_X : AXIS_Z;
     }
 
-    /** @return the perpendicular rail's direction at this cell, 0 if none. */
-    private int crossRailDirection(WorldQuery world, int cellX, int cellY, int cellZ, int rail) {
-        int other = rail == AXIS_X ? AXIS_Z : AXIS_X;
-        int[] deltas = {1, -1};
-        for (int delta : deltas) {
-            int probeX = other == AXIS_X ? cellX + delta : cellX;
-            int probeZ = other == AXIS_Z ? cellZ + delta : cellZ;
-            if (shapeOfCell(world, probeX, cellY, probeZ) >= 0) {
-                return delta;
-            }
-        }
-        return 0;
-    }
 
     /** The rail shape under a point (protected for the variants' own walks). */
     protected int railShapeAt(WorldQuery world, Position at) {

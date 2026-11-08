@@ -151,6 +151,40 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
         }
 
         /**
+         * @return whether the box holds WATER anywhere (the 2026-11-08
+         * census row BB-1 — the reference's {@code world.containsLiquid(
+         * box, Material.WATER)}, BoatEntity.tick lines 192-199: the
+         * hull's five slice bands each consult it). The default
+         * consults the box's CENTER POINT over {@link #inFluid} so the
+         * stub queries (whose fluid is a y-band) keep exact semantics
+         * for the thin slices; the production wiring overrides with the
+         * real per-cell walk (water alone — lava never buoys a hull).
+         */
+        default boolean waterInBox(double minX, double minY, double minZ,
+                                   double maxX, double maxY, double maxZ) {
+            return inFluid((minX + maxX) / 2.0, (minY + maxY) / 2.0,
+                    (minZ + maxZ) / 2.0);
+        }
+
+        /**
+         * The flora mow's vanish arm (the 2026-11-08 census row BB-4 —
+         * the reference's {@code world.removeBlock(pos)}, BoatEntity.tick
+         * line 295: a snow layer under the hull disappears WITHOUT
+         * drops). Default no-op so stub queries keep their semantics.
+         */
+        default void removeBlockAt(int x, int y, int z) {
+        }
+
+        /**
+         * The flora mow's break arm (the reference's {@code
+         * world.breakBlock(pos, true)}, BoatEntity.tick line 298: a
+         * lily pad under the hull breaks WITH its standard drops).
+         * Default no-op so stub queries keep their semantics.
+         */
+        default void breakBlockWithDrops(int x, int y, int z) {
+        }
+
+        /**
          * @return the point's cell's powered-rail walk (Slice 38 —
          * MinecartEntity.moveOnRail lines 345-349 + 478-495): 1 the
          * powered GOLDEN rail's boost, -1 the unpowered golden rail's
@@ -219,6 +253,14 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
     private DamageSource lastDamageSource = DamageSource.MELEE;
     /** The speed squared at the fatal hit (frozen for the next-tick drop walk). */
     private double deathSpeedSquared;
+    /**
+     * The wreck flag (the 2026-11-08 census row BB-3): the crash and the
+     * fall breaks drop the WRECK form (3 planks + 2 sticks), the damage
+     * walk's own break the vehicle item — the reference's three arms
+     * (takeDamage lines 99-108 vs tick lines 315-325 vs checkFallDamage
+     * lines 396-411).
+     */
+    private boolean wreck;
     /** The query of the current tick (set by the manager's tick loop). */
     protected WorldQuery query;
 
@@ -660,6 +702,17 @@ public abstract class VehicleEntity implements net.zaminmc.torch.entity.Vehicle 
      */
     public void crashBreak() {
         this.health = 0.0f;
+        // The 2026-11-08 census row BB-3: the crash is a WRECK break —
+        // the reference's crash arm drops 3 planks + 2 sticks
+        // (BoatEntity.tick lines 315-325), NEVER the boat item the
+        // damage walk's own break hands (takeDamage line 105); the
+        // sweep routes the wreck flag to the wreck drops.
+        this.wreck = true;
+    }
+
+    /** @return whether this break is a wreck (the crash/fall arm, not the damage walk). */
+    public boolean wrecked() {
+        return wreck;
     }
 
     /** The mount: takes the seat (refused when occupied). */
