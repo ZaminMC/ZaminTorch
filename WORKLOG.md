@@ -3571,3 +3571,49 @@ Work Log:
 
 AT CLOSE: pushing the slice; the census's next family pick and the
 flake-family watch the next picks; the verifier's PR when it opens.
+
+## 2026-11-09 — The ProjectileAttackGoal family census + the #697 CI-watch close
+
+- THE CI WATCH: #698 GREEN WHOLE (torch-1.8.8-161); #697's two reds
+  classified environmental (DonkeyChest's retry-allowlisted
+  open-window timeout + RiderSpareFall's parallel-load flake — the
+  latter green isolated x3 on the current tree, joining the
+  documented flake family).
+- WAVE PA — THE PROJECTILEATTACKGOAL FAMILY CENSUS (commit 50cdede8):
+  the goal's own law whole over every carrier — the distance-scaled
+  cadence floor(f*(max−min)+min) (the skeleton's 20/60/15 triple: the
+  looses at ticks 47/91/135 in the discovery rig; the witch's flat 60
+  over 10), the twenty-seen-ticks stand band with NO retreat (the
+  retired 6/12 bands an invention), the first-shot arming window
+  (never an immediate loose), the refused loose's re-arm whole. The
+  skeleton's loose: the ArrowEntity-ctor form (the eye band − 0.1
+  pushed one block toward the target, the feet + height/3 aim with
+  the 0.2×horizontal gravity compensation, the 1.6 speed with the
+  14 − 4×difficulty divergence, the distance-scaled damage field
+  charge×2 + N(0,0.25) + 0.11×difficulty through a new damageOverride
+  on the projectile — the player bow's 2.0 base untouched at NaN, the
+  bow sound's pitch jitter, NO swing broadcast). The witch's throw
+  tails: the target's OWN eye-height aim (the mob-target arms read
+  the golem's eye band), the velocity lead (target.x + velocityX, the
+  player's impulse-only motion matching the reference's server-side
+  semantics), the mob-target resolution. The drink ladder's own
+  DUPLICATED speed arm (the vanilla source's quirk — two independent
+  25% draws, 43.75% of eligible ticks) and the drinking speed
+  penalty's true form (operation ZERO, ADDITIVE −0.25 over the 0.25
+  base → EXACTLY ZERO — the drinking witch stands still whole).
+  POWER/PUNCH/FLAME riders NOT-REACHABLE (no equipment-enchant store).
+- SEATS: ProjectileAttackGoalParityDiscoveryTest 8 NEW + the
+  speed-class twin (+1, commit c23d9ef6: the witch's walkSpeed aligned
+  to the skeleton's 0.038 — the same 0.25 vanilla base, the retired
+  0.03 walked her 21% slower) — every law family RED-verified on its
+  own no-op patch; the ranged-on-mob seat in CombatTargetTailsTest
+  re-pinned to the reference's cadence.
+- LANES: the entity package 813 green (the enderman-hunt + panic
+  documented flakes alone, green isolated + re-run), the projectile
+  package, the bukkit module 52 green, the ranged/splash/knockback
+  spot batch green (the BedPair + ThornsMobVictim one-run load flakes
+  green isolated).
+- AT CLOSE: develop = b5e53ae1 pushed; run #699 in flight carrying
+  the census (the torch-1.8.8-162 stamp landed), #700 queued behind
+  it carrying the alignment; the next picks: the census's next family,
+  the verifier's PRs when they open, the flake watch.
