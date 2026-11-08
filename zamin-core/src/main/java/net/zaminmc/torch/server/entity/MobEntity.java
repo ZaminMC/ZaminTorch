@@ -4865,6 +4865,28 @@ public final class MobEntity implements LivingEntity {
                 if (navigation.isDone()
                         || squared > GOLEM_HUNT_RANGE * GOLEM_HUNT_RANGE) {
                     golemFlankLive = false; // stop(): the claim ends
+                    // THE CLAIM-END FALL-THROUGH'S FRESH CONSULT (the
+                    // selector's next-pass shape — the flank family's
+                    // adjacent tail (a)): vanilla's selector sweeps the
+                    // active goals' shouldContinue per tick and re-consults
+                    // every canStart at the next setup pass (<= 3 ticks),
+                    // the WINNING goal's start() adopting a FRESH route
+                    // the same pass — the retired claim's own cycle never
+                    // gates the successor. The engine's fall-through
+                    // consults at once but the chase's repath cooldown —
+                    // armed by the flank's own arm and FROZEN through the
+                    // flank route's run (tickGolemFlankRoute never spends
+                    // it) — carried a stale window: the body standing on
+                    // the spent route (or walking the retired one) for
+                    // the cooldown's remainder before the fresh findPath.
+                    // Zeroing the cooldown at the claim's end gives the
+                    // fall-through the selector's own shape: the melee's
+                    // canStart findPath + start()'s adoption land the
+                    // SAME pass (a route stands — the chase walks it), a
+                    // null verdict re-arming the flank's own pick at
+                    // once (the next candidate cell, the route starting
+                    // the same tick) — never the cooldown's window.
+                    repathCooldown = 0;
                 } else {
                     // The steal poll — the selector's own setup pass
                     // (GoalSelector.tick line 45: ticks++ % 3 == 0 — the
