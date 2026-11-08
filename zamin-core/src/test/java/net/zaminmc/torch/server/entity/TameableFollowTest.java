@@ -160,15 +160,20 @@ class TameableFollowTest {
 
     @Test
     void theOcelotsNavigationSwimsFromBirthAndTheWolfsDoesNot() {
-        // OcelotEntity's ctor line 42 arms the cat's swim paths; the wolf's
-        // navigation keeps the evaluator's own default off.
+        // OcelotEntity's ctor line 42 arms the cat's swim paths — and the
+        // WOLF'S OWN CTOR arms them too (WolfEntity line 56, Wave FT's
+        // census correction: the prior session's "starts dry" note was a
+        // misreading — the reference's wolf construction arms swim true,
+        // and the follow goal's stop() writes its unconditional true right
+        // back over whatever start() parked).
         TameableWorld world = new TameableWorld();
         MobEntity cat = new MobEntity(601, MobType.OCELOT, new Position(0.5, 8, 0.5),
                 new Random(1L), world);
         assertTrue(cat.navigationCanSwim(), "the cat's ctor arms the swim paths");
         MobEntity wolf = new MobEntity(501, MobType.WOLF, new Position(0.5, 8, 0.5),
                 new Random(1L), world);
-        assertFalse(wolf.navigationCanSwim(), "the wolf's navigation starts dry");
+        assertTrue(wolf.navigationCanSwim(),
+                "the wolf's ctor arms the swim paths too (line 56)");
     }
 
     @Test

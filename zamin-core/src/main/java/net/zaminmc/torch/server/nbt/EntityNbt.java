@@ -287,6 +287,13 @@ public final class EntityNbt {
                 NbtOps.putByte(nbt, "Color", (byte) mob.sheepFleeceColor());
             }
             case PIG -> NbtOps.putBoolean(nbt, "Saddle", mob.pigSaddled());
+            case CHICKEN -> {
+                // ChickenEntity.writeCustomNbt lines 152-155: the jockey
+                // mark and the egg clock's own row (the lay band's
+                // standing state across the save).
+                NbtOps.putBoolean(nbt, "IsChickenJockey", mob.hasChickenJockey());
+                NbtOps.putInt(nbt, "EggLayTime", mob.eggLayTime());
+            }
             case HORSE -> {
                 NbtOps.putBoolean(nbt, "EatingHaystack", mob.eating());
                 NbtOps.putBoolean(nbt, "ChestedHorse", false);
@@ -398,6 +405,16 @@ public final class EntityNbt {
                 mob.setSheepFleeceColor(NbtOps.getByte(nbt, "Color"));
             }
             case PIG -> mob.setSaddled(NbtOps.getBoolean(nbt, "Saddle"));
+            case CHICKEN -> {
+                // ChickenEntity.readCustomNbt lines 139-142: the jockey
+                // mark ungated (absent reads false), the egg clock only
+                // when present-and-typed (an absent row keeps the ctor's
+                // own roll).
+                mob.setChickenJockey(NbtOps.getBoolean(nbt, "IsChickenJockey"));
+                if (NbtOps.contains(nbt, "EggLayTime", Snbt.Tag.Type.INT)) {
+                    mob.setEggLayTime(NbtOps.getInt(nbt, "EggLayTime"));
+                }
+            }
             case HORSE -> {
                 // The reference's own gates: each row reads only when
                 // present-and-typed (the ungated setters keep the

@@ -1842,6 +1842,11 @@ public final class MobEntity implements LivingEntity {
         this.navigation = new net.zaminmc.torch.server.entity.ai.pathing.MobNavigation(
                 new PathBody(), new PathWorldView(), (float) navigationRange());
         this.modeTicks = random.nextInt(IDLE_TICKS);
+        // ChickenEntity's ctor line 36: the egg clock's own roll
+        // (nextInt(6000) + 6000 — the 5-to-10-minute lay band).
+        if (type == MobType.CHICKEN) {
+            eggLayCooldown = random.nextInt(6000) + 6000;
+        }
         // The herd look — the reference's own initialize dice
         // (HorseBaseEntity.initialize lines 1262-1280): 1 in 10 the donkey,
         // otherwise the horse coat = the color nextInt(7) | the marking
@@ -1864,12 +1869,27 @@ public final class MobEntity implements LivingEntity {
             this.navigation.setCanOpenDoors(true);
             this.navigation.setCanPassThroughDoors(true);
         }
-        // OcelotEntity's ctor line 42: the cat's own navigation arms the
-        // swim paths ({@code setCanSwim(true)} — the jungle cat wades to
-        // its owner; the wolf's own navigation keeps the default off, the
-        // follow goal's stop() being the reference's own quirk that turns
-        // it on after the first window).
-        if (type == MobType.OCELOT) {
+        // THE CTOR SWIM FAMILY (the reference's own construction census —
+        // Wave FT: CowEntity line 26, SheepEntity line 54, PigEntity line
+        // 33, RabbitEntity line 55, WolfEntity line 56, HorseBaseEntity
+        // line 105, SnowGolemEntity's ctor, VillagerEntity line 307,
+        // IronGolemEntity line 41, OcelotEntity line 42 — every body of
+        // the census arming {@code setCanSwim(true)} at construction, the
+        // MOOSHROOM inheriting the cow's own super walk): the farm
+        // animals, the tameable pair, the horse, the snow golem, the
+        // villager and the iron golem all path THROUGH water from spawn.
+        // THE CHICKEN ALONE keeps the default off (its ctor arms nothing
+        // — the flapping body crosses water its own way); the prior
+        // session's wolf note ("the wolf's navigation keeps the default
+        // off") CORRECTED here — the reference's WolfEntity ctor arms
+        // swim true at line 56, and the follow goal's stop() writes its
+        // unconditional true right back over whatever start() parked.
+        if (type == MobType.OCELOT || type == MobType.COW
+                || type == MobType.MOOSHROOM || type == MobType.SHEEP
+                || type == MobType.PIG || type == MobType.RABBIT
+                || type == MobType.WOLF || type == MobType.HORSE
+                || type == MobType.SNOW_GOLEM || type == MobType.VILLAGER
+                || type == MobType.IRON_GOLEM) {
             this.navigation.setCanSwim(true);
         }
         // VIII9 — initAttributes line 87: the zombie's own
@@ -3639,6 +3659,52 @@ public final class MobEntity implements LivingEntity {
         if (type == MobType.SHEEP) {
             this.sheared = sheared;
         }
+    }
+
+    /**
+     * The egg clock's readNbt row (ChickenEntity.readCustomNbt lines
+     * 140-142: {@code EggLayTime} reads only when present — an absent row
+     * keeps the ctor's own roll).
+     */
+    public void setEggLayTime(int cooldown) {
+        if (type == MobType.CHICKEN) {
+            this.eggLayCooldown = cooldown;
+        }
+    }
+
+    /**
+     * The jockey mark's readNbt row (ChickenEntity.readCustomNbt line
+     * 139: {@code IsChickenJockey} — absent reads false, the boolean's
+     * own default).
+     */
+    public void setChickenJockey(boolean jockey) {
+        if (type == MobType.CHICKEN) {
+            this.chickenJockey = jockey;
+        }
+    }
+
+    /** @return the jockey mark (the egg layer's own refusal gate). */
+    public boolean hasChickenJockey() {
+        return chickenJockey;
+    }
+
+    /** @return the egg clock's standing value (the NBT row's own read). */
+    public int eggLayTime() {
+        return eggLayCooldown;
+    }
+
+    /** The manager's drain of the staged egg plop (the lay's sound). */
+    public StagedSound consumeEggPlop() {
+        StagedSound sound = pendingEggPlop;
+        pendingEggPlop = null;
+        return sound;
+    }
+
+    /** The manager's drain of the staged egg lay (ONE egg at the feet). */
+    public boolean consumeEggLay() {
+        boolean lay = pendingEggLay;
+        pendingEggLay = false;
+        return lay;
     }
 
     /** The saddle mark (readNbt's Saddle/Tame-family rows): the pig's own byte or the horse flag bit. */
@@ -5621,6 +5687,28 @@ public final class MobEntity implements LivingEntity {
     private float dragonLastWingPosition;
     private float dragonWingPosition;
     private boolean dragonNeedsNewTarget = true;
+    /**
+     * THE EGG LAYER'S CLOCK (Wave CE — ChickenEntity.mobTick lines 76-81):
+     * the cooldown rolls {@code nextInt(6000) + 6000} at the ctor and at
+     * every lay (6000-12000 ticks, 5-10 minutes); the lay itself gates on
+     * the ADULT body (never a baby) and the JOCKEY refusal (never a
+     * chicken carrying its baby-zombie rider), pays the plop sound with
+     * the two-draw pitch jitter, and drops ONE egg at the body's feet.
+     */
+    private int eggLayCooldown;
+    /**
+     * The chicken's jockey mark (readNbt's IsChickenJockey row,
+     * writeCustomNbt line 153): a chicken spawned under its baby-zombie
+     * rider — the egg layer's own refusal gate (line 76's
+     * {@code !this.hasJockey()}), the 10-XP kill (getXpDrop line 160),
+     * and the riderless despawn (canDespawn line 164).
+     */
+    private boolean chickenJockey;
+    /** The egg-lay plop staged for the manager's drain (the lay's sound). */
+    private StagedSound pendingEggPlop;
+    /** The egg-lay drop staged for the manager's drain (ONE egg). */
+    private boolean pendingEggLay;
+
     /** The reference's restrictMovement — an immune block met (the half-flap). */
     private boolean dragonRestrictMovement;
     /** The turn rate (the reference's rotationSpeed field — the dragon's own). */
@@ -11824,6 +11912,13 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
+     * The swim value start() parked (TemptGoal lines 72-75 — the claim's
+     * own {@code inWater} field): the tempted body paths AROUND water for
+     * the claim's whole run, the ctor's arming returning at the stop.
+     */
+    private boolean temptParkedSwim = true;
+
+    /**
      * TemptGoal's canStart/shouldContinue pair (the ocelot's fish-follow):
      * a fresh start finds the nearest player within 10 blocks holding the
      * raw fish — the delay gate first (100 ticks after a stop). A live goal
@@ -11859,6 +11954,40 @@ public final class MobEntity implements LivingEntity {
             }
             if (!rabbitTemptItem(view.heldItem())) {
                 return false;
+            }
+            if (!temptActive) {
+                // start()'s swim park (the shared TemptGoal law, lines
+                // 72-75): the tempted rabbit paths around the water too.
+                temptParkedSwim = navigation.canSwim();
+                navigation.setCanSwim(false);
+            }
+            temptActive = true;
+            return true;
+        }
+        if (farmTemptKind(type)) {
+            // THE FARM KINDS' OWN TEMPT GOAL (the non-scared form — the
+            // ctor's false parameter): shouldContinue is the canStart
+            // re-run ALONE (the holder still the nearest player within
+            // 10 still holding the kind's item — no scared window, no
+            // samples, no postures).
+            if (temptDelay > 0) {
+                temptDelay--;
+                return false;
+            }
+            PlayerView view = world.nearestPlayerView(
+                    position.x(), position.y(), position.z(), TEMPT_RANGE);
+            if (view == null || !farmTemptItem(type, view.heldItem())) {
+                if (temptActive) {
+                    goalTemptStop(); // the holder's item left the hand
+                }
+                return false;
+            }
+            if (!temptActive) {
+                // start(): the claim parks the swim paths (TemptGoal
+                // lines 72-75 — the tempted body walks AROUND the water;
+                // the parked value returns at the stop, line 80).
+                temptParkedSwim = navigation.canSwim();
+                navigation.setCanSwim(false);
             }
             temptActive = true;
             return true;
@@ -11918,7 +12047,12 @@ public final class MobEntity implements LivingEntity {
         if (!"minecraft:fish".equals(view.heldItem())) {
             return false;
         }
-        // start(): the sample lands, the flag flips.
+        // start(): the sample lands, the flag flips — and the swim
+        // paths park (the shared TemptGoal law, lines 72-75: the tempted
+        // cat walks AROUND the water; the parked value returns at the
+        // stop).
+        temptParkedSwim = navigation.canSwim();
+        navigation.setCanSwim(false);
         temptActive = true;
         temptSampleX = view.position().x();
         temptSampleY = view.position().y();
@@ -11928,11 +12062,18 @@ public final class MobEntity implements LivingEntity {
         return true;
     }
 
-    /** TemptGoal's stop(): the delay re-arms and the feet release. */
+    /**
+     * TemptGoal's stop() (lines 77-82): the delay re-arms, the feet
+     * release, and THE PARKED SWIM PATHS RETURN ({@code setCanSwim
+     * (this.inWater)} — the value start() parked, unlike the follow
+     * goal's own unconditional true; the chicken's park was false, the
+     * farm kinds' and the cat's true, whatever the ctor armed).
+     */
     private void goalTemptStop() {
         temptActive = false;
         temptDelay = TEMPT_DELAY;
         clearPath();
+        navigation.setCanSwim(temptParkedSwim);
     }
 
     /** RabbitEntity.isTempting (lines 298-300): the three-item family. */
@@ -11943,6 +12084,47 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
+     * THE FARM KINDS' TEMPT FAMILY (Wave FT — TemptGoal over the four
+     * animals' own registrations, the non-scared form — the ctor's
+     * {@code false} parameter, so shouldContinue is the canStart re-run
+     * alone): the CHICKEN's WHEAT_SEEDS at 1.0 (ChickenEntity line 48),
+     * the COW's WHEAT at 1.25 (CowEntity line 30 — the MOOSHROOM
+     * inheriting the super ctor's registration whole), the SHEEP's WHEAT
+     * at 1.1 (SheepEntity line 58), and the PIG's carrot PAIR at 1.2
+     * (PigEntity lines 38-39 — two registrations at one band: the plain
+     * carrot and the carrot-on-a-stick, the rider's held control item).
+     */
+    private static boolean farmTemptKind(MobType type) {
+        return type == MobType.CHICKEN || type == MobType.COW
+                || type == MobType.MOOSHROOM || type == MobType.SHEEP
+                || type == MobType.PIG;
+    }
+
+    /** The farm kinds' tempt item (the registrations' own rows). */
+    private static boolean farmTemptItem(MobType type, String heldItem) {
+        if (heldItem == null) {
+            return false;
+        }
+        return switch (type) {
+            case CHICKEN -> "minecraft:wheat_seeds".equals(heldItem);
+            case COW, MOOSHROOM, SHEEP -> "minecraft:wheat".equals(heldItem);
+            case PIG -> "minecraft:carrot".equals(heldItem)
+                    || "minecraft:carrot_on_a_stick".equals(heldItem);
+            default -> false;
+        };
+    }
+
+    /** The farm kinds' tempt speed (the registrations' own parameters). */
+    private static double farmTemptSpeed(MobType type) {
+        return switch (type) {
+            case COW, MOOSHROOM -> 1.25;
+            case SHEEP -> 1.1;
+            case PIG -> 1.2;
+            default -> 1.0; // the chicken's own
+        };
+    }
+
+    /**
      * TemptGoal's tick (lines 95-102): the eyes stay on the player; the
      * feet walk the path at the creep speed unless the 2.5-block hold
      * band closes. The walk rides the goal-speed multiplier (2.0 — the
@@ -11950,6 +12132,36 @@ public final class MobEntity implements LivingEntity {
      * that walk into the shared-flags sneak.
      */
     void goalTemptTick() {
+        if (farmTemptKind(type)) {
+            // THE FARM KINDS' OWN TICK (TemptGoal.tick lines 95-102): the
+            // eyes on the holder (the 30-degree look grip), the 2.5-block
+            // hold band (6.25 squared — the feet stop, the item-holder's
+            // own space), else the walk at the kind's registration speed
+            // — NO posture (the creep is the ocelot's own mobAiTick law
+            // alone). The walk rides the engine's shared tempt form (the
+            // repath-cadence follow — the family's documented adaptation,
+            // the ocelot's and the rabbit's own shape).
+            PlayerView view = world.nearestPlayerView(
+                    position.x(), position.y(), position.z(), TEMPT_RANGE);
+            if (view == null) {
+                return;
+            }
+            double dx = view.position().x() - position.x();
+            double dy = view.position().y() - position.y();
+            double dz = view.position().z() - position.z();
+            headYaw = angleTo(dx, dz); // the look control's 30-degree grip
+            double squared = dx * dx + dy * dy + dz * dz;
+            if (squared < TEMPT_STOP_DISTANCE_SQUARED) {
+                clearPath(); // the hold: the animal stands at the holder's feet
+                goalWalkSpeed = 0.0;
+                return;
+            }
+            goalWalkSpeed = farmTemptSpeed(type);
+            mode = Mode.WANDER;
+            modeTicks = 0;
+            tickPathFollowing(view.position());
+            return;
+        }
         if (type == MobType.RABBIT) {
             // The rabbit's own tick: the 1.0 goal speed over the band, no
             // posture (the walk stands normal), the same 2.5-block hold.
@@ -12401,6 +12613,15 @@ public final class MobEntity implements LivingEntity {
     /** @return the tempt creep's sneak posture (the shared flags bit). */
     public boolean postureSneaking() {
         return postureSneaking;
+    }
+
+    /**
+     * @return the goal layer's walk-speed multiplier as the last goal tick
+     *         wrote it (the seats' registration read — the farm kinds'
+     *         tempt bands, the flee family's pair).
+     */
+    double goalWalkMultiplier() {
+        return goalWalkSpeed;
     }
 
     /** @return the flee's sprint posture (the shared flags bit). */
@@ -16313,6 +16534,30 @@ public final class MobEntity implements LivingEntity {
         // carries no fall damage to suppress).
         if (type == MobType.BLAZE && !onGround && velocityY < 0.0) {
             velocityY *= 0.6;
+        }
+        // THE CHICKEN'S SLOW FALL (Wave CE — ChickenEntity.mobTick lines
+        // 73-75, the same 60% shape the blaze carries): an airborne
+        // falling chicken dampens its descent before the gravity arm —
+        // the famous feather fall (the steady state ~0.095/tick against
+        // the ordinary body's ~1.96; takeFallDamage's empty override
+        // carries the landing's immunity).
+        if (type == MobType.CHICKEN && !onGround && velocityY < 0.0) {
+            velocityY *= 0.6;
+        }
+        // THE EGG LAYER (Wave CE — ChickenEntity.mobTick lines 76-81): the
+        // adult non-jockey chicken's clock counts down every living tick;
+        // the lay pays the plop (the two-draw pitch jitter, line 77) and
+        // stages ONE egg for the manager's item spawn, then the clock
+        // re-rolls its 6000-12000 band. The flap pair (lines 66-72) is
+        // ANIMATION-ONLY state in the reference — the client runs its own
+        // copy and the server never consults it (no sound, no drop, no
+        // wire row) — so the engine carries no flap fields.
+        if (type == MobType.CHICKEN && !isBaby() && !chickenJockey
+                && --eggLayCooldown <= 0) {
+            pendingEggPlop = new StagedSound("mob.chicken.plop", 1.0f,
+                    (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+            pendingEggLay = true;
+            eggLayCooldown = random.nextInt(6000) + 6000;
         }
         // Vertical: gravity + ground snap (the item-entity model). A body in
         // fluid sinks slowly and bobs (the historical fluid buoyancy) — the

@@ -2730,6 +2730,28 @@ public final class MobManager {
                             horseJumpSound.volume(), horseJumpSound.pitch());
                 }
             }
+            // THE CHICKEN'S EGG LAY (Wave CE — ChickenEntity.mobTick lines
+            // 76-81): the plop's two-draw jitter and ONE egg through the
+            // TF-9 item spawn at the body's feet (+0.5, the reference's
+            // own dropItem anchor), the clock re-rolled whole.
+            MobEntity.StagedSound eggPlop = mob.consumeEggPlop();
+            if (eggPlop != null) {
+                for (Listener listener : listeners) {
+                    listener.onMobSoundAt(mob, eggPlop.name(),
+                            eggPlop.volume(), eggPlop.pitch());
+                }
+            }
+            if (mob.consumeEggLay()) {
+                Position at = mob.position();
+                net.zaminmc.torch.item.ItemStack egg =
+                        net.zaminmc.torch.item.ItemStack.of(
+                                net.zaminmc.torch.server.item.BuiltinItems.lookup(
+                                        net.zaminmc.torch.util.Identifier.parse(
+                                                "minecraft:egg")).orElseThrow(),
+                                1);
+                lootSink.spawnLootDrop(new Position(at.x(), at.y() + 0.5, at.z()),
+                        egg, mob.dimension());
+            }
             // The zombie villager's cure countdown completed its walk
             // (ZombieEntity.tick lines 236-243): the conversion lands after
             // the loop — the spawn/remove pair cannot run mid-iteration.
