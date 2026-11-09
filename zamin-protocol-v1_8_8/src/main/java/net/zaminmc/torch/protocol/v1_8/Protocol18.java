@@ -521,12 +521,20 @@ final class Protocol18 {
     /** The elder bit (GuardianEntity's setDataFlagValue(4)). */
     static final int GUARDIAN_FLAG_ELDER = 0x04;
 
-    // The living-flags bit map (1.8's Entity flags byte, index 0):
-    // 0x01 burning, 0x02 crouched, 0x08 riding, 0x10 sprinting, 0x20 eating.
+    // The living-flags bit map (1.8's Entity flags byte, index 0 — Entity
+    // .setFlag's own ladder, lines 347/1494/1502/1514/1522): 0x01 burning
+    // (flag 0), 0x02 crouched (flag 1), 0x08 SPRINTING (flag 3), 0x10
+    // using-item/eating (flag 4), 0x20 invisible (flag 5). There is NO
+    // riding bit on this byte in 1.8.8 — bit 2 (0x04) exists in the
+    // ladder space but NO reference arm ever sets it (riding rides the
+    // Attach Entity packet alone); the retired engine's 0x08 "riding"
+    // bit actually marked every seated player SPRINTING on the
+    // observers' clients, and the retired 0x10 "sprinting" bit held the
+    // eating pose.
     static final int LIVING_FLAG_BURNING = 0x01;
     static final int LIVING_FLAG_SNEAKING = 0x02;
-    static final int LIVING_FLAG_RIDING = 0x08;
-    static final int LIVING_FLAG_SPRINTING = 0x10;
+    static final int LIVING_FLAG_SPRINTING = 0x08;
+    static final int LIVING_FLAG_USING_ITEM = 0x10;
 
     // World Particles (0x2B) numeric ids (community particles.json, 1.8).
     static final int PARTICLE_SNOWBALL_POOF = 31;

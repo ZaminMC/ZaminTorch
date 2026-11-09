@@ -1049,6 +1049,20 @@ final class TestClient18 implements AutoCloseable {
         sendPacket(bodyToBytes(body));
     }
 
+    /**
+     * Player Look (0x05, the riding client's own form — EntityPlayerSP
+     * sends the look-only packet while mounted): yaw/pitch floats + the
+     * ground byte, no position.
+     */
+    void sendLook(float yaw, float pitch, boolean onGround) throws IOException {
+        ByteBuf body = Unpooled.buffer(16);
+        ByteBufOps.writeVarInt(body, Protocol18.C2S_PLAYER_LOOK);
+        body.writeFloat(yaw);
+        body.writeFloat(pitch);
+        body.writeBoolean(onGround);
+        sendPacket(bodyToBytes(body));
+    }
+
     /** Use Entity (0x02): mouse 0 interact / 1 attack / 2 interact-at (+3 f32). */
     void sendUseEntity(int target, int mouse) throws IOException {
         ByteBuf body = Unpooled.buffer(12);

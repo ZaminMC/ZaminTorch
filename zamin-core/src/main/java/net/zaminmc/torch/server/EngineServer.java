@@ -36109,10 +36109,18 @@ public final class EngineServer implements Server, EngineBridge {
         if (session.leavingTheEnd()) {
             return;
         }
-        // The riding body is the vehicle's: the client sends no position
-        // while mounted, so any stray proposal is discarded (the seat owns
-        // the coordinates — the historical server-authoritative vehicle).
+        // THE RIDING ARM (the reference's handlePlayerMove lines 215-252
+        // read whole): the seat owns the coordinates — the client sends
+        // LOOK-ONLY packets while mounted (C05), and the reference answers
+        // them by {@code updatePositionAndAngles(d17, d18, d19, f4, f)} at
+        // the seat anchor: the packet's angles LAND, the position claim is
+        // discarded, the ground flag with them. The retired whole-packet
+        // discard dropped the rider's LOOK server-side too — the cart's
+        // own steer consult read the stale mount-time yaw (the reported
+        // 'sitting in one is glitchy'), and the rider's head never turned
+        // for the observers.
         if (session.ridingAny()) {
+            session.applyMovement(session.position(), rotation, onGround);
             return;
         }
         // THE VANILLA MOVEMENT CHECK (Wave M1 — the setback repair,
@@ -36393,19 +36401,22 @@ public final class EngineServer implements Server, EngineBridge {
             // A gone vehicle never remounts (the reference's Riding tag dies
             // with the vehicle entity); an occupied seat refuses the mount
             // exactly like the live interact path's one-seat law.
-            if (vehicle == null || !vehicleManager.mount(vehicle, session.engineEntityId())) {
+            if (vehicle == null || vehicle.hasPassenger() || vehicle.dead()) {
                 return;
             }
-            // The seat anchor (tickVehicleRiders' own law, lines 15668-15670):
-            // the body lands at the vehicle's seat, never its flat origin.
-            session.applyMovement(
-                    vehicle.seatAnchor(
-                            net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.PLAYER_RIDE_HEIGHT),
-                    session.rotation(), vehicle.onGround());
-            // The rider's own teleport (the reference's startRiding line 521):
-            // the rejoiner's client came up at the SAVED spot; the remount
-            // re-anchors it at the authoritative seat.
-            session.link().resyncPosition();
+            // THE SEAT FIRST (the remount's own order, the listener's
+            // mount anchor riding WITH it): the body lands at the
+            // vehicle's seat BEFORE the mount listeners fire, so the
+            // mount's own Position-And-Look anchor — the reference's
+            // startRiding sequence (lines 516-523: the Attach Entity
+            // packet, then the teleport) — carries the authoritative seat
+            // in ONE packet. The retired walk sent its own second resync
+            // after the listeners' anchor, doubling the remount's wire.
+            // Same tick lane as mount()'s own seat check: no race.
+            Position seat = vehicle.seatAnchor(
+                    net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.PLAYER_RIDE_HEIGHT);
+            session.applyMovement(seat, session.rotation(), vehicle.onGround());
+            vehicleManager.mount(vehicle, session.engineEntityId());
             LOGGER.info(() -> "Player remounted after relog: " + session.name()
                     + " (vehicle " + ride.vehicleEntityId() + ")");
             return;
@@ -36428,7 +36439,12 @@ public final class EngineServer implements Server, EngineBridge {
             }
             // The mob seat anchor (tickMobRiders' own law, lines 15773-15777):
             // the mount's position plus the saddle height plus the rider's
-            // own -0.35.
+            // own -0.35. The MOB seat has no mount-time wire listener (the
+            // seat anchor rides the mob's own moves — a stationary mount
+            // never fires it), so the remount walk itself sends the rider's
+            // ONE Position-And-Look (the reference's startRiding line 521
+            // teleport) after the seat lands — the vehicle arm's listener
+            // anchor shape, the mob arm's own carrier.
             Position seat = new Position(mob.position().x(),
                     mob.position().y() + mob.seatHeight()
                             + net.zaminmc.torch.server.entity.vehicle.RiderSeatLaw.PLAYER_RIDE_HEIGHT,

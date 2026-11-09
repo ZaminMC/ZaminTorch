@@ -1268,8 +1268,22 @@ public final class VehicleManager {
     }
 
     private static long fixedPoint(Position position) {
-        return (Math.round(position.x() * 32.0) << 42)
-                | (Math.round(position.y() * 32.0) << 21)
-                | Math.round(position.z() * 32.0);
+        // THE LANE MASKS (the owner's negative-coordinate ride, the root
+        // cause of the frozen carts): the reference's fixed-point triple
+        // packs each axis into its OWN lane. The pre-fix form OR'd the
+        // raw signed components — a NEGATIVE z (two's-complement ones all
+        // the way up, e.g. -268.5 -> 0xFFFFFFFFFFFFDE70) flooded every
+        // lane above it, so any two positions sharing a z-cell collapsed
+        // to the SAME packed value and the move broadcast NEVER fired
+        // south/west of origin (the owner's whole world): the cart ran
+        // its rail physics server-side while every observer — rider and
+        // third person alike — saw a body frozen at its spawn. Each lane
+        // is masked to its own width (22 x / 21 y / 21 z bits, each
+        // holding ±1,048,576 fixed-point units = ±32,768 blocks), so
+        // distinct positions always pack distinct.
+        long x = Math.round(position.x() * 32.0);
+        long y = Math.round(position.y() * 32.0);
+        long z = Math.round(position.z() * 32.0);
+        return ((x & 0x3FFFFF) << 42) | ((y & 0x1FFFFF) << 21) | (z & 0x1FFFFF);
     }
 }

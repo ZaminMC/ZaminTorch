@@ -2101,7 +2101,19 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 if (rider != null) {
                     for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
                         connection.sendAttachEntity(rider, vehicle.entityId(), true);
-                        connection.sendPostureMetadata(rider); // the riding flag
+                        connection.sendPostureMetadata(rider); // the sprint/eat flags byte
+                        // THE MOUNT ANCHOR (the reference's
+                        // ServerPlayerEntity.startRiding lines 516-522):
+                        // the rider's own client receives the attach BESIDE
+                        // ONE Position-And-Look at the mount point —
+                        // {@code this.networkHandler.teleport(this.x,
+                        // this.y, this.z, this.yaw, this.pitch)} — the
+                        // teleport window arming with it. The retired
+                        // engine sent the attach alone, leaving the
+                        // client's own anchor unconfirmed.
+                        if (connection.currentSession() == rider) {
+                            connection.resyncPosition();
+                        }
                     }
                     return;
                 }

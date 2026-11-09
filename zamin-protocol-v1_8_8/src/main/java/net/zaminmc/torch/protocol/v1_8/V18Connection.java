@@ -7475,10 +7475,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     }
 
     /**
-     * The per-tick vehicle sync: Entity Teleport for the body; the mounted
-     * rider rides along — the rider's own connection gets the absolute
-     * Position-and-Look re-anchor (the server-authoritative seat), every
-     * OTHER observer gets the rider's teleport in its own id space. Any thread.
+     * The vehicle's own move sync: the teleport-or-relative move packet for
+     * the body, to EVERY tracker — the rider's own camera and the observers'
+     * seated-body anchor both ride these packets (the reference's riding
+     * law: no per-move rider Position-And-Look, no rider-body teleports).
+     * Any thread.
      */
     void sendVehicleMoved(net.zaminmc.torch.server.entity.vehicle.VehicleEntity vehicle,
                           PlayerSession rider) {
@@ -7495,14 +7496,21 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (rider == null) {
             return;
         }
-        if (session == rider) {
-            resyncPosition(); // the seat re-anchor: the client's body follows
-            return;
-        }
-        Integer riderWireId = remoteEntityIds.get(rider.uuid());
-        if (riderWireId != null) {
-            sendEntityTeleport(riderWireId, vehicle.position(), vehicle.onGround());
-        }
+        // THE RIDER'S OWN SYNC (the reference's riding law read whole —
+        // ServerPlayNetworkHandler.handlePlayerMove lines 215-252 +
+        // ServerPlayerEntity.startRiding lines 516-522): the riding
+        // client derives its own body from the vehicle it is attached
+        // to — THE VEHICLE'S OWN MOVE PACKETS above carry the camera,
+        // for the rider exactly like every observer. The reference
+        // NEVER sends the rider a Position-And-Look during the ride
+        // (only the ONE mount anchor and the >2-block stray correction)
+        // and never teleports the rider body separately — the observers
+        // anchor the seated body to the vehicle client-side through the
+        // Attach. The retired per-move arms — the rider's S08 resync
+        // and the observers' rider-body teleports — fought the client's
+        // own vehicle interpolation twenty times a second (the camera
+        // snapping to the tick-quantized seat, the reported 'sitting in
+        // one of them is glitchy').
     }
 
     /** Destroy Entities for a broken/removed vehicle. Any thread. */
@@ -8022,8 +8030,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         int flags = (mover.sneaking() ? Protocol18.LIVING_FLAG_SNEAKING : 0)
                 | (mover.sprinting() ? Protocol18.LIVING_FLAG_SPRINTING : 0)
-                | (mover.burning() ? Protocol18.LIVING_FLAG_BURNING : 0)
-                | (mover.ridingAny() ? Protocol18.LIVING_FLAG_RIDING : 0);
+                | (mover.burning() ? Protocol18.LIVING_FLAG_BURNING : 0);
+        // THE RIDING BIT RETIRED (the reference's own ladder — Entity
+        // .setFlag lines 347/1494/1502/1514/1522): 1.8.8 never marks a
+        // seated body on the flags byte (bit 2 has no setter arm; riding
+        // rides the Attach Entity packet alone). The retired 0x08 bit
+        // actually held flag 3 — every seated player SPRINTED on the
+        // observers' screens.
         ByteBuf out = Unpooled.buffer(12);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_ENTITY_METADATA);
         ByteBufOps.writeVarInt(out, wireId);
