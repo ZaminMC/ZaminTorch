@@ -17,9 +17,12 @@ import java.util.Random;
  * {@code (nextInt(spacing - separation) + nextInt(spacing - separation)) / 2}
  * per axis. The pick chunk then faces the biome gates: the center
  * (the chunk's +8) must be DEEP_OCEAN, and every biome cell in the ±29
- * window must be one of the water family (the reference's isBiomeWithin
- * — the engine carries OCEAN + DEEP_OCEAN; the frozen pair and the river
- * absent, the envelope note).</p>
+ * window must be one of the water family — the reference's own
+ * VALID_BIOMES table whole (OceanMonumentStructure line 24): OCEAN,
+ * DEEP_OCEAN, RIVER, FROZEN_OCEAN, FROZEN_RIVER (the stale two-biome
+ * stand-in retired by the Wave SA alignment — the frozen pair + the
+ * river landed with the full biome family, the envelope note no longer
+ * stands).</p>
  *
  * <p><b>The start (Start lines 89-113):</b> the reference's own seed
  * derivation — two longs drawn from the world seed, the start random
@@ -147,8 +150,9 @@ public final class OceanMonumentStructure {
     /**
      * The water-family window (BiomeSource.isBiomeWithin lines 158-179,
      * 1:1): every biome cell in the ±range window at 4-block steps must be
-     * one of the valid set — the engine's {OCEAN, DEEP_OCEAN} (the frozen
-     * pair + the river absent, the envelope note).
+     * one of the reference's own VALID_BIOMES table (OceanMonumentStructure
+     * line 24): the ocean pair, the river, and the frozen pair — the five
+     * water rows whole.
      */
     private static boolean isBiomeWithin(StructureWorld world, int x, int z, int range) {
         int minX = x - range >> 2;
@@ -161,11 +165,17 @@ public final class OceanMonumentStructure {
             int cellX = minX + i % spanX << 2;
             int cellZ = minZ + i / spanX << 2;
             Biome biome = world.biomeAt(cellX, cellZ);
-            if (biome != Biome.OCEAN && biome != Biome.DEEP_OCEAN) {
+            if (!isWaterFamily(biome)) {
                 return false;
             }
         }
         return true;
+    }
+
+    /** The reference's VALID_BIOMES table (line 24, 1:1). */
+    private static boolean isWaterFamily(Biome biome) {
+        return biome == Biome.OCEAN || biome == Biome.DEEP_OCEAN || biome == Biome.RIVER
+                || biome == Biome.FROZEN_OCEAN || biome == Biome.FROZEN_RIVER;
     }
 
     /**

@@ -51,6 +51,15 @@ public final class EngineChunk {
     public record PendingVillager(int x, int y, int z, int profession) {
     }
 
+    /**
+     * One populate-time witch (Wave SA — the witch hut's own seat, the
+     * reference's WitchHut postProcess tail: one witch at the hut's
+     * (2, 2, 5), gated by the clip so exactly one chunk's queue carries
+     * her).
+     */
+    public record PendingWitch(int x, int y, int z) {
+    }
+
     /** One populate-time loot chest (the reference's placeChestWithLoot). */
     public record PendingGenDispenser(int x, int y, int z, int facing,
                                        List<StructureWorld.GenLootSlot> slots) {
@@ -163,6 +172,18 @@ public final class EngineChunk {
     /** Records one villager spawn (generator thread, during generate). */
     public void addPendingVillager(int x, int y, int z, int profession) {
         pendingVillagers.add(new PendingVillager(x, y, z, profession));
+    }
+
+    private final List<PendingWitch> pendingWitches = new ArrayList<>();
+
+    /** Records one witch spawn (generator thread, during generate). */
+    public void addPendingWitch(int x, int y, int z) {
+        pendingWitches.add(new PendingWitch(x, y, z));
+    }
+
+    /** @return the pending witch records (empty when none). */
+    public List<PendingWitch> pendingWitches() {
+        return pendingWitches;
     }
 
     /** Records one loot chest (generator thread, during generate). */

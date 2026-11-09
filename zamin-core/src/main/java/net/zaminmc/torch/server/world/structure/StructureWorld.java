@@ -67,6 +67,18 @@ public interface StructureWorld {
     }
 
     /**
+     * The populate-time witch spawn (Wave SA — the reference's WitchHut
+     * postProcess tail: {@code world.addEntity(new WitchEntity(world))}
+     * at the hut's (2, 2, 5) seat): the chunk's pending record,
+     * materialized by the engine when the chunk publishes. Fires only in
+     * the chunk whose clip holds the seat cell (the reference's own
+     * bounds gate — the engine's per-chunk recompute answers the same
+     * exactly-once law).
+     */
+    default void spawnWitch(int x, int y, int z) {
+    }
+
+    /**
      * The populate-time villager spawn (the reference's
      * world.addEntity on the piece paths): the chunk's pending queue,
      * materialized by the engine when the chunk publishes.

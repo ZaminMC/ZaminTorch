@@ -22912,6 +22912,27 @@ public final class EngineServer implements Server, EngineBridge {
                     }
                     chunk.pendingVillagers().clear();
                 }
+                if (!chunk.pendingWitches().isEmpty()) {
+                    // Wave SA — the witch hut's own (the reference's
+                    // WitchHut postProcess tail: setPositionAndAngles at
+                    // the seat's +0.5 centers, the initialize riding the
+                    // spawn). The restart idempotence guard is the
+                    // villagers' own pattern (a witch already standing at
+                    // the seat means a previous life drained it).
+                    for (net.zaminmc.torch.server.world.EngineChunk.PendingWitch pending
+                            : chunk.pendingWitches()) {
+                        if (mobManager.mobOfKindNear(
+                                net.zaminmc.torch.server.entity.MobType.WITCH,
+                                pending.x() + 0.5, pending.y(), pending.z() + 0.5, 4.0)) {
+                            continue;
+                        }
+                        mobManager.spawnAt(
+                                net.zaminmc.torch.server.entity.MobType.WITCH,
+                                new Position(pending.x() + 0.5, pending.y(),
+                                        pending.z() + 0.5));
+                    }
+                    chunk.pendingWitches().clear();
+                }
                 if (!chunk.pendingAnimals().isEmpty()) {
                     for (net.zaminmc.torch.server.world.EngineChunk.PendingAnimal pending
                             : chunk.pendingAnimals()) {

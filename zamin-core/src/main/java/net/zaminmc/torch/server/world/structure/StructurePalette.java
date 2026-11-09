@@ -89,6 +89,11 @@ public final class StructurePalette {
     private final BlockType vine;
     private final BlockType chiseledStoneBricks;
     private final BlockType tnt;
+    // The witch-hut set (Wave SA — the reference's WitchHut piece).
+    private final BlockType sprucePlanks;
+    private final BlockType[] spruceStairs = new BlockType[4];
+    private final BlockType cauldron;
+    private final BlockType pottedRedMushroom;
 
     private StructurePalette(BlockRegistry registry) {
         this.air = registry.require(Identifier.parse("minecraft:air"));
@@ -198,6 +203,18 @@ public final class StructurePalette {
         this.vine = BuiltinBlocks.VINE;
         this.chiseledStoneBricks = BuiltinBlocks.CHISELED_STONE_BRICKS;
         this.tnt = BuiltinBlocks.TNT;
+        // The witch-hut set (Wave SA — the reference's TemplePieces.WitchHut
+        // lines 806-985): the spruce planks shell, the spruce stairs' roof
+        // band (the same E/W/S/N = 0..3 ascending nibble as the oak trio),
+        // the cauldron (level 0 — the empty state), the potted red
+        // mushroom (the flower pot's own CONTENTS = MUSHROOM_RED state).
+        this.sprucePlanks = registry.require(Identifier.parse("minecraft:spruce_planks"));
+        this.spruceStairs[0] = registry.require(Identifier.parse("minecraft:spruce_stairs_east"));
+        this.spruceStairs[1] = registry.require(Identifier.parse("minecraft:spruce_stairs_west"));
+        this.spruceStairs[2] = registry.require(Identifier.parse("minecraft:spruce_stairs_south"));
+        this.spruceStairs[3] = registry.require(Identifier.parse("minecraft:spruce_stairs_north"));
+        this.cauldron = net.zaminmc.torch.server.cauldron.CauldronBlocks.of(0);
+        this.pottedRedMushroom = registry.require(Identifier.parse("minecraft:potted_red_mushroom"));
     }
 
     /** Resolves the palette (the registry is immutable after boot). */
@@ -485,6 +502,28 @@ public final class StructurePalette {
 
     public BlockType tnt() {
         return tnt;
+    }
+
+    // ------------------------------------------------------- the witch-hut set
+
+    /** The hut's spruce planks shell (PlanksBlock.Variant.SPRUCE, metadata 1). */
+    public BlockType sprucePlanks() {
+        return sprucePlanks;
+    }
+
+    /** The spruce stairs for the ascending metadata (E/W/S/N = 0..3). */
+    public BlockType spruceStairs(int metadata) {
+        return spruceStairs[metadata & 3];
+    }
+
+    /** The hut's cauldron (the empty level-0 state). */
+    public BlockType cauldron() {
+        return cauldron;
+    }
+
+    /** The potted red mushroom (the flower pot's own CONTENTS state). */
+    public BlockType pottedRedMushroom() {
+        return pottedRedMushroom;
     }
 
     /** The wheat crop for a growth stage 0..7. */

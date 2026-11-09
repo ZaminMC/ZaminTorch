@@ -19,9 +19,14 @@ import java.util.Random;
  * valid cell kept with the {@code nextInt(k+1) == 0} uniform pick), then
  * the angle advances {@code 2π * i / spread} and the ring grows at the
  * spread boundary ({@code i += 2 + nextInt(5)}, {@code spread += 1 +
- * nextInt(2)}). The reference's valid-biome set is every biome with
- * {@code baseHeight > 0} — the engine's three overworld biomes all
- * qualify (the plains 0.125, the forest, the desert).</p>
+ * nextInt(2)}). The reference's valid-biome set is EVERY biome with
+ * {@code baseHeight > 0} (StrongholdStructure lines 21-29 — the
+ * constructor's own walk over Biome.getAll()): the land family whole,
+ * the water/shore family (baseHeight &lt;= 0) refused — the engine's
+ * 61-row table answers the same gate through {@link Biome#baseHeight()}
+ * (the stale Slice-12c three-biome hardcode retired by the Wave SA
+ * alignment: the biome family landed whole since, the envelope note
+ * no longer stands).</p>
  *
  * <p><b>The start (StrongholdStructure.Start lines 112-133 + the
  * createStructure retry loop lines 101-110):</b> the weights reset, the
@@ -102,9 +107,7 @@ public final class StrongholdStructure {
      * The reference's BiomeSource.findBiome (lines 177-196, 1:1): the
      * scan over the {@code range} window at 4-block steps — every valid
      * cell kept with the reservoir rule ({@code nextInt(k + 1) == 0}),
-     * answering the last kept cell's block position. The engine's valid
-     * set is every overworld biome (the baseHeight &gt; 0 gate — all three
-     * qualify).
+     * answering the last kept cell's block position.
      */
     private static int[] findBiome(StructureWorld world, int x, int z, int range, Random random) {
         int minX = x - range >> 2;
@@ -129,9 +132,16 @@ public final class StrongholdStructure {
         return kept > 0 ? new int[]{foundX, foundZ} : null;
     }
 
-    /** The baseHeight &gt; 0 gate (the engine's three overworld biomes qualify). */
+    /**
+     * The baseHeight &gt; 0 gate (StrongholdStructure's own constructor walk
+     * over Biome.getAll(), lines 21-29, 1:1): every land family row
+     * qualifies, the water/shore family (ocean -1.0, deep ocean -1.8,
+     * river -0.5, the frozen pair, the swampland -0.2, the beaches' 0.0)
+     * refuse — the reference's own law, read off the engine's registered
+     * table.
+     */
     private static boolean isValidBiome(Biome biome) {
-        return biome == Biome.PLAINS || biome == Biome.FOREST || biome == Biome.DESERT;
+        return biome != null && biome.baseHeight() > 0.0f;
     }
 
     /**

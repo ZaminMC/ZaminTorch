@@ -20,12 +20,13 @@ import java.util.Random;
  * temple (the mossy cobblestone picker, the two tripwire dispenser
  * traps, the lever-piston puzzle, the main + hidden chests).
  *
- * <p><b>Ledgered</b> (the reference's arms the engine lacks the systems
- * for): the witch hut — the arm never fires (the engine carries no
- * swampland biome; the piece needs the spruce planks/stairs, the cauldron
- * and the flower pot — it ledgers with the swamp biome slice); the witch
- * spawn (Witch 1, 1-1) and the pyramid's blueprint-floor TNT chain ride
- * the mob/explosion slices already in place.</p>
+ * <p><b>The witch hut landed (Wave SA — the structure-placement
+ * alignment):</b> the arm's Slice-12f ledger retired — the swampland
+ * biome landed with the full biome family, and the hut now generates
+ * whole (the spruce planks/stairs shell, the cauldron, the potted red
+ * mushroom, the crafting table, the witch's own seat). The witch spawn
+ * (Witch 1, 1-1) and the pyramid's blueprint-floor TNT chain ride the
+ * mob/explosion systems already in place.</p>
  */
 public final class TemplePieces {
 
@@ -623,6 +624,116 @@ public final class TemplePieces {
                 case 2 -> 2; // north
                 default -> 5; // east
             };
+        }
+    }
+
+    // -------------------------------------------------------- the witch hut
+
+    /**
+     * The witch hut (WitchHut lines 806-985, 1:1 — the Wave SA alignment's
+     * missing arm, ledgered since Slice 12f against the swamp biome that
+     * has since landed): the 7x7x9 stilt hut over the swamp — the spruce
+     * planks floor and walls, the four log corner pillars on their
+     * fillColumnDown stilts, the spruce-stairs roof ring, the crafting
+     * table + cauldron + potted red mushroom interior, and the witch's
+     * own seat at the hut's (2, 2, 5).
+     *
+     * <p><b>The metadata quirk kept verbatim:</b> the roof ring's facing
+     * rolls consult the OAK stairs' metadata band ({@code
+     * postProcessBlockMetadata(Blocks.OAK_STAIRS, ...)}) while the placed
+     * states are SPRUCE — the reference's own pair, the same transform
+     * ladder answering a different family's nibble.</p>
+     *
+     * <p><b>The witch's exactly-once law:</b> the reference's cached
+     * piece carries {@code hasWitch} so the spawn fires in the first
+     * chunk whose clip holds the seat; the engine's per-chunk recompute
+     * needs no flag — the clip gate alone answers the same law (the
+     * record lands in exactly one chunk's pending queue). The flag
+     * itself consumes no random draws, so the stream is
+     * transform-neutral either way.</p>
+     */
+    static final class WitchHut extends ScatteredStructurePiece {
+
+        WitchHut(Random random, int x, int z) {
+            super(random, x, 64, z, 7, 7, 9);
+        }
+
+        @Override
+        public boolean postProcess(StructureWorld world, Random random, StructureBox clip) {
+            if (!this.updateHPos(world, clip, 0)) {
+                return false;
+            }
+            StructurePalette palette = world.palette();
+            // The spruce shell (lines 834-924): the floor, the ceiling
+            // band, the porch, the three walls and the back.
+            this.fillWithOutline(world, clip, 1, 1, 1, 5, 1, 7,
+                    palette.sprucePlanks(), palette.sprucePlanks(), false);
+            this.fillWithOutline(world, clip, 1, 4, 2, 5, 4, 7,
+                    palette.sprucePlanks(), palette.sprucePlanks(), false);
+            this.fillWithOutline(world, clip, 2, 1, 0, 4, 1, 0,
+                    palette.sprucePlanks(), palette.sprucePlanks(), false);
+            this.fillWithOutline(world, clip, 2, 2, 2, 3, 3, 2,
+                    palette.sprucePlanks(), palette.sprucePlanks(), false);
+            this.fillWithOutline(world, clip, 1, 2, 3, 1, 3, 6,
+                    palette.sprucePlanks(), palette.sprucePlanks(), false);
+            this.fillWithOutline(world, clip, 5, 2, 3, 5, 3, 6,
+                    palette.sprucePlanks(), palette.sprucePlanks(), false);
+            this.fillWithOutline(world, clip, 2, 2, 7, 4, 3, 7,
+                    palette.sprucePlanks(), palette.sprucePlanks(), false);
+            // The four corner pillars (lines 925-933).
+            this.fillWithOutline(world, clip, 1, 0, 2, 1, 3, 2,
+                    palette.log(), palette.log(), false);
+            this.fillWithOutline(world, clip, 5, 0, 2, 5, 3, 2,
+                    palette.log(), palette.log(), false);
+            this.fillWithOutline(world, clip, 1, 0, 7, 1, 3, 7,
+                    palette.log(), palette.log(), false);
+            this.fillWithOutline(world, clip, 5, 0, 7, 5, 3, 7,
+                    palette.log(), palette.log(), false);
+            // The furniture (lines 934-944): the fence pair at the back
+            // window, the air trio, the potted mushroom, the table, the
+            // cauldron, the porch fence pair.
+            this.setBlockState(world, palette.fence(), 2, 3, 2, clip);
+            this.setBlockState(world, palette.fence(), 3, 3, 7, clip);
+            this.setBlockState(world, palette.air(), 1, 3, 4, clip);
+            this.setBlockState(world, palette.air(), 5, 3, 4, clip);
+            this.setBlockState(world, palette.air(), 5, 3, 5, clip);
+            this.setBlockState(world, palette.pottedRedMushroom(), 1, 3, 5, clip);
+            this.setBlockState(world, palette.craftingTable(), 3, 2, 6, clip);
+            this.setBlockState(world, palette.cauldron(), 4, 2, 6, clip);
+            this.setBlockState(world, palette.fence(), 1, 2, 1, clip);
+            this.setBlockState(world, palette.fence(), 5, 2, 1, clip);
+            // The roof ring (lines 945-963): the facing rolls consult the
+            // OAK stairs' band, the placed states are spruce — the
+            // reference's own quirk, kept verbatim.
+            int south = this.postProcessMetadata(MetadataFamily.STAIRS, 3);
+            int west = this.postProcessMetadata(MetadataFamily.STAIRS, 1);
+            int east = this.postProcessMetadata(MetadataFamily.STAIRS, 0);
+            int north = this.postProcessMetadata(MetadataFamily.STAIRS, 2);
+            this.fillWithOutline(world, clip, 0, 4, 1, 6, 4, 1,
+                    palette.spruceStairs(south), palette.spruceStairs(south), false);
+            this.fillWithOutline(world, clip, 0, 4, 2, 0, 4, 7,
+                    palette.spruceStairs(east), palette.spruceStairs(east), false);
+            this.fillWithOutline(world, clip, 6, 4, 2, 6, 4, 7,
+                    palette.spruceStairs(west), palette.spruceStairs(west), false);
+            this.fillWithOutline(world, clip, 0, 4, 8, 6, 4, 8,
+                    palette.spruceStairs(north), palette.spruceStairs(north), false);
+            // The stilts (lines 965-969): the four corners' column-down
+            // legs at y -1 below the floor.
+            for (int z = 2; z <= 7; z += 5) {
+                for (int x = 1; x <= 5; x += 4) {
+                    this.fillColumnDown(world, palette.log(), x, -1, z, clip);
+                }
+            }
+            // The witch (lines 971-983): the seat at the hut's (2, 2, 5),
+            // gated by the clip — exactly one chunk's pending queue
+            // carries her.
+            int seatX = this.transformX(2, 5);
+            int seatY = this.transformY(2);
+            int seatZ = this.transformZ(2, 5);
+            if (clip.contains(seatX, seatY, seatZ)) {
+                world.spawnWitch(seatX, seatY, seatZ);
+            }
+            return true;
         }
     }
 }

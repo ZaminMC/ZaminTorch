@@ -735,6 +735,11 @@ public final class NormalWorldGenerator implements WorldGenerator {
                     }
 
                     @Override
+                    public void spawnWitch(int x, int y, int z) {
+                        chunk.addPendingWitch(x, y, z);
+                    }
+
+                    @Override
                     public void spawnElderGuardian(int x, int y, int z) {
                         chunk.addPendingElderGuardian(x, y, z);
                     }

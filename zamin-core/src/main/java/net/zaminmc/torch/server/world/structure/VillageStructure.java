@@ -21,8 +21,9 @@ import java.util.Random;
  * l, 10387312)}): the cell's pick chunk is {@code cellX * 32 +
  * nextInt(24)} / {@code cellZ * 32 + nextInt(24)} — the region hits only
  * when it IS that pick, then the biome gate at the chunk's +8 center
- * answers the last word (every sampled 4-block cell must be plains or
- * desert; the engine carries no savanna — the ledger's envelope note).</p>
+ * answers the last word (every sampled 4-block cell must be plains,
+ * desert or savanna — the reference's own VALID_BIOMES table, the Wave
+ * SA alignment's savanna row).</p>
  *
  * <p><b>The start (VillageStructure.Start lines 75-132 + VillagePieces
  * lines 1083-1121):</b> the piece-weight table from the region random

@@ -17,13 +17,16 @@ import java.util.Random;
  * {@code nextInt(distance - minDistance)} pair per axis (one roll per
  * axis, NOT the village's burned-draw order — the reference's own
  * quirk). The pick chunk then faces the biome gate: the chunk's +8
- * center must be one of the valid family — the engine's {DESERT,
- * JUNGLE} (the desert hills + the jungle hills + the swampland absent,
- * the envelope note).</p>
+ * center must be one of the reference's own VALID_BIOMES family (line
+ * 16, 1:1): the desert pair (DESERT, DESERT_HILLS), the jungle pair
+ * (JUNGLE, JUNGLE_HILLS) and the SWAMPLAND — the stale two-biome
+ * stand-in retired by the Wave SA alignment (the hills pair + the
+ * swampland landed with the full biome family, the envelope note no
+ * longer stands).</p>
  *
  * <p><b>The start (Start lines 85-104):</b> the biome dispatch — the
- * jungle temple (JUNGLE), the witch hut (SWAMPLAND — never fires, no
- * swampland), the desert pyramid (DESERT) — each at the chunk's own
+ * jungle temple (JUNGLE, JUNGLE_HILLS), the witch hut (SWAMPLAND), the
+ * desert pyramid (DESERT, DESERT_HILLS) — each at the chunk's own
  * origin ({@code chunkX * 16, chunkZ * 16} — no +2 corner, the
  * reference's own anchor), the random facing inside the piece, and the
  * bounds union. No vertical re-base (the pieces carry their own y-64
@@ -60,7 +63,8 @@ public final class TempleStructure {
      * The feature gate (isFeatureChunk lines 45-67, 1:1): the
      * negative-coordinate floor walk over the distance grid, the
      * setRandomSeed(14357617) derivation, the pick pair and the biome
-     * gate at the chunk's +8 center.
+     * gate at the chunk's +8 center — the reference's own VALID_BIOMES
+     * family (line 16): the desert pair, the jungle pair, the swampland.
      */
     private boolean isFeatureChunk(int chunkX, int chunkZ, StructureWorld world) {
         int floorX = chunkX;
@@ -81,10 +85,18 @@ public final class TempleStructure {
         if (chunkX != pickX || chunkZ != pickZ) {
             return false;
         }
-        Biome biome = world.biomeAt(chunkX * 16 + 8, chunkZ * 16 + 8);
-        // The engine's valid family: the desert + the jungle (the hills
-        // pair + the swampland absent — the envelope note).
-        return biome == Biome.DESERT || biome == Biome.JUNGLE;
+        return isTempleBiome(world.biomeAt(chunkX * 16 + 8, chunkZ * 16 + 8));
+    }
+
+    /**
+     * The reference's VALID_BIOMES family (line 16, 1:1): the desert
+     * pair, the jungle pair, and the swampland — the scattered family
+     * whole.
+     */
+    static boolean isTempleBiome(Biome biome) {
+        return biome == Biome.DESERT || biome == Biome.DESERT_HILLS
+                || biome == Biome.JUNGLE || biome == Biome.JUNGLE_HILLS
+                || biome == Biome.SWAMPLAND;
     }
 
     /**
@@ -110,13 +122,13 @@ public final class TempleStructure {
         TempleStructureStart(Random random, int chunkX, int chunkZ, StructureWorld world) {
             super(chunkX, chunkZ);
             Biome biome = world.biomeAt(chunkX * 16 + 8, chunkZ * 16 + 8);
-            if (biome == Biome.JUNGLE) {
+            if (biome == Biome.JUNGLE || biome == Biome.JUNGLE_HILLS) {
                 this.pieces.add(new TemplePieces.JungleTemple(random, chunkX * 16, chunkZ * 16));
-            } else if (biome == Biome.DESERT) {
+            } else if (biome == Biome.SWAMPLAND) {
+                this.pieces.add(new TemplePieces.WitchHut(random, chunkX * 16, chunkZ * 16));
+            } else if (biome == Biome.DESERT || biome == Biome.DESERT_HILLS) {
                 this.pieces.add(new TemplePieces.DesertPyramid(random, chunkX * 16, chunkZ * 16));
             }
-            // The swampland arm (the witch hut) never fires — the engine
-            // carries no swampland biome (the ledger's envelope note).
             this.findBounds();
         }
     }

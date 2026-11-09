@@ -98,10 +98,13 @@ public final class VillagePieces {
      * The biome gate (BiomeSource.isBiomeWithin lines 146-161 over the
      * engine's pure biome function): every 4-block cell of the box — the
      * reference's own quarter-resolution anchors {@code (x-range)>>2 ..
-     * (x+range)>>2} — must be a village biome (plains or desert; the
-     * engine carries no savanna, the ledger's envelope note). The cells
-     * sample the column at the cell's center (the +2), the deterministic
-     * equivalent of the reference's one-biome-per-grid-cell model.
+     * (x+range)>>2} — must be a village biome: the reference's own
+     * VALID_BIOMES table (VillageStructure line 14, 1:1) — plains,
+     * desert, savanna (the savanna landed with the full biome family;
+     * the stale two-biome stand-in retired by the Wave SA alignment).
+     * The cells sample the column at the cell's center (the +2), the
+     * deterministic equivalent of the reference's one-biome-per-grid-cell
+     * model.
      */
     static boolean biomeWithin(StructureWorld world, int x, int z, int range) {
         int minCellX = (x - range) >> 2;
@@ -110,15 +113,22 @@ public final class VillagePieces {
         int maxCellZ = (z + range) >> 2;
         for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
             for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
-                net.zaminmc.torch.server.world.Biome biome =
-                        world.biomeAt(cellX * 4 + 2, cellZ * 4 + 2);
-                if (biome != net.zaminmc.torch.server.world.Biome.PLAINS
-                        && biome != net.zaminmc.torch.server.world.Biome.DESERT) {
+                if (!isVillageBiome(world.biomeAt(cellX * 4 + 2, cellZ * 4 + 2))) {
                     return false;
                 }
             }
         }
         return true;
+    }
+
+    /**
+     * The reference's VALID_BIOMES table (VillageStructure line 14, 1:1):
+     * the plains, the desert, the savanna — the village family whole.
+     */
+    private static boolean isVillageBiome(net.zaminmc.torch.server.world.Biome biome) {
+        return biome == net.zaminmc.torch.server.world.Biome.PLAINS
+                || biome == net.zaminmc.torch.server.world.Biome.DESERT
+                || biome == net.zaminmc.torch.server.world.Biome.SAVANNA;
     }
 
     /** The total weight while any family still has budget, else -1 (updateTotalWeight lines 69-88). */
