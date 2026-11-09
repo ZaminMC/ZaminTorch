@@ -9911,20 +9911,97 @@ land their own typed spawners in the carved caves, the seat skips the
 dungeon-box signatures), the light package, the protocol
 WorldgenDeterminismRunTest green.
 
-NEXT WORK (re-pinned after WAVES TN + CV, in order): THE
-STRUCTURE-PLACEMENT ALIGNMENTS — the last standing world-gen lane: the
-engine's structures place at POPULATE time over the pure-probe contract
-(the reference's getChunk-time BlockStateStorage placement + the
-populate-time world placement both exist; the engine chose the populate
-shape in Slice 12a/b) — the alignment read: the reference's
-StrongholdStructure/VillageStructure/MineshaftStructure/TempleStructure/
-OceanMonumentStructure placement laws against the engine's, the
-remaining deviations documented or closed (the surfaceHeight consult
-now reading the density probe; the sea-level 63 shift landing in the
-gates). Then: the terrain-shape acceptance seats over the reference's
-own seeded outputs (the cross-engine shape comparison when the
-verifier's census provides the reference outputs); the verifier's PRs
-when they open; the flake-family watch.
+WAVES SA + SA-2 — THE STRUCTURE-PLACEMENT ALIGNMENTS + THE
+NEGATIVE-COORDINATE CACHE HEAL (2026-11-10, commits 16d24530 + 9a6bc8af —
+the architecture's named head, the last standing world-gen lane, closed
+whole; the alignment's own fallout opened the session's root find):
+
+WAVE SA — THE PLACEMENT GATES (the reference's laws read against the
+engine's, every stale Slice-12-era biome envelope retired — the biome
+family landed whole since, the envelopes no longer stand): (1) THE
+STRONGHOLD'S LAND FAMILY (StrongholdStructure lines 21-29, 1:1): the
+valid-biome set is EVERY biome with baseHeight > 0 (the constructor's
+own walk over Biome.getAll()) — the three-biome hardcode
+(plains/forest/desert alone) retired; the engine's 61-row table answers
+the same gate through Biome.baseHeight() (the taiga, the mesa, the
+savanna, the hills family all snap now; the water/shore family — ocean
+-1.0, deep ocean -1.8, river -0.5, the frozen pair, the swampland -0.2,
+the beaches' 0.0 — refuse exactly like the reference); (2) THE
+MONUMENT'S WATER FAMILY (OceanMonumentStructure line 24, 1:1): the
+isBiomeWithin window accepts the reference's own five-row table —
+OCEAN, DEEP_OCEAN, RIVER, FROZEN_OCEAN, FROZEN_RIVER (the two-water
+stand-in retired; monuments in frozen-ocean windows placed before the
+retrofit refused); (3) THE TEMPLE'S SCATTERED FAMILY (TempleStructure
+line 16, 1:1): the gate widens to the desert pair + the jungle pair +
+the SWAMPLAND, and the Start's dispatch carries the hills arms
+(DESERT_HILLS -> the pyramid, JUNGLE_HILLS -> the jungle temple) and
+the swamp arm; (4) THE WITCH HUT PORTED WHOLE (TemplePieces.WitchHut,
+the reference's lines 806-985 verbatim — the arm ledgered since Slice
+12f 'the engine carries no swampland'): the 7x7x9 stilt hut — the
+spruce planks shell, the four log corner pillars on their
+fillColumnDown stilts, the spruce-stairs roof ring (the facing rolls
+consult the OAK stairs' metadata band while the placed states are
+SPRUCE — the reference's own quirk kept verbatim), the potted red
+mushroom, the crafting table, the CAULDRON, and the witch's own seat
+at the hut's (2, 2, 5) gated by the clip (exactly one chunk's pending
+queue carries her — the engine's per-chunk recompute answers the
+reference's hasWitch exactly-once law without the flag); the witch
+spawn machinery whole (StructureWorld.spawnWitch + EngineChunk
+.PendingWitch + the generator wire + the EngineServer drain with the
+villagers' own idempotence guard); (5) THE VILLAGE'S SAVANNA ROW
+(VillageStructure line 14, 1:1): the biomeWithin family widens to
+plains + desert + SAVANNA. SEATS: StructurePlacementAlignmentTest 10
+NEW (the taiga-world stronghold snap + the mesa row; the frozen-ocean
+monument window + the land refusal; the witch hut whole — the shell
+counts, the cauldron, the mushroom, the table, the roof ring, the
+witch's seat record; the witch's exactly-once law — one chunk, one
+witch; the hills pair dispatch; the savanna village + the forest
+refusal) — 7 RED on the no-op patches, 10 GREEN on the landed law.
+
+WAVE SA-2 — THE NEGATIVE-COORDINATE CACHE COLLAPSE (the alignment's
+own fallout: the SA gates changed the construction-time consult ORDER,
+and the coherence seat flipped — the investigation walked the false
+leads to ground (the layers proven pure by direct chain probes — 0
+diffs on the queried regions over 300-query histories; the IntCache
+pool identity-audited — 0 alias handouts) and found the ROOT: the
+biome cache and the height-map cache packed their chunk keys with the
+bare cast (long)(chunk) | (long)(chunk << 32) — the int sign extension
+SMEARED ONES ACROSS THE WHOLE KEY, so every chunk with a negative z
+collapsed onto ONE key per x-band: the FIRST-cached chunk's 16x16
+array answered the ENTIRE band. THE OWNER'S OWN WORLD IS ALL NEGATIVE
+COORDINATES — the 'biomes, terrain, structures all sucks' report's
+deepest root: south of z=0 the biomes repeated in 16-block stripes
+keyed to whatever chunk loaded first, the density kernel read the
+smeared heights, and the surfaces + structures + decorations rode the
+corruption down (the VR wave's fixedPoint lane-collapse was the same
+class). THE FIX: the masked packing on both keys — the pair injective
+over the whole int domain. THE HEALED FIELD: the ocean coherence
+99.98% (the smeared world measured 81.7%), the land side ~84% — the
+5x5 biome kernel's own shore dilution (the fuzz measures the same at
+the 4-block grid centers, the voronoi warp adds nothing material).
+THE COHERENCE SEAT RE-PINNED to the healed law (the retired 9/10 land
+pin was calibrated ON the collapsed cache — the smear's
+artificially-uniform patches measured fewer boundaries; the ocean pin
+TIGHTENED 3/4 -> 19/20, the land pin 4/5 with the kernel-dilution band
+documented). THE PURITY SEAT ADDED (theBiomeMapIsPureInTheConsultOrder
+— two generators, same seed, opposite consult orders, identical
+answers; 96/256 biome + 128/256 height answers differed between the
+orders on the pre-fix engine; RED on the bare-cast no-op). THE
+STANDING REDS HEALED BOTH: the land/ocean coherence seat AND the anvil
+vehicle-yaw seat (the imported carts land on generated surfaces — the
+corrupted heightMap cache fed them smeared heights). LANES: the world
+package tree WHOLE (278 green — the first fully-green world tree since
+the TN wave landed), the structure + block + map + light packages
+whole (397), the protocol WorldgenDeterminismRunTest green.
+
+NEXT WORK (re-pinned after WAVES SA + SA-2, in order): the
+terrain-shape acceptance seats over the reference's own seeded outputs
+(the cross-engine shape comparison when the verifier's census provides
+the reference outputs — the world-gen complaint's remaining
+verification lane now that every generator stage rides the reference's
+own arithmetic); the vanilla-grade census's next family pick; the
+verifier's PRs when they open; the flake-family watch (the panic seat,
+the enderman-hunt seat, the wolf-collar seat, RiderSpareFall).
 
 WAVES VR + OV — THE OWNER-REPORT BATCH LANDED (2026-11-09, commits
 9e3a826e + a3e4d460 — the owner's nine reported bugs read whole, the
