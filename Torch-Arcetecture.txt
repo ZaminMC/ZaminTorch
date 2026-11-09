@@ -9994,14 +9994,136 @@ package tree WHOLE (278 green — the first fully-green world tree since
 the TN wave landed), the structure + block + map + light packages
 whole (397), the protocol WorldgenDeterminismRunTest green.
 
-NEXT WORK (re-pinned after WAVES SA + SA-2, in order): the
-terrain-shape acceptance seats over the reference's own seeded outputs
-(the cross-engine shape comparison when the verifier's census provides
-the reference outputs — the world-gen complaint's remaining
-verification lane now that every generator stage rides the reference's
-own arithmetic); the vanilla-grade census's next family pick; the
+NEXT WORK (re-pinned after WAVE EK, in order): the terrain-shape
+acceptance seats over the reference's own seeded outputs (the
+cross-engine shape comparison when the verifier's census provides the
+reference outputs — the world-gen complaint's remaining verification
+lane now that every generator stage rides the reference's own
+arithmetic); the vanilla-grade census's next family pick; the
 verifier's PRs when they open; the flake-family watch (the panic seat,
-the enderman-hunt seat, the wolf-collar seat, RiderSpareFall).
+the enderman-hunt seat — green 3/3 isolated on the EK tree — the
+wolf-collar seat, RiderSpareFall; JOINED THIS SESSION by the pot-floor
+seat's one environmental red under the stuck-worker window, green 2/2
+after the kill, and DonkeyChest's open-window timeout, green isolated).
+
+WAVE EK — THE MOB BODIES' EQUIPMENT-ENCHANT CONSULTS LANDED (2026-11-10,
+commit fa7e4951 — the census's next family pick, the standing "the
+equipment model carries no enchant store" row retired whole, every law
+read 1:1 from the reference and RED-verified on the no-op patches):
+
+THE ROOT FIND: the equipment model HAS carried the enchant store for
+some time (ItemStack's enchantments map, the SlotNbt wire rows, the
+EntityNbt round-trip, the five-slot MobEntity equipment row with the
+VIII4 spawn dice) — but NO MOB-SIDE COMBAT PATH EVER CONSULTED IT. The
+armor family had landed as MobEntity's damageAfterArmor consult with
+the envelope inside MobEntity.hurt; the enchant halves, the effect
+gates and the attacker-side riders never ran. A zombie spawned in full
+iron paid every wound whole; a summoned skeleton's POWER V bow shot
+plain arrows; a mob's swing never knocked the player back at all.
+
+(1) THE MOB VICTIM'S ENCHANT + EFFECT WALK (MobManager.hurt over
+LivingEntity.applyDamage lines 909-930's second half,
+getDamageAfterEffectsAndEnchantments 882-907): the unblockable family
+(starve) returns untouched; the Resistance effect halves through
+(25 - (amplifier+1)*5)/25 — never on the void; the Protection EPF
+consult clamped at 20 folded through (25-k)/25 over the body's
+FIVE-slot equipment row (the held helmet contributes its Protection
+exactly like the reference's getEquipment() loop). THE BYPASS
+THREADING: the walk threads the reference's setBypassesArmor family
+(on-fire, in-wall, drown, starve, fall, out-of-world, magic) through
+MobEntity.hurt's bypass flag — the retired walk paid the armor
+envelope on EVERY cause. The EPF roll draws from a DEDICATED
+enchantRolls stream (the reference's STATIC EnchantmentHelper.RANDOM)
+— never the manager's seeded dice (the first cut consumed the stream
+and shifted ChargedCreeperHeadDrop's pinned loot rolls; caught and
+healed in-session). DamageKind gains the MAGIC arm (setBypassesArmor
+but never unblockable — the plain Protection's "all" family alone
+contributes).
+
+(2) THE FIRE-RESISTANCE REFUSAL (takeDamage line 645): a
+fire-resistant mob body refuses the fire family (in-fire, on-fire,
+lava) WHOLE, before any walk runs.
+
+(3) THE MELEE ENCHANT RIDERS (MonsterEntity.tryDamage lines 78-107)
+at BOTH the mob-vs-mob site (hurtByMob) and the mob-vs-player site
+(onMobAttackedPlayer): the held weapon's damage family joins the swing
+(modifyDamage vs the victim's creature attribute), the Knockback level
+arms the amplified impulse along the ATTACKER'S OWN yaw with the
+attacker's 60% horizontal recoil, and the Fire Aspect level ignites
+the victim for j*4 seconds with setOnFireFor's own Fire Protection
+shortening. The five flat-override kinds (the golem, the wolf, the
+ocelot, the rabbit, the creeper) never call the reference's super —
+meleeRidersApply keeps their swings unenchanted.
+
+(4) THE PLAYER'S OWN TAKE DAMAGE SHAPE at the mob-melee site: the
+absorbed bruise inside the window's first half lands nothing, a
+stronger one pays its excess, the fresh hit pays in full — the
+mob-melee walk never carried the window. THE MELEE KNOCKBACK: the
+motion halves, the normalized away-direction impulse with the +0.4
+rise capped, the enchant extra on top — the mob's swing NEVER knocked
+the player back before (the single most player-visible gap in the
+family).
+
+(5) THE ZOMBIE'S BURNING IGNITE (ZombieEntity.tryDamage lines
+251-258): an EMPTY-HANDED burning zombie rolls nextFloat() <
+difficultyId * 0.3F on the landed hit and ignites the victim for
+2*difficultyId seconds.
+
+(6) THE SKELETON'S BOW RIDERS (doRangedAttack lines 252-271 — the
+projectile census's own standing tail): POWER adds i*0.5 + 0.5 on top
+of the distance-scaled field, PUNCH arms the arrow's own knockback
+level, and FLAME — OR THE WITHER VARIANT'S OWN FIRE (the getType() ==
+1 disjunction, line 268: every wither skeleton's arrow burns whatever
+the bow carries) — ignites the arrow for the hundred-second flight.
+
+(7) THE ATTACK-TYPE CONSULT (SkeletonEntity.updateAttackType lines
+240-251 over setEquipment's own re-route, lines 305-310): the
+SKELETON's mind keys on the DISPLAY ITEM — a bow in slot 0 answers
+the shooting band WHATEVER THE VARIANT (a wither skeleton handed a bow
+shoots in the reference; the spawn-time stone sword is what made the
+variant melee, never the flag itself), and a disarmed or sword-swapped
+archer walks the melee family. The retired !skeletonWither hardcode
+keyed the goal on the variant flag. THE RIG RE-PINS: the four
+ProjectileAttackGoalParityDiscoveryTest seats and CombatTargetTails's
+feud pair pin the spawn-state bow on their bare-constructed skeletons.
+
+(8) THE FALL'S ENCHANT HALF (takeFallDamage): the equipment row's
+Protection family folds through the EPF consult at the FALL source —
+Feather Falling's 2.5x curve the only off-kind arm that ever bites a
+mob's landing.
+
+(9) THE BLAST IMPULSE'S BLAST-PROTECTION SHAVE (Explosion line 134):
+d11 = modifyExplosionDamage over the mob's equipment row — the retired
+arm's "the mobs carry no equipment" stand-in answered d10 whole. The
+burning arrow's hit-ignite consults the victim's Fire Protection over
+the mob's equipment row too (the same stale stand-in retired).
+
+(10) THE ANVIL IMPORT TABLE'S STONE TRIO (a pre-existing red on
+develop the protocol lane caught, root-caused from the OV wave):
+granite/diorite/andesite over wire 1's VARIANT nibble (1/3/5) joined
+the import table, the integrity seat's pin re-counted 1344 -> 1347.
+
+SEATS: EquipmentEnchantParityTest 14 NEW — the armor envelope (10 ->
+4.0 through full iron), the bypass family's skip (fall pays whole),
+the Protection IV fold (the EPF band [7.36, 8.096]), the excess arm's
+armored difference, the fire-resistance refusal (lava and in-fire
+refuse, melee still lands), the Resistance I halving (10 -> 8), the
+Sharpness V mob swing (3.0 + 6.25), the Smite refusal on the living +
+the bite on the undead (3.0 + 12.5), the Knockback II impulse along
+the yaw + the 60% recoil, the Fire Aspect II ignite (160 ticks), the
+wolf's flat swing never riding the sword, the zombie's Sharpness V
+swing on the player (8.25 = easy 2.0 + 6.25) with the knockback lift
+and the hurt window, the skeleton's POWER V + PUNCH II + FLAME II bow
+on the arrow (field + 3.0, level 2, 2000 ticks), and the wither
+variant's arrows burning with a PLAIN bow — 12 RED on the no-op
+patches, 14 GREEN on the landed law.
+
+LANES: the entity package tree whole (490 green), the enchantment +
+projectile + potion packages whole, the explosion/lightning/nbt/
+ender-crystal suites, the survival quartet, the combat acceptance
+neighbors, the protocol module (258 — the Anvil integrity re-pinned
+green, DonkeyChest's open-window timeout the documented environmental
+row).
 
 WAVES VR + OV — THE OWNER-REPORT BATCH LANDED (2026-11-09, commits
 9e3a826e + a3e4d460 — the owner's nine reported bugs read whole, the

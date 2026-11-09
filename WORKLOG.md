@@ -3617,3 +3617,67 @@ flake-family watch the next picks; the verifier's PR when it opens.
   the census (the torch-1.8.8-162 stamp landed), #700 queued behind
   it carrying the alignment; the next picks: the census's next family,
   the verifier's PRs when they open, the flake watch.
+
+---
+Task ID: 2026-11-10 session (fourteenth run)
+Agent: main (ZaminTorch session)
+Task: WAVE EK — the mob bodies' equipment-enchant consults (the census's
+next family pick, the standing enchant-store row retired).
+
+Work Log:
+- Synced develop (07999b88 clean; 0 open PRs — the verifier's lane still
+  empty). Re-read Torch-Arcetecture.txt fresh: the next-work named the
+  terrain-shape acceptance seats (blocked on the verifier's reference
+  outputs) + the census's next family pick.
+- THE PICK: the standing row "the POWER/PUNCH/FLAME riders — NOT-REACHABLE
+  until the equipment model carries an enchant store" — the store HAS
+  landed since (ItemStack's enchantments, the SlotNbt wire rows, the
+  EntityNbt round-trip, the five-slot equipment row) but NO mob-side
+  combat path consulted it. The root find: the armor envelope lived
+  inside MobEntity.hurt; the enchant halves, the effect gates and the
+  attacker-side riders never ran.
+- LANDED WAVE EK (fa7e4951): (1) the enchant + effect walk inside
+  MobManager.hurt (the Protection EPF fold over the five-slot row, the
+  Resistance halving, the bypass family threaded through MobEntity.hurt's
+  flag); (2) the fire-resistance refusal; (3) the melee enchant riders
+  at both the mob-vs-mob and mob-vs-player sites (modifyDamage, the
+  Knockback impulse + 60% recoil, the Fire Aspect ignite; the five
+  flat-override kinds excluded); (4) the player's own takeDamage shape
+  at the mob-melee site (the hurt window + THE MELEE KNOCKBACK — the
+  mob's swing never knocked the player back before); (5) the zombie's
+  burning ignite; (6) the skeleton's bow riders (POWER/PUNCH/FLAME + the
+  wither variant's own fire); (7) the attack-type consult keyed on the
+  held bow (updateAttackType's own law — the retired !skeletonWither
+  hardcode was a deviation); (8) the fall's Feather Falling fold;
+  (9) the blast impulse's Blast Protection shave; (10) the anvil import
+  table's stone trio (a pre-existing red the protocol lane caught,
+  root-caused from the OV wave — granite/diorite/andesite over wire 1).
+- BUGS CAUGHT IN-SESSION: the first cut's EPF roll consumed the
+  manager's seeded random stream (ChargedCreeperHeadDrop's pinned loot
+  rolls shifted) — healed with the dedicated enchantRolls stream (the
+  reference's STATIC EnchantmentHelper.RANDOM); the bare-constructed
+  skeleton rigs needed the spawn-state bow re-pin (the attack-type
+  consult's own consequence); a leaked stuck gradle worker burned 30
+  minutes of the entity lane before the kill (the pot-floor seat's
+  one red was its environmental shadow, green 2/2 after).
+- SEATS: EquipmentEnchantParityTest 14 NEW, 12 RED on the no-op patches
+  (six RED rounds run: the walk+gate trio, the rider quartet, the
+  player-site pair, the bow pair, the attack-type consult).
+- LANES: the entity tree whole (490), the enchantment + projectile +
+  potion packages, the explosion/lightning/nbt suites, the survival
+  quartet, the combat acceptance neighbors, the protocol module (258 —
+  the Anvil integrity re-pinned green).
+- The architecture's record + the README refreshed (badge 3,910 + the
+  latest-landing note).
+
+Stage Summary:
+- ONE wave this session: EK (fa7e4951), pushed as Abasing.
+- The equipment-enchant family closed whole: every mob wound now rides
+  the reference's own applyDamage halves, every mob swing carries its
+  weapon's enchantments, and the player finally gets knocked back.
+
+AT CLOSE: develop = fa7e4951 pushed clean; the pin's open rows: the
+terrain-shape acceptance seats (awaiting the verifier's reference
+outputs), the census's next family pick, the verifier's PRs when they
+open, the flake-family watch (the enderman-hunt seat, the pot-floor
+shadow, DonkeyChest's window timeout).
