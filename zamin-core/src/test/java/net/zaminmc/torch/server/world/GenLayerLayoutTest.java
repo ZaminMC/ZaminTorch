@@ -214,59 +214,66 @@ class GenLayerLayoutTest {
     /**
      * The biome-band heights (the registration table's pairs driving the
      * terrain): the plateaus tower over the plains, the plains sit above
-     * the ocean, the river carves below the sea.
+     * the ocean, the river carves below the sea. Re-pinned to the density
+     * model's own law (Wave TN): the 5x5 kernel AVERAGES the biome bands
+     * (a thin river grid cell dilutes among its neighbors — the carve
+     * reads the channel percentile, not the single column), and the band
+     * heights read as MEDIANS (the density's lerp wobble swings single
+     * columns tens of blocks).
      */
     @Test
     void theHeightBandsFollowTheRegistrationPairs() {
         NormalWorldGenerator generator =
                 new NormalWorldGenerator(registry(), "genlayer-bands");
-        Integer plainsHeight = null;
-        Integer oceanHeight = null;
-        Integer plateauHeight = null;
-        // The river band: the block-level extent is FUZZY (the voronoi's
-        // corner jitter claims neighbor cells' edge blocks — vanilla's
-        // own rivers read dashed at the block level; a dense probe shows
-        // ~21% of river blocks wet) — the LAW is the wet core: the
-        // band's minimum height carves well below the sea.
-        int riverBelow = 0;
-        int riverTotal = 0;
-        int riverMin = Integer.MAX_VALUE;
-        for (int x = -4096; x < 4096 && (plainsHeight == null
-                || oceanHeight == null || plateauHeight == null
-                || riverTotal < 256); x += 8) {
-            for (int z = -4096; z < 4096; z += 8) {
+        java.util.List<Integer> plainsSamples = new java.util.ArrayList<>();
+        java.util.List<Integer> oceanSamples = new java.util.ArrayList<>();
+        java.util.List<Integer> plateauSamples = new java.util.ArrayList<>();
+        java.util.List<Integer> riverSamples = new java.util.ArrayList<>();
+        for (int x = -4096; x < 4096 && (plainsSamples.size() < 64
+                || oceanSamples.size() < 64 || plateauSamples.size() < 64
+                || riverSamples.size() < 1024); x += 8) {
+            for (int z = -4096; z < 4096 && (plainsSamples.size() < 64
+                    || oceanSamples.size() < 64 || plateauSamples.size() < 64
+                    || riverSamples.size() < 1024); z += 8) {
                 Biome biome = generator.biomeAt(x, z);
-                if (plainsHeight == null && biome == Biome.PLAINS) {
-                    plainsHeight = generator.heightAt(x, z);
-                } else if (oceanHeight == null && biome == Biome.OCEAN) {
-                    oceanHeight = generator.heightAt(x, z);
-                } else if (plateauHeight == null
+                if (biome == Biome.PLAINS && plainsSamples.size() < 64) {
+                    plainsSamples.add(generator.heightAt(x, z));
+                } else if (biome == Biome.OCEAN && oceanSamples.size() < 64) {
+                    oceanSamples.add(generator.heightAt(x, z));
+                } else if (plateauSamples.size() < 64
                         && (biome == Biome.MESA_PLATEAU
                                 || biome == Biome.SAVANNA_PLATEAU)) {
-                    plateauHeight = generator.heightAt(x, z);
-                } else if (biome == Biome.RIVER && riverTotal < 256) {
-                    riverTotal++;
-                    int riverHeight = generator.heightAt(x, z);
-                    riverMin = Math.min(riverMin, riverHeight);
-                    if (riverHeight < NormalWorldGenerator.SEA_LEVEL) {
-                        riverBelow++;
-                    }
+                    plateauSamples.add(generator.heightAt(x, z));
+                } else if (biome == Biome.RIVER && riverSamples.size() < 1024) {
+                    riverSamples.add(generator.heightAt(x, z));
                 }
             }
         }
-        assertTrue(plainsHeight != null && oceanHeight != null
-                && plateauHeight != null,
+        assertTrue(!plainsSamples.isEmpty() && !oceanSamples.isEmpty()
+                        && !plateauSamples.isEmpty(),
                 "the bands found in the sweep");
-        assertTrue(riverTotal >= 256, "the river band sampled: " + riverTotal);
-        assertTrue(riverBelow >= 32,
-                "the river's wet core carves: " + riverBelow + "/"
-                        + riverTotal);
-        assertTrue(riverMin < NormalWorldGenerator.SEA_LEVEL - 4,
-                "the river band's floor sits well below the sea: " + riverMin);
+        assertTrue(riverSamples.size() >= 512,
+                "the river band sampled: " + riverSamples.size());
+        int plainsHeight = median(plainsSamples);
+        int oceanHeight = median(oceanSamples);
+        int plateauHeight = median(plateauSamples);
+        java.util.Collections.sort(riverSamples);
+        int riverChannel = riverSamples.get(riverSamples.size() / 20); // p5
+        int riverQuarter = riverSamples.get(riverSamples.size() / 4); // p25
+        assertTrue(riverChannel < NormalWorldGenerator.SEA_LEVEL - 4,
+                "the river channels carve well below the sea: " + riverChannel);
+        assertTrue(riverQuarter < NormalWorldGenerator.SEA_LEVEL,
+                "the river band's bulk sits underwater: " + riverQuarter);
         assertTrue(plainsHeight > oceanHeight,
                 "the plains sit above the ocean");
         assertTrue(plateauHeight > plainsHeight + 10,
                 "the plateaus tower (1.5 base against 0.125)");
+    }
+
+    /** The median of the sampled heights (the band's own center). */
+    private static int median(java.util.List<Integer> samples) {
+        java.util.Collections.sort(samples);
+        return samples.get(samples.size() / 2);
     }
 
     /**
@@ -356,10 +363,26 @@ class GenLayerLayoutTest {
         String mesa = null;
         String isle = null;
         String stoneBeach = null;
+        // The height consult rides INSIDE the wanted-biome checks (the
+        // density probe costs the height-map walk — the sweep consults it
+        // only where a skin is sought, never per column), and the SELECTION
+        // reads the MIRRORED biome — the fill's own [j + i*16] law (Wave
+        // TN): the surface pass carries the chunk-local mirrored cell's
+        // registration pair, so the skin follows the mirror, not the
+        // column's own biome.
         for (int x = -16384; x < 16384 && (desert == null || mesa == null
                 || isle == null || stoneBeach == null); x += 8) {
             for (int z = -16384; z < 16384; z += 8) {
-                Biome biome = generator.biomeAt(x, z);
+                int baseX = (x >> 4) << 4;
+                int baseZ = (z >> 4) << 4;
+                Biome biome = generator.biomeAt(baseX + (z & 15), baseZ + (x & 15));
+                boolean wanted = (desert == null && biome == Biome.DESERT)
+                        || (mesa == null && biome == Biome.MESA)
+                        || (isle == null && biome == Biome.MUSHROOM_ISLAND)
+                        || (stoneBeach == null && biome == Biome.STONE_BEACH);
+                if (!wanted) {
+                    continue;
+                }
                 int h = generator.heightAt(x, z);
                 if (h <= NormalWorldGenerator.SEA_LEVEL) {
                     continue; // the underwater floor is its own law
@@ -378,8 +401,17 @@ class GenLayerLayoutTest {
             }
         }
         assertEquals("minecraft:sand", desert, "the desert's skin");
-        assertEquals("minecraft:red_sand", mesa, "the mesa's skin");
         assertEquals("minecraft:stone", stoneBeach, "the stone beach's skin");
+        // The mesa's own band law (the density model's wobble — Wave TN's
+        // re-pin): a dry mesa column wears the red-sand cap in the low
+        // band or the tall clay band's materials above (the orange /
+        // hardened / seeded-layer arms — the mesa's OWN family either
+        // way, never another biome's skin).
+        assertTrue(mesa != null
+                        && (mesa.equals("minecraft:red_sand")
+                                || mesa.equals("minecraft:hardened_clay")
+                                || mesa.contains("stained_clay")),
+                "the mesa's skin is its own family: " + mesa);
         // The isle is the chain's rarest row (the 1-in-100 roll inside an
         // all-ocean 3x3) — the wide sweep finds it when the seed places
         // one in range; when it does, the mycelium consult is pinned.

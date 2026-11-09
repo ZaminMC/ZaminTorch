@@ -41,24 +41,24 @@ import java.util.Random;
 public final class BiomeSurfaceBuilder {
 
     /**
-     * The reference's sea level (63 — the walk's own constant; the
-     * engine's {@code NormalWorldGenerator.SEA_LEVEL} 62 is the top
-     * water cell, the same line in the reference's coordinates).
+     * The reference's sea level (63 — the walk's own constant; the fill's
+     * water band rides {@code y < 63} — the same cells the engine's own
+     * pre-TN constant 62 named as the top water cell).
      */
     private static final int SEA = 63;
-
-    /** The builder's own salt (the depth noise's derivation). */
-    private static final long DEPTH_SALT = 0x535246414345L;
 
     private final long seed;
     private final BlockRegistry registry;
 
     /**
-     * The depth octave stack (the reference's {@code perlinNoise3}'s own
-     * four SimplexNoise levels — the getRegion walk below samples them
-     * directly).
+     * The depth octave stack (the reference's {@code perlinNoise3} — THE
+     * GENERATOR'S OWN INSTANCE, handed in by NormalWorldGenerator as the
+     * fourth noise of its construction stream: the reference's surface
+     * pass reads the very instance the ctor built from the world seed,
+     * so the depth field is the stream's own — the retired salt-derived
+     * stand-in answered a different field at the same seed).
      */
-    private final net.zaminmc.torch.server.world.noise.SimplexNoise[] depthLevels;
+    private final net.zaminmc.torch.server.world.noise.PerlinSimplexNoise depthNoise;
 
     // ---------------------------------------------------------- the materials
 
@@ -73,6 +73,12 @@ public final class BiomeSurfaceBuilder {
     private final BlockType hardenedClay;
     private final BlockType podzol;
     private final BlockType coarseDirt;
+    /** The bedrock of the walk's floor roll (the reference's nextInt(5) band). */
+    private final BlockType bedrock;
+    /** The frozen floor's ice (the temperature arm, line 481-486). */
+    private final BlockType ice;
+    /** The underwater floor's water skin (the same arm's else). */
+    private final BlockType water;
     /** The stained clay family by dye color index (the 1.8 metadata order). */
     private final BlockType[] stainedClay = new BlockType[16];
 
@@ -87,17 +93,14 @@ public final class BiomeSurfaceBuilder {
     /** The Bryce pillar cap noise (claySurfaceNoise — 1 octave). */
     private final net.zaminmc.torch.server.world.noise.PerlinSimplexNoise claySurfaceNoise;
 
-    public BiomeSurfaceBuilder(long seed, BlockRegistry registry) {
+    public BiomeSurfaceBuilder(long seed, BlockRegistry registry,
+            net.zaminmc.torch.server.world.noise.PerlinSimplexNoise depthNoise) {
         this.seed = seed;
         this.registry = Objects.requireNonNull(registry, "registry");
-        // The depth stack (the reference's ctor: PerlinSimplexNoise(random, 4)
-        // — four SimplexNoise levels off the one Random, in order).
-        Random depthRandom = new Random(seed ^ DEPTH_SALT);
-        this.depthLevels = new net.zaminmc.torch.server.world.noise.SimplexNoise[4];
-        for (int level = 0; level < 4; level++) {
-            depthLevels[level] = new net.zaminmc.torch.server.world.noise.SimplexNoise(
-                    depthRandom);
-        }
+        // The depth consult rides the generator's own perlinNoise3 (the ctor
+        // stream's fourth — Wave TN's alignment: the surface depth field is
+        // the world seed's own, never a private derivation).
+        this.depthNoise = Objects.requireNonNull(depthNoise, "depthNoise");
 
         this.stone = registry.require(Identifier.parse("minecraft:stone"));
         this.dirt = registry.require(Identifier.parse("minecraft:dirt"));
@@ -110,6 +113,10 @@ public final class BiomeSurfaceBuilder {
         this.hardenedClay = registry.require(Identifier.parse("minecraft:hardened_clay"));
         this.podzol = registry.require(Identifier.parse("minecraft:podzol"));
         this.coarseDirt = registry.require(Identifier.parse("minecraft:coarse_dirt"));
+        this.bedrock = registry.require(Identifier.parse("minecraft:bedrock"));
+        this.ice = registry.require(Identifier.parse("minecraft:ice"));
+        this.water = registry.require(Identifier.parse("minecraft:water"));
+        this.air = registry.require(Identifier.parse("minecraft:air"));
         for (int color = 0; color < 16; color++) {
             stainedClay[color] = registry.require(DyeFamilyBlocks.stainedClayBlock(color));
         }
@@ -134,24 +141,37 @@ public final class BiomeSurfaceBuilder {
     // ------------------------------------------------------------------
 
     /**
-     * The surface-builder material at one cell of the column.
+     * The surface-builder material at one cell of the column (the
+     * out-of-chunk probe's own form — the per-cell consult with the
+     * caller's depth; the fill path walks {@link #buildColumn} instead,
+     * the reference's own stateful pass).
      *
      * @param x the block x
      * @param y the block y
      * @param z the block z
      * @param h the column's terrain height (the first stone cell of the
      *        base terrain)
-     * @param biome the column's biome (the registration row)
+     * @param biome the column's biome (the MIRRORED consult the fill
+     *        carries — the [j + i*16] law)
+     * @param depth the column's MIRRORED depth (the depthBuffer consult)
      * @return the builder's material, or null when the cell is not the
      *         builder's — the core stone the ore ladder owns, or the
      *         air/water above the terrain (the caller's own answers)
      */
-    public BlockType blockAt(int x, int y, int z, int h, Biome biome) {
-        double depth = depthAt(x, z);
+    public BlockType blockAt(int x, int y, int z, int h, Biome biome, double depth) {
         if (biome.family() == Biome.Family.MESA) {
             return mesaBlockAt(x, y, z, h, depth, biome);
         }
         return coreBlockAt(x, y, z, h, depth, biome);
+    }
+
+    /**
+     * The surface-builder material at one cell of the column (the
+     * convenience form consulting the TRUE column's depth — the
+     * diagnostics' own read).
+     */
+    public BlockType blockAt(int x, int y, int z, int h, Biome biome) {
+        return blockAt(x, y, z, h, biome, depthAt(x, z));
     }
 
     // ------------------------------------------------------------------
@@ -468,6 +488,245 @@ public final class BiomeSurfaceBuilder {
     }
 
     // ------------------------------------------------------------------
+    // The fill's column walk (the reference's own shape — Wave TN)
+    // ------------------------------------------------------------------
+
+    /**
+     * One column's cell seam: the walk reads the FILL's placed cells and
+     * writes its own — the same read/write pair the reference's
+     * BlockStateStorage carries (the walk's own reads see its own prior
+     * writes at higher y — the mesa pillar's fill counts on it).
+     */
+    public interface ColumnAccess {
+        /** The cell at {@code y} in this column (the current state). */
+        BlockType get(int y);
+
+        /** The write (the walk's own materials). */
+        void set(int y, BlockType type);
+    }
+
+    /**
+     * The fill-path column walk (the reference's buildSurfaces →
+     * prepareAndBuildSurfaces → generateBiomeSurface chain, lines 452-508
+     * + MesaBiome's own): ONE top-down pass over the placed cells with the
+     * CHUNK RANDOM consumed exactly — the k roll's nextDouble first, the
+     * bedrock gate's nextInt(5) at EVERY y, the sandstone extension's
+     * nextInt(4) at the counter's zero — the stateful j/l countdown the
+     * pure per-cell consult below stands in for (the probe's own form).
+     *
+     * <p>THE CONSULTS' ORDER (the reference's own quirk, kept verbatim):
+     * the caller passes the MIRRORED biome and depth for the column — the
+     * reference reads {@code biomes[j + i * 16]} and {@code depthBuffer[j
+     * + i * 16]} for the column (i, j), the transposed cells of the
+     * x-fastest arrays — while the mesa's own noise consults (the pillar,
+     * the clay layers) read the column's TRUE coordinates.</p>
+     *
+     * @param x the column's TRUE world x (the mesa's noise consults)
+     * @param z the column's TRUE world z
+     * @param biome the MIRRORED biome (the [j + i*16] consult)
+     * @param depth the MIRRORED depth (the depthBuffer consult)
+     * @param random the chunk random (the consumption is the law)
+     * @param column the cell seam
+     */
+    public void buildColumn(int x, int z, Biome biome, double depth, Random random, ColumnAccess column) {
+        if (biome.family() == Biome.Family.MESA) {
+            mesaColumnWalk(x, z, biome, depth, random, column);
+        } else {
+            coreColumnWalk(x, z, biome, depth, random, column);
+        }
+    }
+
+    /**
+     * The core walk (Biome.generateBiomeSurface lines 452-508, verbatim):
+     * the registration pair as the initial surface/subsurface, the k roll,
+     * then per y 255→0 the bedrock gate, the air reset, and the stone
+     * arms — the first-stone band (the pair reset inside [sea-4, sea+1],
+     * the frozen/underwater floor skin, the cap / the deep gravel / the
+     * subsurface) and the countdown band (the subsurface run + the sand
+     * family's sandstone extension with its own re-rolled counter).
+     */
+    private void coreColumnWalk(int x, int z, Biome biome, double depth, Random random, ColumnAccess column) {
+        int sea = SEA;
+        // The entry pair consult (the family overrides' own shape —
+        // ExtremeHillsBiome/TaigaBiome/SavannaBiome switch the pair by
+        // depth BEFORE the walk, and the walk's initialization reads the
+        // switched pair; the engine's surfaceOf/subsurfaceOf forms carry
+        // the switches + the registration fallback in one consult).
+        BlockType surface = surfaceOf(biome, depth);
+        BlockType subsurface = subsurfaceOf(biome, depth);
+        int j = -1;
+        int k = (int) (depth / 3.0 + 3.0 + random.nextDouble() * 0.25);
+
+        for (int y = 255; y >= 0; y--) {
+            if (y <= random.nextInt(5)) {
+                column.set(y, bedrock);
+            } else {
+                BlockType cell = column.get(y);
+                if (cell.equals(air)) {
+                    j = -1;
+                } else if (cell.equals(stone)) {
+                    if (j == -1) {
+                        if (k <= 0) {
+                            surface = null;
+                            subsurface = stone;
+                        } else if (y >= sea - 4 && y <= sea + 1) {
+                            // The sea-band reset re-reads the switched pair
+                            // (the reference's re-assignment, lines 472-475 —
+                            // the second stone band after a null'd first).
+                            surface = surfaceOf(biome, depth);
+                            subsurface = subsurfaceOf(biome, depth);
+                        }
+
+                        if (y < sea && surface == null) {
+                            surface = biome.temperature() < 0.15F ? ice : water;
+                        }
+
+                        j = k;
+                        if (y >= sea - 1) {
+                            if (surface != null) {
+                                column.set(y, surface);
+                            }
+                        } else if (y < sea - 7 - k) {
+                            surface = null;
+                            subsurface = stone;
+                            column.set(y, gravel);
+                        } else {
+                            column.set(y, subsurface);
+                        }
+                    } else if (j > 0) {
+                        j--;
+                        column.set(y, subsurface);
+                        if (j == 0 && (subsurface == sand || subsurface == redSand)) {
+                            // The extension (lines 501-507): the sand family's
+                            // sandstone run — the counter re-rolled with the
+                            // above-63 bonus, the pair switched to the
+                            // matching sandstone (red sand's own).
+                            j = random.nextInt(4) + Math.max(0, y - 63);
+                            subsurface = subsurface == redSand ? redSandstone : sandstone;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * The mesa walk (MesaBiome.prepareAndBuildSurfaces lines 68-177,
+     * verbatim): the mutated pillar's air-fill below its consulted top
+     * FIRST (the walk's own reads see the filled stone), then the same
+     * bedrock gate and stone arms over the mesa's own band law — the
+     * band length re-anchored per first-stone with the above-sea bonus
+     * ({@code l = k + max(0, y - sea)}), the tall clay band outside
+     * 64-127, the cos-band's hardened clay, the seeded layer table
+     * between, the red-sand cap's flag1 orange banding below, and the
+     * has-trees plateau's coarse/grass tops above {@code 86 + 2k}.
+     */
+    private void mesaColumnWalk(int x, int z, Biome biome, double depth, Random random, ColumnAccess column) {
+        boolean bryce = biome == Biome.MESA_BRYCE;
+        boolean hasTrees = biome == Biome.MESA_PLATEAU_F || biome == Biome.MESA_PLATEAU_F_M;
+
+        // The pillar top (lines 78-98): the swapped (x, z) pillar
+        // coordinates, the min(|depth|, pillarNoise) gate, the squared and
+        // capped height, the +64 lift — zero when the gate refuses.
+        double pillarTop = 0.0;
+        if (bryce) {
+            int i = (x & -16) + (z & 15);
+            int j = (z & -16) + (x & 15);
+            double d0 = Math.min(Math.abs(depth),
+                    clayPillarNoise.getValue(i * 0.25, j * 0.25));
+            if (d0 > 0.0) {
+                double d4 = d0 * d0 * 2.5;
+                double d3 = Math.ceil(Math.abs(
+                        claySurfaceNoise.getValue(i * 0.001953125, j * 0.001953125)) * 50.0) + 14.0;
+                if (d4 > d3) {
+                    d4 = d3;
+                }
+                pillarTop = d4 + 64.0;
+            }
+        }
+
+        int sea = SEA;
+        BlockType subsurface = registeredSubsurface(biome);
+        int k = (int) (depth / 3.0 + 3.0 + random.nextDouble() * 0.25);
+        boolean clayBand = Math.cos(depth / 3.0 * Math.PI) > 0.0;
+        int l = -1;
+        boolean redSandCap = false;
+
+        for (int y = 255; y >= 0; y--) {
+            // The pillar's air-fill (line 105): every air cell below the
+            // consulted top becomes stone — the walk below then reads the
+            // filled cell at the same y.
+            if (column.get(y).equals(air) && y < (int) pillarTop) {
+                column.set(y, stone);
+            }
+
+            if (y <= random.nextInt(5)) {
+                column.set(y, bedrock);
+            } else {
+                BlockType cell = column.get(y);
+                if (cell.equals(air)) {
+                    l = -1;
+                } else if (cell.equals(stone)) {
+                    if (l == -1) {
+                        redSandCap = false;
+                        if (k <= 0) {
+                            subsurface = stone;
+                        } else if (y >= sea - 4 && y <= sea + 1) {
+                            subsurface = registeredSubsurface(biome);
+                        }
+
+                        l = k + Math.max(0, y - sea);
+                        if (y >= sea - 1) {
+                            if (!hasTrees || y <= 86 + k * 2) {
+                                if (y > sea + 3 + k) {
+                                    if (y < 64 || y > 127) {
+                                        column.set(y, stainedClay[1]); // orange
+                                    } else if (clayBand) {
+                                        column.set(y, hardenedClay);
+                                    } else {
+                                        column.set(y, clayLayerAt(x, y, z));
+                                    }
+                                } else {
+                                    column.set(y, registeredSurface(biome));
+                                    redSandCap = true;
+                                }
+                            } else if (clayBand) {
+                                column.set(y, coarseDirt);
+                            } else {
+                                column.set(y, grass);
+                            }
+                        } else {
+                            column.set(y, subsurface);
+                            if (isStainedClay(subsurface)) {
+                                // The stained-clay re-set (lines 156-160): the
+                                // underwater floor's clay always re-sets orange
+                                // (the reference checks the BLOCK — any color).
+                                column.set(y, stainedClay[1]);
+                            }
+                        }
+                    } else if (l > 0) {
+                        l--;
+                        if (redSandCap) {
+                            column.set(y, stainedClay[1]); // the cap's orange banding
+                        } else {
+                            column.set(y, clayLayerAt(x, y, z));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** The air cell consult (the walk's reset arm — the registry's own air). */
+    private final BlockType air;
+
+    /** The stained-clay family membership (the re-set arm's block check). */
+    private boolean isStainedClay(BlockType type) {
+        net.zaminmc.torch.util.Identifier id = type.identifier();
+        return id.namespace().equals("minecraft") && id.value().equals("stained_hardened_clay");
+    }
+
+    // ------------------------------------------------------------------
     // The shared derivations
     // ------------------------------------------------------------------
 
@@ -476,14 +735,16 @@ public final class BiomeSurfaceBuilder {
      * — getRegion's own law: OverworldChunkGenerator line 160 samples
      * the four levels at the 1/16 base scale HALVING per level, each
      * weighted 0.55 DOUBLING per level — the add tail's {@code 70.0 ×
-     * corners × noiseScale} accumulation).
+     * corners × noiseScale} accumulation). The consult walks the SHARED
+     * perlinNoise3's own levels — the out-of-chunk probe form (the fill
+     * path reads the bulk getRegion buffer, the reference's own call).
      */
     public double depthAt(int x, int z) {
         double sum = 0.0;
         double frequency = 0.0625;
         double amplitude = 0.55;
-        for (int level = 0; level < depthLevels.length; level++) {
-            net.zaminmc.torch.server.world.noise.SimplexNoise noise = depthLevels[level];
+        for (int level = 0; level < this.depthNoise.levelCount(); level++) {
+            net.zaminmc.torch.server.world.noise.SimplexNoise noise = this.depthNoise.level(level);
             // The add path's own coordinates (line 122): the block
             // position scaled, then the instance's own offset.
             sum += noise.getValue(x * frequency + noise.offsetX,

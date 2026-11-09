@@ -133,4 +133,81 @@ public class SimplexNoise {
 
         return 70.0 * (d0 + d1 + d2);
     }
+
+    /**
+     * The region accumulation form (the reference's lines 115-180): the
+     * same three-corner walk as {@link #getValue} inlined over an area,
+     * the block coordinates pre-scaled and offset by the caller, each
+     * sample ADDED into the shared buffer scaled by {@code noiseScale}.
+     * The walk order is z-outer/x-inner — the output layout is
+     * x-fastest ({@code index = x + z * sizeX}), the surface depth
+     * buffer's own convention. Ported for the terrain noise core's
+     * depth consult (Wave TN — the reference's buildSurfaces line 160).
+     */
+    public void add(double[] values, double x, double y, int sizeX, int sizeY, double scaleX, double scaleY, double noiseScale) {
+        int i = 0;
+
+        for (int j = 0; j < sizeY; j++) {
+            double d0 = (y + j) * scaleY + this.offsetY;
+
+            for (int k = 0; k < sizeX; k++) {
+                double d1 = (x + k) * scaleX + this.offsetX;
+                double d5 = (d1 + d0) * SKEW_FACTOR_2D;
+                int l = fastFloor(d1 + d5);
+                int i1 = fastFloor(d0 + d5);
+                double d6 = (l + i1) * UNSKEW_FACTOR_2D;
+                double d7 = l - d6;
+                double d8 = i1 - d6;
+                double d9 = d1 - d7;
+                double d10 = d0 - d8;
+                int j1;
+                int k1;
+                if (d9 > d10) {
+                    j1 = 1;
+                    k1 = 0;
+                } else {
+                    j1 = 0;
+                    k1 = 1;
+                }
+
+                double d11 = d9 - j1 + UNSKEW_FACTOR_2D;
+                double d12 = d10 - k1 + UNSKEW_FACTOR_2D;
+                double d13 = d9 - 1.0 + 2.0 * UNSKEW_FACTOR_2D;
+                double d14 = d10 - 1.0 + 2.0 * UNSKEW_FACTOR_2D;
+                int l1 = l & 0xFF;
+                int i2 = i1 & 0xFF;
+                int j2 = this.permutations[l1 + this.permutations[i2]] % 12;
+                int k2 = this.permutations[l1 + j1 + this.permutations[i2 + k1]] % 12;
+                int l2 = this.permutations[l1 + 1 + this.permutations[i2 + 1]] % 12;
+                double d15 = 0.5 - d9 * d9 - d10 * d10;
+                double d2;
+                if (d15 < 0.0) {
+                    d2 = 0.0;
+                } else {
+                    d15 *= d15;
+                    d2 = d15 * d15 * dot(GRADIENTS[j2], d9, d10);
+                }
+
+                double d16 = 0.5 - d11 * d11 - d12 * d12;
+                double d3;
+                if (d16 < 0.0) {
+                    d3 = 0.0;
+                } else {
+                    d16 *= d16;
+                    d3 = d16 * d16 * dot(GRADIENTS[k2], d11, d12);
+                }
+
+                double d17 = 0.5 - d13 * d13 - d14 * d14;
+                double d4;
+                if (d17 < 0.0) {
+                    d4 = 0.0;
+                } else {
+                    d17 *= d17;
+                    d4 = d17 * d17 * dot(GRADIENTS[l2], d13, d14);
+                }
+
+                values[i++] += 70.0 * (d2 + d3 + d4) * noiseScale;
+            }
+        }
+    }
 }

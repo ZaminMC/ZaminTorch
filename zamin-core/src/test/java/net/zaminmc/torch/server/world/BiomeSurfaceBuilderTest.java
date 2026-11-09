@@ -38,7 +38,12 @@ class BiomeSurfaceBuilderTest {
     }
 
     private static BiomeSurfaceBuilder builder() {
-        return new BiomeSurfaceBuilder(0x5A4D494E5C00L, registry());
+        // The depth consult rides a perlinNoise3 built from the reference's
+        // own construction stream (the generator's fourth noise — the test's
+        // fixed seed standing in for the world seed).
+        return new BiomeSurfaceBuilder(0x5A4D494E5C00L, registry(),
+                new net.zaminmc.torch.server.world.noise.PerlinSimplexNoise(
+                        new java.util.Random(0x5A4D494E5C00L), 4));
     }
 
     /** Finds a column whose depth sits inside the band. */

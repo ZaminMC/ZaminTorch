@@ -10,8 +10,16 @@ import java.util.Objects;
 
 /**
  * The full-world terrain generator (the historical "default" level-type):
- * value-noise heightmap with seas, beaches, dirt skins, stone cores, noise
- * caves, the depth-banded ore ladder, and oak trees on the grass.
+ * THE VANILLA TERRAIN NOISE CORE (Wave TN) — the reference's 4-noise
+ * density stack ({@link OverworldDensityCore}, the OverworldChunkGenerator
+ * port whole: the 16/16/8 Perlin octaves, the simplex depth consult, the
+ * 5x5 biome kernel, the 33-step density walk, the 0.125/0.25 trilinear
+ * fill), the reference's own surface column walk (the chunk random's k
+ * roll, the bedrock band, the sandstone extension — the mirrored
+ * biome/depth consults the reference's [j + i*16] reads carry), seas at
+ * the reference's own 63, the documented cave-worm stand-in (the
+ * reference's carver pair rides its own lane), and the populate walk's
+ * features, structures and animals over the generated cells.
  *
  * <p>Determinism contract (the delta-overlay model's own law): the seed
  * arrives from the caller — the engine's boot resolves it through
@@ -19,14 +27,18 @@ import java.util.Objects;
  * persisted per world so every boot of the same world rebuilds the same
  * terrain without storing generated chunks). The name constructor below
  * keeps the HISTORICAL name-derived law for the deterministic test
- * fixtures. Adopted in shape from the community independent 1.8 server
- * implementations (BlueDragonMC/Server, credited in
- * COMMUNITY_REFERENCES.md); the noise core is our own.</p>
+ * fixtures. The noise core itself is the reference's own — one
+ * {@code new Random(seed)} stream, the seven noises in the reference's
+ * construction order, so the same seed answers the reference's terrain.</p>
  */
 public final class NormalWorldGenerator implements WorldGenerator {
 
-    /** The historical sea level: water fills every column up to here. */
-    public static final int SEA_LEVEL = 62;
+    /**
+     * The reference's sea level (World.java line 62: 63) — the fill's water
+     * band {@code y < 63} (the top water cell 62, the same cells the
+     * retired constant 62 named).
+     */
+    public static final int SEA_LEVEL = 63;
 
     private final BlockRegistry registry;
     private final long seed;
@@ -38,6 +50,28 @@ public final class NormalWorldGenerator implements WorldGenerator {
      * family overrides, over the engine's per-cell column model).
      */
     private final BiomeSurfaceBuilder surfaces;
+    /**
+     * THE VANILLA TERRAIN NOISE CORE (Wave TN): the reference's density
+     * stack — the height maps, the fill, and the column probe the
+     * consults read (the retired value-noise column model's replacement).
+     */
+    private final OverworldDensityCore density;
+    /**
+     * The height-map cache: one 825-entry density snapshot per chunk (a
+     * pure function of the seed — the probe's out-of-chunk consults and
+     * the fill read the same snapshots; eviction transparent). Bounded,
+     * eldest-out — wide 4096-block sweeps hold ~4k chunks, so the bound
+     * rides above them (the engine's own working set is the chunk's
+     * neighbors, a few dozen).
+     */
+    private final java.util.LinkedHashMap<Long, double[]> heightMapCache =
+            new java.util.LinkedHashMap<>(256, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(
+                        java.util.Map.Entry<Long, double[]> eldest) {
+                    return size() > 8192;
+                }
+            };
     /**
      * The feature decorator (VIII14's decorators slice — the reference's
      * populate walk whole: the lakes, the dungeons, the biome's decorate,
@@ -99,18 +133,6 @@ public final class NormalWorldGenerator implements WorldGenerator {
                     return size() > 1024;
                 }
             };
-    /**
-     * The 1:4 grid cache: 64x64-block regions (16x16 grid cells) of the
-     * terrain's own biome consult — the height bands read this map.
-     */
-    private final java.util.LinkedHashMap<Long, int[]> gridBiomeCache =
-            new java.util.LinkedHashMap<>(64, 0.75f, true) {
-                @Override
-                protected boolean removeEldestEntry(
-                        java.util.Map.Entry<Long, int[]> eldest) {
-                    return size() > 512;
-                }
-            };
 
     /**
      * The HISTORICAL name law (the pre-T-SEED engine's only derivation):
@@ -125,13 +147,19 @@ public final class NormalWorldGenerator implements WorldGenerator {
     public NormalWorldGenerator(BlockRegistry registry, long seed) {
         this.registry = Objects.requireNonNull(registry, "registry");
         this.seed = seed;
+        // THE NOISE CORE FIRST (Wave TN): the reference's construction stream
+        // — one Random(seed), the seven noises in order (minLimit 16, maxLimit
+        // 16, perlinNoise1 8, perlinNoise3 4, scaleNoise 10, depthNoise 16,
+        // forestNoise 8) — the surface builder's depth consult rides the
+        // core's own perlinNoise3 (the fourth of the stream).
+        this.density = new OverworldDensityCore(seed);
         // The biome layout (VIII14's second slice — Layer.init 1:1, the
         // DEFAULT type's chain): grid[0] answers the 1:4 biome grid the
-        // terrain's height bands consult, voronoi[1] answers the
-        // block-level biome map the chunk's wire array carries. The
-        // caches hold the last regions sampled (bounded LRU — the
-        // values are pure functions of the seed, eviction transparent).
-        this.surfaces = new BiomeSurfaceBuilder(this.seed, registry);
+        // density kernel consults, voronoi[1] answers the block-level
+        // biome map the chunk's wire array carries. The caches hold the
+        // last regions sampled (bounded LRU — the values are pure
+        // functions of the seed, eviction transparent).
+        this.surfaces = new BiomeSurfaceBuilder(this.seed, registry, density.depthConsult());
         this.featureDecorator = new net.zaminmc.torch.server.world.feature.FeatureDecorator(
                 registry, this.seed);
         net.zaminmc.torch.server.world.layer.Layer[] layers =
@@ -236,29 +264,6 @@ public final class NormalWorldGenerator implements WorldGenerator {
     }
 
     /**
-     * The terrain's own biome consult: the 1:4 grid sample (the
-     * reference's getNoiseBiomes — the height-band input the generator's
-     * own 5x5 kernel walk reads).
-     */
-    private Biome gridBiomeAt(int x, int z) {
-        int cellX = x >> 2;
-        int cellZ = z >> 2;
-        long key = (long) (cellX >> 4) | ((long) (cellZ >> 4) << 32);
-        int[] region;
-        synchronized (gridBiomeCache) {
-            region = gridBiomeCache.get(key);
-            if (region == null) {
-                region = sampleArea(gridLayer, (cellX >> 4) << 4,
-                        (cellZ >> 4) << 4, 16, 16);
-                gridBiomeCache.put(key, region);
-            }
-        }
-        int id = region[(cellX & 15) + (cellZ & 15) * 16] & 0xFF;
-        Biome biome = Biome.byLegacyId(id);
-        return biome == null ? Biome.PLAINS : biome;
-    }
-
-    /**
      * The shared sampling lock: the grid and voronoi chains share their
      * layers (the voronoi's parent IS the grid layer), and every layer
      * carries mutable seed state — the reference's own single-threaded
@@ -313,7 +318,7 @@ public final class NormalWorldGenerator implements WorldGenerator {
                     || biome == Biome.FOREST_HILLS || biome == Biome.JUNGLE
                     || biome == Biome.JUNGLE_HILLS;
             int h = heightAt(x, z);
-            if (allowed && h > SEA_LEVEL + 1 && h < 100) {
+            if (allowed && h > SEA_LEVEL && h < 100) {
                 spawnX = x;
                 spawnZ = z;
                 return h;
@@ -321,36 +326,90 @@ public final class NormalWorldGenerator implements WorldGenerator {
         }
         spawnX = 0;
         spawnZ = 0;
-        return Math.max(heightAt(0, 0), SEA_LEVEL + 1);
+        return Math.max(heightAt(0, 0), SEA_LEVEL - 1) + 1;
     }
 
     @Override
     public void generate(EngineChunk chunk) {
         Objects.requireNonNull(chunk, "chunk");
         net.zaminmc.torch.block.ChunkPosition at = chunk.position();
-        int baseX = at.x() << 4;
-        int baseZ = at.z() << 4;
-        int[][] heights = new int[16][16];
+        int chunkX = at.x();
+        int chunkZ = at.z();
+        int baseX = chunkX << 4;
+        int baseZ = chunkZ << 4;
+
+        // THE BIOME ARRAY (the reference's getChunk line 175 — the block-level
+        // voronoi map, the chunk's wire array).
         Biome[][] biomes = new Biome[16][16];
         for (int lx = 0; lx < 16; lx++) {
             for (int lz = 0; lz < 16; lz++) {
-                heights[lx][lz] = heightAt(baseX + lx, baseZ + lz);
                 biomes[lx][lz] = biomeAt(baseX + lx, baseZ + lz);
                 chunk.setBiome(lx, lz, (byte) biomes[lx][lz].legacyId());
             }
         }
+
+        // THE DENSITY FILL (buildTerrain, the reference's lines 95-153):
+        // stone where the density walks positive, water below the sea —
+        // the overhang-bearing world the retired column model could never
+        // place. The height map rides the cache (the probe below reads the
+        // same snapshot — the fill and the consults can never disagree).
+        double[] heightMap = heightMapFor(chunkX, chunkZ);
+        density.buildTerrain(chunkX, chunkZ, heightMap, stone, water,
+                (localX, y, localZ, type) -> chunk.setBlock(localX, y, localZ, type));
+
+        // THE SURFACE PASS (buildSurfaces, the reference's lines 158-168):
+        // one stateful column walk over the placed cells with the CHUNK
+        // RANDOM — the k roll, the bedrock band, the sandstone extension,
+        // the family pair switches. THE CONSULTS ARE THE REFERENCE'S OWN
+        // TRANSPOSED READS: the column (i, j) carries the biome
+        // {@code biomes[j + i*16]} and the depth {@code depthBuffer[j +
+        // i*16]} — the MIRRORED cells of the x-fastest arrays (the
+        // reference's own quirk, kept verbatim), while the mesa's own
+        // noise consults read the TRUE column coordinates.
+        java.util.Random surfaceRandom = new java.util.Random(
+                chunkX * 341873128712L + chunkZ * 132897987541L);
+        double[] depthBuffer = density.depthConsult().getRegion(
+                null, baseX, baseZ, 16, 16, 0.03125 * 2.0, 0.03125 * 2.0, 1.0);
+        for (int i = 0; i < 16; i++) {
+            for (int j = 0; j < 16; j++) {
+                Biome surfaceBiome = biomes[j][i]; // the [j + i*16] mirrored consult
+                double depth = depthBuffer[j + i * 16]; // the mirrored depth cell
+                final int lx = i;
+                final int lz = j;
+                surfaces.buildColumn(baseX + i, baseZ + j, surfaceBiome, depth,
+                        surfaceRandom, new BiomeSurfaceBuilder.ColumnAccess() {
+                            @Override
+                            public net.zaminmc.torch.block.BlockType get(int y) {
+                                return chunk.getBlock(lx, y, lz);
+                            }
+
+                            @Override
+                            public void set(int y, net.zaminmc.torch.block.BlockType type) {
+                                chunk.setBlock(lx, y, lz, type);
+                            }
+                        });
+            }
+        }
+
+        // THE CAVE STAND-IN (the documented adaptation — the reference's
+        // CaveWorldCarver + RavineWorldCarver ride their own lane): the
+        // worm carve below the surface band, AFTER the surface pass (the
+        // reference's own order — the carvers run after buildSurfaces, the
+        // cave mouths punch through the skin).
+        int[][] heights = new int[16][16];
         for (int lx = 0; lx < 16; lx++) {
             for (int lz = 0; lz < 16; lz++) {
-                int worldX = baseX + lx;
-                int worldZ = baseZ + lz;
-                int h = heights[lx][lz];
-                boolean underwater = h < SEA_LEVEL;
-                for (int y = 0; y <= Math.max(h, SEA_LEVEL); y++) {
-                    chunk.setBlock(lx, y, lz, blockAt(worldX, y, worldZ, h, underwater,
-                            biomes[lx][lz]));
+                int h = OverworldDensityCore.columnTop(heightMap, lx, lz);
+                heights[lx][lz] = h;
+                for (int y = 5; y < h - 3; y++) {
+                    if (isCave(baseX + lx, y, baseZ + lz)
+                            && chunk.getBlock(lx, y, lz).equals(stone)) {
+                        chunk.setBlock(lx, y, lz, air);
+                    }
                 }
             }
         }
+
         plantDecorations(chunk, baseX, baseZ);
         // The structure pass (Slice 12a — the populate hook): the region
         // scan + the clipped piece writes, after the terrain and the
@@ -359,6 +418,36 @@ public final class NormalWorldGenerator implements WorldGenerator {
         // The animal seeding (the reference's populate step's LAST pass —
         // OverworldChunkGenerator line 393, after biome.decorate).
         seedAnimals(chunk, baseX, baseZ, heights);
+    }
+
+    /**
+     * The chunk's density height map (the cached snapshot — the fill's own
+     * 825 doubles, pure in the seed). The 10x10 noise-grid biome sample
+     * rides the grid layer (the reference's getNoiseBiomes at
+     * {@code (chunkX*4 - 2, chunkZ*4 - 2)}).
+     */
+    private double[] heightMapFor(int chunkX, int chunkZ) {
+        long key = (long) chunkX | ((long) chunkZ << 32);
+        synchronized (heightMapCache) {
+            double[] cached = heightMapCache.get(key);
+            if (cached != null) {
+                return cached;
+            }
+        }
+        // The compute runs OUTSIDE the cache lock — the generation is pure
+        // (fresh buffers, the immutable noises), so parallel chunk workers
+        // computing the same chunk waste work but never corrupt.
+        int[] ids = sampleArea(gridLayer, chunkX * 4 - 2, chunkZ * 4 - 2, 10, 10);
+        Biome[] kernel = new Biome[100];
+        for (int cell = 0; cell < 100; cell++) {
+            Biome biome = Biome.byLegacyId(ids[cell] & 0xFF);
+            kernel[cell] = biome == null ? Biome.PLAINS : biome;
+        }
+        double[] heightMap = density.generateHeightMap(chunkX * 4, 0, chunkZ * 4, kernel);
+        synchronized (heightMapCache) {
+            heightMapCache.put(key, heightMap);
+        }
+        return heightMap;
     }
 
     /**
@@ -438,7 +527,7 @@ public final class NormalWorldGenerator implements WorldGenerator {
                             return 0;
                         }
                         int h = NormalWorldGenerator.this.heightAt(x, z);
-                        return Math.max(h, SEA_LEVEL) + 1;
+                        return Math.max(h, SEA_LEVEL - 1) + 1;
                     }
 
                     @Override
@@ -658,8 +747,11 @@ public final class NormalWorldGenerator implements WorldGenerator {
         return new double[]{(best[0] << 4) + 2.0, 64.0, (best[1] << 4) + 2.0};
     }
 
-    /** The block for one column cell: core, skin, water, cave or ore. */
-    private BlockType blockAt(int x, int y, int z, int h, boolean underwater, Biome biome) {
+    /** The block for one column cell: core, skin, water, cave or ore (the
+     * out-of-chunk probe's own form — the mirrored biome + depth the
+     * caller carries). */
+    private BlockType blockAt(int x, int y, int z, int h, boolean underwater, Biome biome,
+            double depth) {
         if (y == 0) {
             return bedrock;
         }
@@ -667,11 +759,11 @@ public final class NormalWorldGenerator implements WorldGenerator {
             // The Bryce pillars first (VIII14's surface slice — the
             // reference's air-fill arm: stone rises to (int) d4 over the
             // terrain; every other column answers the caller's own).
-            BlockType pillar = surfaces.blockAt(x, y, z, h, biome);
+            BlockType pillar = surfaces.blockAt(x, y, z, h, biome, depth);
             if (pillar != null) {
                 return pillar;
             }
-            return y <= SEA_LEVEL ? water : air;
+            return y < SEA_LEVEL ? water : air;
         }
         // Caves carve the core below the skin; the surface stays intact.
         if (y > 4 && y < h - 3 && isCave(x, y, z)) {
@@ -679,9 +771,9 @@ public final class NormalWorldGenerator implements WorldGenerator {
         }
         // THE SURFACE BUILDERS (VIII14's surface slice — the reference's
         // buildSurfaces walk + the family overrides over the engine's
-        // column model): null answers the core stone the ore ladder owns
+        // per-cell probe): null answers the core stone the ore ladder owns
         // (and the air/water above the terrain, the caller's own).
-        BlockType skin = surfaces.blockAt(x, y, z, h, biome);
+        BlockType skin = surfaces.blockAt(x, y, z, h, biome, depth);
         return skin != null ? skin : oreOrStone(x, y, z);
     }
 
@@ -702,37 +794,39 @@ public final class NormalWorldGenerator implements WorldGenerator {
     }
 
     /**
-     * The column height (VIII14's second slice — the biome-band
-     * coupling): the 1:4 grid biome's own registration height pair
-     * (the baseHeight/heightVariation the registration table carries)
-     * names the band — {@code 64 + baseHeight * 17} over the engine's
-     * own fbm variation scaled by the biome's variation band (the
-     * named adaptation: the reference's own 4-noise density stack
-     * interpolates the same bands through its 5x5 kernel — the engine's
-     * column model answers the same ordering and magnitudes, its fbm
-     * standing in for the perlin stack). The land/ocean coherence is
-     * the law: ocean cells sit below the sea, land cells above, rivers
-     * carve (the river band's -0.5 base), the plateaus tower.
+     * The column's terrain top (Wave TN — the DENSITY PROBE: the fill's own
+     * accumulation ladder walked to one column, answering the topmost cell
+     * the fill placed stone in — bit-identical to the terrain by
+     * construction). The consults (the spawn scan, the structures'
+     * surface height, the out-of-chunk probes) read the same law the
+     * terrain itself was built from — the retired value-noise column model
+     * (fbm 0.0085/0.0035 over biome bands *17, clamped 8..120) never
+     * could.
      */
     public int heightAt(int x, int z) {
-        Biome biome = gridBiomeAt(x, z);
-        double rolling = fbm2(x * 0.0085, z * 0.0085, 3);
-        double mountains = fbm2(x * 0.0035 + 1_000, z * 0.0035 - 1_000, 2);
-        int base = 64 + Math.round(biome.baseHeight() * 17.0f);
-        double hill = (rolling - 0.5) * (6.0 + biome.heightVariation() * 17.0);
-        double ridge = Math.max(0.0, mountains - 0.58) * 90.0
-                * (0.5 + biome.heightVariation());
-        int h = base + (int) Math.round(hill + ridge);
-        return Math.max(8, Math.min(120, h));
+        double[] heightMap = heightMapFor(x >> 4, z >> 4);
+        return OverworldDensityCore.columnTop(heightMap, x & 15, z & 15);
     }
 
     /**
      * The world block of one column cell (the diagnostics view of the
-     * generation surface: biome-aware, no chunk allocation).
+     * generation surface: biome-aware, no chunk allocation). The consult
+     * carries the fill's own MIRRORED biome (the reference's [j + i*16]
+     * law — the surface pass reads the mirrored cell of the chunk's
+     * x-fastest biome array; the probe answers what the fill placed, so
+     * the mirror rides here too).
      */
     public BlockType surfaceBlockAt(int x, int y, int z) {
         int h = heightAt(x, z);
-        return blockAt(x, y, z, h, h < SEA_LEVEL, biomeAt(x, z));
+        int baseX = (x >> 4) << 4;
+        int baseZ = (z >> 4) << 4;
+        // The fill's own MIRRORED consults (the reference's [j + i*16]
+        // law — the surface pass reads the mirrored biome and depth cells
+        // of the chunk's x-fastest arrays; the probe answers what the
+        // fill placed, so the mirror rides here too).
+        Biome mirrored = biomeAt(baseX + (z & 15), baseZ + (x & 15));
+        double mirroredDepth = surfaces.depthAt(baseX + (z & 15), baseZ + (x & 15));
+        return blockAt(x, y, z, h, h < SEA_LEVEL, mirrored, mirroredDepth);
     }
 
     private boolean isCave(int x, int y, int z) {
@@ -917,37 +1011,15 @@ public final class NormalWorldGenerator implements WorldGenerator {
     }
 
     // ------------------------------------------------------------------ noise core
-
-    /** 2D value noise fBm: three octaves, quintic-smoothed bilinear lattice. */
-    private double fbm2(double x, double z, int octaves) {
-        double sum = 0.0;
-        double amplitude = 1.0;
-        double frequency = 1.0;
-        double norm = 0.0;
-        for (int o = 0; o < octaves; o++) {
-            sum += valueNoise2(x * frequency, z * frequency) * amplitude;
-            norm += amplitude;
-            amplitude *= 0.5;
-            frequency *= 2.0;
-        }
-        return sum / norm;
-    }
+    // (THE RETIRED COLUMN MODEL — Wave TN: the fbm2 value-noise ladder and
+    // its lattice/hash helpers below that the cave stand-in does not read
+    // are gone; the density stack answers the terrain. The 3D worm fbm
+    // stays — the documented cave stand-in's own field, retired by the
+    // reference's carver pair on its own lane.)
 
     private double fbm3(double x, double y, double z) {
         return (valueNoise3(x, y, z) * 0.65
                 + valueNoise3(x * 2.03 + 31.7, y * 2.03, z * 2.03 - 17.3) * 0.35);
-    }
-
-    private double valueNoise2(double x, double z) {
-        int xi = (int) Math.floor(x);
-        int zi = (int) Math.floor(z);
-        double tx = smooth(x - xi);
-        double tz = smooth(z - zi);
-        double v00 = lattice2(xi, zi);
-        double v10 = lattice2(xi + 1, zi);
-        double v01 = lattice2(xi, zi + 1);
-        double v11 = lattice2(xi + 1, zi + 1);
-        return lerp(lerp(v00, v10, tx), lerp(v01, v11, tx), tz);
     }
 
     private double valueNoise3(double x, double y, double z) {
@@ -971,29 +1043,11 @@ public final class NormalWorldGenerator implements WorldGenerator {
                 tz);
     }
 
-    private double lattice2(int x, int z) {
-        long h = seed ^ (x * 0x27D4EB2DL) ^ (z * 0x165667B1L);
-        h = (h ^ (h >>> 15)) * 0x2C1B3C6DL;
-        h = (h ^ (h >>> 12)) * 0x297F2D39L;
-        return ((h ^ (h >>> 15)) & 0xFFFFFFL) / (double) 0xFFFFFFL;
-    }
-
     private double lattice3(int x, int y, int z) {
         long h = seed ^ (x * 0x27D4EB2DL) ^ (y * 0x9E3779B1L) ^ (z * 0x165667B1L);
         h = (h ^ (h >>> 15)) * 0x2C1B3C6DL;
         h = (h ^ (h >>> 13)) * 0x297F2D39L;
         return ((h ^ (h >>> 16)) & 0xFFFFFFL) / (double) 0xFFFFFFL;
-    }
-
-    private long hash2(int x, int z, int salt) {
-        long h = seed ^ (salt * 0x2545F491L) ^ (x * 0x27D4EB2DL) ^ (z * 0x165667B1L);
-        return (h ^ (h >>> 15)) * 0x2C1B3C6DL ^ (h >>> 7);
-    }
-
-    private long hash3(int x, int y, int z, int salt) {
-        long h = seed ^ (salt * 0x2545F491L) ^ (x * 0x27D4EB2DL)
-                ^ (y * 0x9E3779B1L) ^ (z * 0x165667B1L);
-        return (h ^ (h >>> 15)) * 0x2C1B3C6DL ^ (h >>> 7);
     }
 
     private static double smooth(double t) {
