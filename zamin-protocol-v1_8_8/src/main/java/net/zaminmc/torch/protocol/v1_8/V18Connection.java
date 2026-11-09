@@ -1215,9 +1215,19 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         int mode = packet.readByte();
         readClaimedSlot(packet);    // the client's predicted stack: informational only
         engine.windowClick(player, windowId, wireSlot, button, mode, accepted -> {
-            // Runs on the tick thread after the semantic operation.
+            // Runs on the tick thread after the semantic operation. THE
+            // CURSOR NEVER RIDES THE CLICK'S CONFIRM (Wave I1 — the
+            // reference's own law, ServerPlayerEntity lines 645-653 +
+            // 670-675: the cursor Set Slot(-1, -1) is sent ONLY on the
+            // menu-open pair (onMenuChanged — beside the Window Items)
+            // and the use() gate; NEVER after a click. The 1.8 client's
+            // cursor is its own prediction — the retired engine's
+            // unsolicited cursor sync OVERWROTE the client's mid-gesture
+            // cursor (the creative tab's client-side pick wiped whole —
+            // the reported "take something from creative to inventory
+            // it disappears", and the crafting-table take's ghost
+            // roll-back), exactly the desync the reference never has.
             sendConfirmTransaction(channel, windowId, actionNumber, accepted);
-            sendCursorSlot(channel, player);
         });
     }
 
@@ -1301,6 +1311,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         short wireSlot = packet.readShort();
         short legacyId = packet.readShort();
         net.zaminmc.torch.item.ItemStack stack = net.zaminmc.torch.item.ItemStack.EMPTY;
+        // The flag3 gate's refusal carrier (a one-element cell so the parse
+        // lambda can flip it — the reference's own boolean read whole).
+        final boolean[] gatesPass = {true};
         if (legacyId > 0) {
             int count = packet.readUnsignedByte();
             int damage = packet.readShort();
@@ -1321,15 +1334,29 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                     .flatMap(net.zaminmc.torch.server.item.BuiltinItems::lookup)
                     .map(type -> {
                         try {
-                            return net.zaminmc.torch.item.ItemStack.of(type,
-                                    Math.min(64, Math.max(1, count))).withDamage(Math.max(0, damage));
+                            // Wave I1 — the reference's own flag3 (lines
+                            // 847-848): metadata >= 0 and 1..64, REFUSED
+                            // whole when violated (never the retired
+                            // clamp — a refused write leaves the slot
+                            // untouched, exactly the reference).
+                            if (damage < 0 || count < 1 || count > 64) {
+                                gatesPass[0] = false;
+                                return net.zaminmc.torch.item.ItemStack.EMPTY;
+                            }
+                            return net.zaminmc.torch.item.ItemStack.of(type, count)
+                                    .withDamage(damage);
                         } catch (IllegalArgumentException invalid) {
+                            gatesPass[0] = false;
                             return net.zaminmc.torch.item.ItemStack.EMPTY;
                         }
                     })
                     .orElse(net.zaminmc.torch.item.ItemStack.EMPTY);
         }
-        engine.setCreativeSlot(player, wireSlot, stack);
+        // The refused form (flag3) never reaches the engine's write — the
+        // reference leaves the slot untouched whole.
+        if (gatesPass[0]) {
+            engine.setCreativeSlot(player, wireSlot, stack);
+        }
     }
 
     /**
@@ -1675,6 +1702,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(0);
         enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
+        // Wave I1 — the menu-open cursor pair (ServerPlayerEntity.onMenuChanged
+        // lines 650-652: the Window Items ride BESIDE the cursor Set Slot(-1, -1)
+        // — the ONLY two cursor syncs the reference carries beside use()).
+        sendCursorSlot(channel, player);
     }
 
     /**
@@ -1701,6 +1732,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(3); // the GUI's own slots: input, fuel, output
         enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
+        // Wave I1 — the menu-open cursor pair (ServerPlayerEntity.onMenuChanged
+        // lines 650-652: the Window Items ride BESIDE the cursor Set Slot(-1, -1)
+        // — the ONLY two cursor syncs the reference carries beside use()).
+        sendCursorSlot(channel, player);
     }
 
     /**
@@ -2092,6 +2127,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(27); // the GUI's own slots: the chest menu over the cart
         enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
+        // Wave I1 — the menu-open cursor pair (onMenuChanged lines 650-652).
+        sendCursorSlot(channel, player);
         var openedCart = engineVehicleChest(player.containerMountId());
         if (openedCart != null) {
             chestSlotsSynced = openedCart.slotsSerial();
@@ -2117,6 +2154,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(5); // the GUI's own slots: the hopper menu over the cart
         enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
+        // Wave I1 — the menu-open cursor pair (onMenuChanged lines 650-652).
+        sendCursorSlot(channel, player);
         var openedHopperCart = engineVehicleHopper(player.containerMountId());
         if (openedHopperCart != null) {
             hopperSlotsSynced = openedHopperCart.slotsSerial();
@@ -2151,6 +2190,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(9); // the GUI's own slots: 3 rows of 3
         enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
+        // Wave I1 — the menu-open cursor pair (onMenuChanged lines 650-652).
+        sendCursorSlot(channel, player);
         dispenserSlotsSynced = container.slotsSerial();
     }
 
@@ -2178,6 +2219,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(5); // the GUI's own slots: the hopper's five
         enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
+        // Wave I1 — the menu-open cursor pair (onMenuChanged lines 650-652).
+        sendCursorSlot(channel, player);
         hopperSlotsSynced = hopper.slotsSerial();
     }
 
@@ -2211,6 +2254,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeByte(4); // the GUI's own slots: three bottles + the ingredient
         enqueueOut(out);
         sendContainerWindowItems(channel, windowId, player);
+        // Wave I1 — the menu-open cursor pair (ServerPlayerEntity.onMenuChanged
+        // lines 650-652: the Window Items ride BESIDE the cursor Set Slot(-1, -1)
+        // — the ONLY two cursor syncs the reference carries beside use()).
+        sendCursorSlot(channel, player);
     }
 
     /**

@@ -184,7 +184,6 @@ class EnchantingTableIntegrationTest extends ProtocolTestBase {
                                Map<Integer, Integer> costs) throws Exception {
         client.sendWindowClick(windowId, wireSlot, button, 0, 0);
         int[] confirm = client.readConfirmTransaction(10_000);
-        client.readCursorSlot(10_000);
         collectProperties(client, costs, 400); // the recompute's diffs ride the next tick
         return new ClickVerdict(confirm[2] == 1);
     }

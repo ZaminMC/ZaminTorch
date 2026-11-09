@@ -150,10 +150,8 @@ class DonkeyChestIntegrationTest extends ProtocolTestBase {
             // window) and drop it into chest slot 2.
             client.sendWindowClick(windowId, 44, 0, 0, 0);
             client.readConfirmTransaction(10_000);
-            client.readCursorSlot(10_000);
             client.sendWindowClick(windowId, 2, 0, 0, 1);
             client.readConfirmTransaction(10_000);
-            client.readCursorSlot(10_000);
             int[][] after = client.readWindowSlotTable(10_000, windowId);
             assertEquals(53, after.length, "the window stays 53 wide");
             assertEquals(296, after[2][0], "the wheat sits in chest slot 2");

@@ -48,7 +48,8 @@ class FurnaceIntegrationTest extends ProtocolTestBase {
             throws Exception {
         client.sendWindowClick(windowId, wireSlot, button, mode, actionNumber++);
         int[] confirm = client.readConfirmTransaction(10_000);
-        int[] cursor = client.readCursorSlot(10_000);
+        // Wave I1: the cursor never rides the click's confirm.
+        int[] cursor = serverCursorOf(client);
         int[][] window = client.readWindowSlotTable(10_000, windowId);
         return new Click(confirm[2] == 1, cursor[1], cursor[2], window);
     }

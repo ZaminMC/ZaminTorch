@@ -44,7 +44,9 @@ class CraftingTableIntegrationTest extends ProtocolTestBase {
             throws Exception {
         client.sendWindowClick(windowId, wireSlot, button, mode, actionNumber++);
         int[] confirm = client.readConfirmTransaction(10_000);
-        int[] cursor = client.readCursorSlot(10_000);
+        // Wave I1: the cursor never rides the click's confirm (the reference's
+        // own law) — the authoritative cursor is the server-side consult.
+        int[] cursor = serverCursorOf(client);
         int[][] window = client.readWindowSlotTable(10_000, windowId);
         return new Click(confirm[2] == 1, confirm[0], cursor[1], cursor[2], window);
     }
@@ -251,7 +253,6 @@ class CraftingTableIntegrationTest extends ProtocolTestBase {
             int[] confirm = client.readConfirmTransaction(10_000);
             assertEquals(7, confirm[0], "the confirm echoes the clicked window id");
             assertEquals(0, confirm[2], "the click is declined");
-            client.readCursorSlot(10_000);
             int[][] resync = client.readWindowSlotTable(10_000);
             assertEquals(OAK_PLANKS, resync[36][0], "state untouched");
         }

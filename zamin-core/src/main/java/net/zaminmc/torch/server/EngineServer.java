@@ -7747,6 +7747,7 @@ public final class EngineServer implements Server, EngineBridge {
             // 100-tick window; the sit release's own read).
             session.tickHurtByLiving();
             session.tickGrace();
+            session.tickCreativeDropCooldown();
             session.stats().tickTimeSinceDeath();
             // The biome census (VIII6 — ServerPlayerEntity.tick lines
             // 325-327: the unearned gate first, then the walk — the
@@ -33856,14 +33857,47 @@ public final class EngineServer implements Server, EngineBridge {
                 || session.gamemode() != GameMode.CREATIVE) {
             return; // the vanilla guard against faked creative packets
         }
+        // THE VANILLA SLOT LAW (Wave I1 — handleCreativeMenuSlot lines
+        // 825-864 read whole): the write arm accepts the PLAYER MENU's
+        // slots 1..44 (the crafting grid 1-4, the ARMOR CELLS 5-8, the
+        // main inventory 9-35, the hotbar 36-44) — the armor cells are a
+        // direct setItem with NO type gate (the container's putStack, not
+        // the placement filter; the retired engine's refusal was the
+        // reported creative-inventory gap); the gates refuse metadata < 0
+        // and counts outside 1..64 (silently, like the reference) — never
+        // the engine's clamp. The NEGATIVE SLOT is the DROP ARM (lines
+        // 857-863): the stack is thrown into the world with the
+        // 200-tick cooldown (+20 per drop, the anti-flood law).
+        boolean dropArm = wireSlot < 0;
+        boolean inRange = wireSlot >= 1 && wireSlot < 36 + 9;
+        if (dropArm) {
+            if (!stack.isEmpty() && session.creativeDropCooldown() < 200) {
+                session.noteCreativeDrop();
+                ItemEntity dropped = throwFromPlayer(session, stack);
+                if (dropped != null) {
+                    dropped.setAge(0); // itementity.resetAge() line 861
+                }
+            }
+            return;
+        }
+        if (!inRange) {
+            return; // slot 0 (the result) and out-of-menu cells: never written
+        }
+        if (!stack.isEmpty()
+                && (stack.damage() < 0 || stack.count() > 64 || stack.count() < 1)) {
+            return; // flag3: the metadata/count gate, silent
+        }
         if (wireSlot >= WIRE_SLOT_CRAFT_FIRST && wireSlot <= WIRE_SLOT_CRAFT_LAST) {
             session.crafting().setCell(wireSlot - WIRE_SLOT_CRAFT_FIRST, stack);
         } else if (wireSlot >= WIRE_SLOT_CRAFT_LAST + 1 && wireSlot <= WIRE_SLOT_CRAFT_LAST + 4) {
-            return; // armor cells ride the window clicks, not the creative menu
+            // The armor cells' direct write (the reference's setItem —
+            // putStack with no placement filter; the §27.3 type gate is
+            // the CLICK arm's own, never the creative write's).
+            session.inventory().setArmorDirect(wireSlot - WIRE_SLOT_CRAFT_LAST - 1, stack);
         } else {
             int engineSlot = engineSlotOf(wireSlot);
             if (engineSlot < 0) {
-                return; // result slot and unknown cells: not a creative write
+                return; // unknown cells: not a creative write
             }
             session.inventory().setSlot(engineSlot, stack);
         }

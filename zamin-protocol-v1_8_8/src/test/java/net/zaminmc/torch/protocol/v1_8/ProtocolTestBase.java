@@ -62,6 +62,26 @@ abstract class ProtocolTestBase {
     }
 
     /**
+     * Wave I1 — THE SERVER-SIDE CURSOR PROBE (the reference's own law landed:
+     * the cursor Set Slot(-1, -1) rides only the menu-open pair and the use()
+     * gate, NEVER a click's confirm — the 1.8 client's cursor is its own
+     * prediction). The suites that pinned the cursor after every click now
+     * consult the engine's authoritative cursor directly, in the same
+     * {slot, legacyId, count} shape the wire read carried.
+     */
+    protected int[] serverCursorOf(TestClient18 client) {
+        var session = server.playerRegistry().byName(client.playerName()).orElse(null);
+        var cursor = session == null ? net.zaminmc.torch.item.ItemStack.EMPTY
+                : session.inventory().cursor();
+        if (cursor.isEmpty()) {
+            return new int[]{-1, -1, -1};
+        }
+        int legacyId = net.zaminmc.torch.protocol.v1_8.LegacyBlockIds
+                .legacyItemId(cursor.type().identifier()).orElse(-1);
+        return new int[]{-1, legacyId, cursor.count()};
+    }
+
+    /**
      * The engine-tick await (the run #375/#376 conversion — the old 5s wall
      * deadline expired by wall time on a loaded runner even while the engine
      * was alive and progressing; the census's own rule applies here too: a

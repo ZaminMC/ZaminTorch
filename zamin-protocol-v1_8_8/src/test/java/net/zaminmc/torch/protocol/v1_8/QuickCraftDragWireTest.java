@@ -61,7 +61,9 @@ class QuickCraftDragWireTest extends ProtocolTestBase {
      */
     private ClickResult readClickResponse(TestClient18 client) throws Exception {
         int[] confirm = client.readConfirmTransaction(10_000);
-        int[] cursor = client.readCursorSlot(10_000);
+        // Wave I1: the cursor never rides the click's confirm (the reference's
+        // own law) — the authoritative cursor is the server-side consult.
+        int[] cursor = serverCursorOf(client);
         int[][] window = client.readWindowSlotTable(10_000);
         return new ClickResult(confirm[2] == 1, cursor, window);
     }
@@ -70,7 +72,10 @@ class QuickCraftDragWireTest extends ProtocolTestBase {
     private ClickResult readContainerClickResponse(TestClient18 client, int windowId) throws Exception {
         int[] confirm = client.readConfirmTransaction(10_000);
         assertEquals(windowId, confirm[0], "the confirm carries the container's window id");
-        int[] cursor = client.readCursorSlot(10_000);
+        // Wave I1: the cursor never rides the click's confirm — the
+        // authoritative cursor is the server-side consult (the dragger's
+        // own body).
+        int[] cursor = serverCursorOf(client);
         int[][] window = client.readWindowSlotTable(10_000, windowId);
         return new ClickResult(confirm[2] == 1, cursor, window);
     }

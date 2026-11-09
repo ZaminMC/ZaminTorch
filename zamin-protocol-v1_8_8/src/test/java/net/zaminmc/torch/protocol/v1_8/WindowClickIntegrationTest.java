@@ -25,7 +25,10 @@ class WindowClickIntegrationTest extends ProtocolTestBase {
     /** Reads one full click response: {accepted, cursorId, cursorCount, slot, itemId, itemCount}. */
     private int[] readClickResponse(TestClient18 client) throws Exception {
         int[] confirm = client.readConfirmTransaction(10_000);
-        int[] cursor = client.readCursorSlot(10_000);
+        // Wave I1: the cursor never rides the click's confirm (the
+        // reference's own law) — the authoritative cursor is the
+        // server-side consult.
+        int[] cursor = serverCursorOf(client);
         int[] window = client.readWindowItems(10_000);
         return new int[]{confirm[2], cursor[1], cursor[2], window[2], window[3], window[4]};
     }

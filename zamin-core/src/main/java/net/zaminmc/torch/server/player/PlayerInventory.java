@@ -507,6 +507,22 @@ public final class PlayerInventory implements net.zaminmc.torch.entity.Player.In
         return true;
     }
 
+    /**
+     * The DIRECT armor write (Wave I1 — the creative menu's own law,
+     * handleCreativeMenuSlot line 853's {@code setItem} → Slot.putStack):
+     * no placement filter, any stack into any armor cell — the container's
+     * raw put, exactly like the reference (the §27.3 type gate belongs to
+     * the CLICK arm alone).
+     */
+    public void setArmorDirect(int armorSlot, ItemStack stack) {
+        if (armorSlot < 0 || armorSlot >= ARMOR_SLOTS) {
+            throw new IllegalArgumentException("Armor slot out of range: " + armorSlot);
+        }
+        Objects.requireNonNull(stack, "stack");
+        armor[armorSlot] = stack.isEmpty() ? ItemStack.EMPTY : stack;
+        fireChange();
+    }
+
     /** @return the sum of the equipped pieces' armor points (the 0-20 bar). */
     public int totalArmorPoints() {
         int total = 0;

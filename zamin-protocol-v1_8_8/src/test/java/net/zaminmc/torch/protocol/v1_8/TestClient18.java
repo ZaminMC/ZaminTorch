@@ -418,7 +418,15 @@ final class TestClient18 implements AutoCloseable {
         sendPacket(bodyToBytes(body));
     }
 
+    /** The login name this client announced (the server-side probes' key). */
+    private String loginName = "";
+
+    String playerName() {
+        return loginName;
+    }
+
     void sendLoginStart(String name) throws IOException {
+        loginName = name;
         ByteBuf body = Unpooled.buffer(32);
         ByteBufOps.writeVarInt(body, Protocol18.C2S_LOGIN_START);
         ByteBufOps.writeString(body, name);
@@ -1067,13 +1075,19 @@ final class TestClient18 implements AutoCloseable {
 
     /** Set Creative Slot (0x10): the creative-menu pick into a wire slot. */
     void sendCreativeSlot(int wireSlot, int legacyId) throws IOException {
+        sendCreativeSlotWithCount(wireSlot, legacyId, 1, 0);
+    }
+
+    /** Set Creative Slot with the raw count + damage (the flag3 seats). */
+    void sendCreativeSlotWithCount(int wireSlot, int legacyId, int count, int damage)
+            throws IOException {
         ByteBuf body = Unpooled.buffer(12);
         ByteBufOps.writeVarInt(body, Protocol18.C2S_SET_CREATIVE_SLOT);
         body.writeShort(wireSlot);
         body.writeShort(legacyId);
-        body.writeByte(1);   // count
-        body.writeShort(0);  // damage
-        body.writeByte(0);   // no NBT marker
+        body.writeByte(count);   // count
+        body.writeShort(damage); // damage
+        body.writeByte(0);       // no NBT marker
         sendPacket(bodyToBytes(body));
     }
 

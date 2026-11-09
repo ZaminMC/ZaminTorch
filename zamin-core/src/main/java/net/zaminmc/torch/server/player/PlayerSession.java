@@ -1907,6 +1907,30 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
     }
 
     /**
+     * The creative menu's drop cooldown (the reference's own field,
+     * ServerPlayNetworkHandler line 112 — {@code dropItemCooldown}, +20 per
+     * creative drop, the 200 cap, the per-tick decay at line 144).
+     */
+    private int creativeDropCooldown;
+
+    /** @return the creative drop cooldown's current window. */
+    public int creativeDropCooldown() {
+        return creativeDropCooldown;
+    }
+
+    /** Pays one creative drop's +20 into the cooldown (line 858). */
+    public void noteCreativeDrop() {
+        creativeDropCooldown += 20;
+    }
+
+    /** The per-tick decay (line 144: {@code if (> 0) --}). */
+    public void tickCreativeDropCooldown() {
+        if (creativeDropCooldown > 0) {
+            creativeDropCooldown--;
+        }
+    }
+
+    /**
      * The movement handler's own jump impulse (ServerPlayNetworkHandler lines
      * 312-314 → PlayerEntity.jump): a body the server believes grounded,
      * leaving the ground upward, pays the server's own vertical motion so

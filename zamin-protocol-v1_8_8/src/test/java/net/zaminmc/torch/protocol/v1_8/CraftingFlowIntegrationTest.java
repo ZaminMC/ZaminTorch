@@ -37,7 +37,9 @@ class CraftingFlowIntegrationTest extends ProtocolTestBase {
     private Click click(TestClient18 client, int wireSlot, int button, int mode) throws Exception {
         client.sendWindowClick(wireSlot, button, mode, actionNumber++);
         int[] confirm = client.readConfirmTransaction(10_000);
-        int[] cursor = client.readCursorSlot(10_000);
+        // Wave I1: the cursor never rides the click's confirm (the reference's
+        // own law) — the authoritative cursor is the server-side consult.
+        int[] cursor = serverCursorOf(client);
         int[][] window = client.readWindowSlotTable(10_000);
         return new Click(confirm[2] == 1, cursor[1], cursor[2], window);
     }
