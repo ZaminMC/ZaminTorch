@@ -292,8 +292,10 @@ public final class BiomeSurfaceBuilder {
         }
     }
 
-    /** The registration pair's surface (the surfaceLegacyId consult). */
-    private BlockType registeredSurface(Biome biome) {
+    /** The registration pair's surface (the surfaceLegacyId consult — public
+     * for the carvers' dirt-floor fix, the reference's own
+     * {@code biome.surfaceBlock} read). */
+    public BlockType registeredSurface(Biome biome) {
         return switch (biome.surfaceLegacyId()) {
             case 1 -> stone; // the stone beach
             case 12 -> sand; // the desert/beach family

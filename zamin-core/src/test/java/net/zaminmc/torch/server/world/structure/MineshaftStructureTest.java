@@ -300,6 +300,34 @@ class MineshaftStructureTest {
                                     if (!inBounds) {
                                         continue;
                                     }
+                                    // The carver-era re-pin (Wave CV): the
+                                    // populate's DUNGEONS land their own typed
+                                    // spawners inside the carved caves — and a
+                                    // dungeon can sit inside a mineshaft start's
+                                    // bounds. The dungeon's own signature is its
+                                    // cobblestone box: the record whose
+                                    // neighborhood carries the cobblestone/
+                                    // mossy family is the dungeon's, never the
+                                    // corridor's.
+                                    boolean dungeonBox = false;
+                                    for (int dx = -5; dx <= 5 && !dungeonBox; dx++) {
+                                        for (int dy = -1; dy <= 2 && !dungeonBox; dy++) {
+                                            for (int dz = -5; dz <= 5 && !dungeonBox; dz++) {
+                                                String v = chunk.getBlock(
+                                                        (record.x() + dx) & 15,
+                                                        record.y() + dy,
+                                                        (record.z() + dz) & 15)
+                                                        .identifier().value();
+                                                if (v.equals("cobblestone")
+                                                        || v.equals("mossy_cobblestone")) {
+                                                    dungeonBox = true;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (dungeonBox) {
+                                        continue;
+                                    }
                                     mineshaftRecord = true;
                                     assertEquals(
                                             net.zaminmc.torch.server.entity.MobType.CAVE_SPIDER,

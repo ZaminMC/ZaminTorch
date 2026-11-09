@@ -115,6 +115,10 @@ public final class NormalWorldGenerator implements WorldGenerator {
     private final BlockType sandstone;
     private final BlockType sugarCane;
     private final BlockType cactus;
+    /** THE CAVE CARVER (Wave CV): the reference's worm-and-room family. */
+    private final net.zaminmc.torch.server.world.carver.CaveCarver caves;
+    /** THE RAVINE CARVER (Wave CV): the reference's 1-in-50 wide trench. */
+    private final net.zaminmc.torch.server.world.carver.RavineCarver ravines;
 
     /** The 1:4 biome grid (Layer.init's first answer — the terrain consult). */
     private final net.zaminmc.torch.server.world.layer.Layer gridLayer;
@@ -214,6 +218,18 @@ public final class NormalWorldGenerator implements WorldGenerator {
         this.air = registry.require(Identifier.parse("minecraft:air"));
         this.bedrock = registry.require(Identifier.parse("minecraft:bedrock"));
         this.stone = registry.require(Identifier.parse("minecraft:stone"));
+        // THE CARVER PAIR (Wave CV — the reference's own carvers, the retired
+        // fbm cave stand-in's replacement): the caves and the ravines over
+        // the filled and skinned chunk, the region walk's 17x17
+        // neighborhood.
+        this.caves = new net.zaminmc.torch.server.world.carver.CaveCarver(
+                this.air,
+                registry.require(Identifier.parse("minecraft:lava")),
+                registry.require(Identifier.parse("minecraft:sandstone")),
+                registry.require(Identifier.parse("minecraft:red_sandstone")));
+        this.ravines = new net.zaminmc.torch.server.world.carver.RavineCarver(
+                this.air,
+                registry.require(Identifier.parse("minecraft:flowing_lava")));
         this.dirt = registry.require(Identifier.parse("minecraft:dirt"));
         this.grass = registry.require(Identifier.parse("minecraft:grass_block"));
         this.sand = registry.require(Identifier.parse("minecraft:sand"));
@@ -391,22 +407,59 @@ public final class NormalWorldGenerator implements WorldGenerator {
             }
         }
 
-        // THE CAVE STAND-IN (the documented adaptation — the reference's
-        // CaveWorldCarver + RavineWorldCarver ride their own lane): the
-        // worm carve below the surface band, AFTER the surface pass (the
-        // reference's own order — the carvers run after buildSurfaces, the
-        // cave mouths punch through the skin).
+        // THE CARVER PAIR (the reference's getChunk lines 177-183 — the
+        // caves then the ravines, AFTER the surface pass): the region walk
+        // over the 17x17 neighborhood, every region chunk re-rolling its
+        // own starts with the carve clipped to THIS chunk — the caves
+        // cross chunk borders exactly like the reference's. The retired
+        // fbm worm stand-in (isCave) answered scattered blobs in the
+        // (4, h-3) band; the reference's worms walk their own yaw/pitch
+        // ladders with the water suppression, the lava floor below 10,
+        // the sandstone ceiling fix and the grass floor fix whole.
+        net.zaminmc.torch.server.world.carver.CarverChunk carverChunk =
+                new net.zaminmc.torch.server.world.carver.CarverChunk() {
+                    @Override
+                    public BlockType get(int localX, int y, int localZ) {
+                        return chunk.getBlock(localX, y, localZ);
+                    }
+
+                    @Override
+                    public void set(int localX, int y, int localZ, BlockType type) {
+                        chunk.setBlock(localX, y, localZ, type);
+                    }
+
+                    @Override
+                    public Biome biomeAt(int worldX, int worldZ) {
+                        return NormalWorldGenerator.this.biomeAt(worldX, worldZ);
+                    }
+
+                    @Override
+                    public BlockType registeredSurfaceOf(Biome biome) {
+                        return surfaces.registeredSurface(biome);
+                    }
+                };
+        caves.place(seed, chunkX, chunkZ, carverChunk);
+        ravines.place(seed, chunkX, chunkZ, carverChunk);
+
+        // THE HEIGHTS after the carvers (the reference's populate reads
+        // the CARVED world — the cave mouths open the surface): the
+        // topmost movement-blocking cell per column, the water passed
+        // through and the leaves excluded (the reference's
+        // getSurfaceHeight — World.java lines 1132-1141).
         int[][] heights = new int[16][16];
         for (int lx = 0; lx < 16; lx++) {
             for (int lz = 0; lz < 16; lz++) {
-                int h = OverworldDensityCore.columnTop(heightMap, lx, lz);
-                heights[lx][lz] = h;
-                for (int y = 5; y < h - 3; y++) {
-                    if (isCave(baseX + lx, y, baseZ + lz)
-                            && chunk.getBlock(lx, y, lz).equals(stone)) {
-                        chunk.setBlock(lx, y, lz, air);
+                int top = 0;
+                for (int y = 255; y >= 0; y--) {
+                    BlockType cell = chunk.getBlock(lx, y, lz);
+                    if (net.zaminmc.torch.server.block.WorldSolidity.isSolid(cell)
+                            && !net.zaminmc.torch.server.block.LeafDecayBlocks
+                                    .isLeafState(cell.identifier())) {
+                        top = y;
+                        break;
                     }
                 }
+                heights[lx][lz] = top;
             }
         }
 
@@ -765,10 +818,12 @@ public final class NormalWorldGenerator implements WorldGenerator {
             }
             return y < SEA_LEVEL ? water : air;
         }
-        // Caves carve the core below the skin; the surface stays intact.
-        if (y > 4 && y < h - 3 && isCave(x, y, z)) {
-            return air;
-        }
+        // THE CARVERS DO NOT RIDE THE PROBE (Wave CV): the reference's
+        // cave/ravine carves are region-walk dependent (the 17x17
+        // neighborhood's own seeds) — the out-of-chunk probe answers the
+        // un-carved terrain, the documented stand-in (the in-chunk reads
+        // see the real carves; the structures' neighbor consults are the
+        // populate-time contract's own approximation).
         // THE SURFACE BUILDERS (VIII14's surface slice — the reference's
         // buildSurfaces walk + the family overrides over the engine's
         // per-cell probe): null answers the core stone the ore ladder owns
@@ -827,11 +882,6 @@ public final class NormalWorldGenerator implements WorldGenerator {
         Biome mirrored = biomeAt(baseX + (z & 15), baseZ + (x & 15));
         double mirroredDepth = surfaces.depthAt(baseX + (z & 15), baseZ + (x & 15));
         return blockAt(x, y, z, h, h < SEA_LEVEL, mirrored, mirroredDepth);
-    }
-
-    private boolean isCave(int x, int y, int z) {
-        double worm = fbm3(x * 0.045, y * 0.09, z * 0.045);
-        return worm > 0.74;
     }
 
     // ---------------------------------------------------------- worldgen animal seeding
@@ -1008,54 +1058,6 @@ public final class NormalWorldGenerator implements WorldGenerator {
             return chunk.getBlock(localX, y, localZ);
         }
         return surfaceBlockAt(x, y, z);
-    }
-
-    // ------------------------------------------------------------------ noise core
-    // (THE RETIRED COLUMN MODEL — Wave TN: the fbm2 value-noise ladder and
-    // its lattice/hash helpers below that the cave stand-in does not read
-    // are gone; the density stack answers the terrain. The 3D worm fbm
-    // stays — the documented cave stand-in's own field, retired by the
-    // reference's carver pair on its own lane.)
-
-    private double fbm3(double x, double y, double z) {
-        return (valueNoise3(x, y, z) * 0.65
-                + valueNoise3(x * 2.03 + 31.7, y * 2.03, z * 2.03 - 17.3) * 0.35);
-    }
-
-    private double valueNoise3(double x, double y, double z) {
-        int xi = (int) Math.floor(x);
-        int yi = (int) Math.floor(y);
-        int zi = (int) Math.floor(z);
-        double tx = smooth(x - xi);
-        double ty = smooth(y - yi);
-        double tz = smooth(z - zi);
-        double c000 = lattice3(xi, yi, zi);
-        double c100 = lattice3(xi + 1, yi, zi);
-        double c010 = lattice3(xi, yi + 1, zi);
-        double c110 = lattice3(xi + 1, yi + 1, zi);
-        double c001 = lattice3(xi, yi, zi + 1);
-        double c101 = lattice3(xi + 1, yi, zi + 1);
-        double c011 = lattice3(xi, yi + 1, zi + 1);
-        double c111 = lattice3(xi + 1, yi + 1, zi + 1);
-        return lerp(
-                lerp(lerp(c000, c100, tx), lerp(c010, c110, tx), ty),
-                lerp(lerp(c001, c101, tx), lerp(c011, c111, tx), ty),
-                tz);
-    }
-
-    private double lattice3(int x, int y, int z) {
-        long h = seed ^ (x * 0x27D4EB2DL) ^ (y * 0x9E3779B1L) ^ (z * 0x165667B1L);
-        h = (h ^ (h >>> 15)) * 0x2C1B3C6DL;
-        h = (h ^ (h >>> 13)) * 0x297F2D39L;
-        return ((h ^ (h >>> 16)) & 0xFFFFFFL) / (double) 0xFFFFFFL;
-    }
-
-    private static double smooth(double t) {
-        return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
-    }
-
-    private static double lerp(double a, double b, double t) {
-        return a + (b - a) * t;
     }
 
 }
