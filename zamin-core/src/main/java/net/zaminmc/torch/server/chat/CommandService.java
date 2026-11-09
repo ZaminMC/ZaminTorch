@@ -185,12 +185,23 @@ public final class CommandService {
         }
         String[] parts = line.split("\\s+");
         Command command = commands.get(parts[0].toLowerCase());
-        if (command == null || sender.opLevel() < command.requiredLevel()) {
-            // Vanilla behavior: an unknown or unauthorized command does not
-            // reveal itself; the refusal text is identical for both.
-            sender.sendMessage("Unknown command. Type \"/help\" for help.");
+        if (command == null) {
+            // CommandRegistry.run lines 44-48: the unknown-command refusal
+            // (commands.generic.notFound, red) — its own text, never the
+            // permission arm's.
+            sender.sendMessage("§cUnknown command. Type \"/help\" for help.");
             // The reference's run reports the zero on every path (the
             // trailing addResult(SUCCESS_COUNT, j) after the if/else).
+            sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.SUCCESS_COUNT, 0);
+            return 0;
+        }
+        if (sender.opLevel() < command.requiredLevel()) {
+            // CommandRegistry.run lines 66-70: the permission refusal
+            // (commands.generic.permission, red) — the 1.8.8 en_US.lang
+            // form verbatim, its own arm since the notFound split.
+            sender.sendMessage("§cI'm sorry, but you do not have permission to perform this "
+                    + "command. Please contact the server administrators if you believe that "
+                    + "this is in error.");
             sender.addResult(net.zaminmc.torch.server.command.EngineCommandResults.Type.SUCCESS_COUNT, 0);
             return 0;
         }

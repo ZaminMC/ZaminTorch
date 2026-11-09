@@ -443,25 +443,61 @@ final class TestClient18 implements AutoCloseable {
     }
 
     /**
-     * Walks to the target in honest per-tick steps (the movement guard
-     * rejects single-packet jumps beyond the physics envelope, exactly like
-     * the historical "moved too quickly"): at most 0.4 blocks horizontally
-     * and 0.5 blocks vertically per packet. The join's position packet
-     * anchors the tracker.
+     * Walks to the target in honest per-tick steps (the reference's own
+     * physics: at most 0.4 blocks horizontally and 0.5 vertically per
+     * packet). THE HONEST WALK FORM (Wave M1's regression repair): a real
+     * client never interpolates Y while still over solid ground (feet
+     * sinking into the floor is exactly what the reference's "moved
+     * wrongly" collision band refuses), and it leaves a hole by climbing
+     * out FIRST (the jump), never by striding into the neighboring wall.
+     * The walk therefore orders its phases: a higher target climbs at the
+     * current column then walks level; a lower target walks level then
+     * descends at the target's column.
      */
     void walkTo(double x, double y, double z, boolean onGround) throws IOException {
+        if (y > lastY) {
+            climbVertical(y, onGround);
+            walkHorizontal(x, z);
+        } else {
+            walkHorizontal(x, z);
+            climbVertical(y, onGround);
+        }
+    }
+
+    /** The level phase: honest 0.4 steps at the current height. */
+    private void walkHorizontal(double x, double z) throws IOException {
         double dx = x - lastX;
-        double dy = y - lastY;
         double dz = z - lastZ;
         double horizontal = Math.sqrt(dx * dx + dz * dz);
-        int steps = Math.max(1,
-                Math.max((int) Math.ceil(horizontal / 0.4),
-                        (int) Math.ceil(Math.abs(dy) / 0.5)));
-        for (int i = 1; i < steps; i++) {
-            sendPosition(lastX + dx / steps, lastY + dy / steps, lastZ + dz / steps, false);
+        int hSteps = Math.max(1, (int) Math.ceil(horizontal / 0.4));
+        for (int i = 1; i <= hSteps; i++) {
+            double stepX = lastX + dx / hSteps;
+            double stepZ = lastZ + dz / hSteps;
+            if (i == hSteps) {
+                stepX = x;
+                stepZ = z;
+            }
+            sendPosition(stepX, lastY, stepZ, false);
+            lastX = stepX;
+            lastZ = stepZ;
         }
-        // The last step lands exactly on the target (no rounding drift).
-        sendPosition(x, y, z, onGround);
+    }
+
+    /** The vertical phase: honest 0.5 steps at the current column. */
+    private void climbVertical(double y, boolean onGround) throws IOException {
+        double dy = y - lastY;
+        if (dy == 0) {
+            return;
+        }
+        int vSteps = Math.max(1, (int) Math.ceil(Math.abs(dy) / 0.5));
+        for (int i = 1; i <= vSteps; i++) {
+            double stepY = lastY + dy / vSteps;
+            if (i == vSteps) {
+                stepY = y;
+            }
+            sendPosition(lastX, stepY, lastZ, i == vSteps && onGround);
+            lastY = stepY;
+        }
     }
 
     void sendKeepAliveResponse(int id) throws IOException {
@@ -535,6 +571,12 @@ final class TestClient18 implements AutoCloseable {
                 lastX = buffer.readDouble();
                 lastY = buffer.readDouble();
                 lastZ = buffer.readDouble();
+                // THE ANCHOR ACK (the real 1.8 client's own walk: the
+                // position packet's teleport is accepted client-side, so the
+                // next PlayerMove packet carries the anchor — within the
+                // server's d3 < 0.25 band the teleport window closes). The
+                // scripted client sends it exactly like the real one.
+                sendPosition(lastX, lastY, lastZ, true);
                 return;
             }
         }
@@ -697,6 +739,9 @@ final class TestClient18 implements AutoCloseable {
                         lastX = buffer.readDouble();
                         lastY = buffer.readDouble();
                         lastZ = buffer.readDouble();
+                        // The anchor ack, the same readUntilPositionAndLook
+                        // law: the client accepts the teleport.
+                        sendPosition(lastX, lastY, lastZ, true);
                         return;
                     }
                     case Protocol18.S2C_PLAYER_INFO -> {

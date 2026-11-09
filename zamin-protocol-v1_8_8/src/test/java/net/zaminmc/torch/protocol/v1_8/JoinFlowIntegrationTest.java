@@ -216,9 +216,13 @@ class JoinFlowIntegrationTest {
         awaitCondition(() -> server.itemEntities().all().stream()
                 .allMatch(net.zaminmc.torch.server.entity.ItemEntity::onGround), "drop settled");
         var drop = server.itemEntities().all().get(0).position();
-        // A real client falls into the mined hole, which is what brings the
-        // resting item into the pickup range around the player's box.
-        client.walkTo(drop.x(), drop.y() - 0.125, drop.z(), true);
+        // A real client falls into the mined hole's CENTRE (gravity), which
+        // is what brings the resting item into the pickup range around the
+        // player's box — never the item's drifted x/z (the 0.6-wide box
+        // would straddle the hole's solid rim; the reference's collision
+        // band refuses that descent).
+        client.walkTo(Math.floor(drop.x()) + 0.5, drop.y() - 0.125,
+                Math.floor(drop.z()) + 0.5, true);
     }
 
     private PlayerSession awaitPlayer(String name) throws InterruptedException {

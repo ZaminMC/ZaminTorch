@@ -35,6 +35,58 @@ class ChatAndMultiplayerTest extends ProtocolTestBase {
         awaitEmptyServer();
     }
 
+    /**
+     * Wave C1 — THE CONSOLE LOG SEAT (the reference's own law,
+     * PlayerManager.sendMessage lines 758-762: {@code this.server
+     * .sendMessage(message)} logs player chat to the server console
+     * BEFORE the broadcast rides): the reported "player messages never
+     * show up in console" gap. The seat captures the engine server
+     * logger's records while a scripted client chats.
+     */
+    @Test
+    void playerChatLandsInTheServerConsoleLog() throws Exception {
+        java.util.List<String> captured = new java.util.concurrent.CopyOnWriteArrayList<>();
+        java.util.logging.Handler capture = new java.util.logging.Handler() {
+            @Override
+            public void publish(java.util.logging.LogRecord record) {
+                captured.add(record.getMessage());
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        java.util.logging.Logger engineLogger =
+                java.util.logging.Logger.getLogger("net.zaminmc.torch.server.EngineServer");
+        engineLogger.addHandler(capture);
+        try {
+            try (TestClient18 eve = new TestClient18("127.0.0.1", adapter.boundPort())) {
+                eve.sendHandshake(47, 2);
+                eve.sendLoginStart("Eve");
+                eve.readLoginSuccess();
+                eve.readUntilPositionAndLook();
+                awaitPlayers("Eve");
+
+                eve.sendChat("console should see this");
+                // The chat line itself arrives (the broadcast's own receipt).
+                String line = eve.readChatLine(5_000);
+                assertTrue(line.contains("console should see this"), line);
+            }
+            awaitEmptyServer();
+            // The console log carries the reference's own form: the
+            // message logged BEFORE the broadcast, "<Name> content".
+            assertTrue(captured.stream()
+                            .anyMatch(m -> m.equals("<Eve> console should see this")),
+                    () -> "console log missing the chat line; captured=" + captured);
+        } finally {
+            engineLogger.removeHandler(capture);
+        }
+    }
+
     @Test
     void commandsReplyOnlyToTheSender() throws Exception {
         try (TestClient18 carol = new TestClient18("127.0.0.1", adapter.boundPort());

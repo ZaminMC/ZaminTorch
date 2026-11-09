@@ -58,9 +58,14 @@ class SurvivalFlowIntegrationTest extends ProtocolTestBase {
             throw new AssertionError(timeout.getMessage() + " — " + census
                     + "] (the awaited wire id was " + entityId + ")", timeout);
         }
-        // Stand where the drop rests: a real client falls into the mined hole
-        // (gravity), which is what brings the item into pickup range.
-        client.walkTo(spawn[2] / 32.0, spawn[3] / 32.0 - 0.125, spawn[4] / 32.0, true);
+        // Stand at the drop's own BLOCK CENTRE (Wave M1's honest-walk repair):
+        // a real client falls into the mined hole's centre (gravity) — its
+        // 0.6-wide box never straddles the hole's solid rim at the item's
+        // drifted x/z, and the centred stand still brings the item into
+        // pickup range (the box-grown consult).
+        double dropX = Math.floor(spawn[2] / 32.0) + 0.5;
+        double dropZ = Math.floor(spawn[4] / 32.0) + 0.5;
+        client.walkTo(dropX, spawn[3] / 32.0 - 0.125, dropZ, true);
     }
 
 

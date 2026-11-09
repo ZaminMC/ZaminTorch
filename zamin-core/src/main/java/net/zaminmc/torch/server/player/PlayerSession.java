@@ -1618,7 +1618,7 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         extinguish();
         resetFireDamageTimer();
         resetHurtInvulnerability();
-        clearHoverTicks();
+        clearFloatingTicks();
     }
 
     /**
@@ -1887,19 +1887,35 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         this.flying = flying;
     }
 
-    /** Counts one more airborne non-descent tick (the hover tell). */
-    public void noteHoverTick() {
+    /**
+     * Counts one more floating tick (the reference's {@code floatingTime++},
+     * ServerPlayNetworkHandler line 347 — a non-descending tick over nothing,
+     * without flight rights).
+     */
+    public void noteFloatingTick() {
         hoverTicks++;
     }
 
-    /** @return the sustained airborne non-descent tick count. */
-    public int hoverTicks() {
+    /** @return the floating tick count (the reference's {@code floatingTime}). */
+    public int floatingTicks() {
         return hoverTicks;
     }
 
-    /** Clears the hover accumulator (landed, fell, or accepted flight). */
-    public void clearHoverTicks() {
+    /** Clears the floating counter (line 345 — ground, rights, or the kick). */
+    public void clearFloatingTicks() {
         hoverTicks = 0;
+    }
+
+    /**
+     * The movement handler's own jump impulse (ServerPlayNetworkHandler lines
+     * 312-314 → PlayerEntity.jump): a body the server believes grounded,
+     * leaving the ground upward, pays the server's own vertical motion so
+     * the quickly consult and the exhaustion reads carry the right velocity.
+     * The jump-boost ladder (0.1 × (level + 1), LivingEntity.jump lines
+     * 1666-1673) rides the caller's own effect consult.
+     */
+    public void serverJump(double jumpBoostBonus) {
+        this.motionY = 0.42 + jumpBoostBonus;
     }
 
     // --- bow charge -----------------------------------------------------------

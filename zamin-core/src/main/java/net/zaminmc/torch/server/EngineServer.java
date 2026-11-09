@@ -33138,7 +33138,7 @@ public final class EngineServer implements Server, EngineBridge {
         sender.setAllowedToFly(enable);
         if (!enable) {
             sender.setFlying(false);
-            sender.clearHoverTicks();
+            sender.clearFloatingTicks();
         }
         sender.link().updateAbilities(abilitiesFlagsFor(sender));
         return enable ? "Flight enabled" : "Flight disabled";
@@ -33737,7 +33737,7 @@ public final class EngineServer implements Server, EngineBridge {
         session.setAllowedToFly(mayFly);
         if (!mayFly) {
             session.setFlying(false); // leaving flight: the client re-announces
-            session.clearHoverTicks();
+            session.clearFloatingTicks();
         } else {
             session.setGraceTicks(40); // the mode-switch re-anchor burst
         }
@@ -34619,10 +34619,21 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     private void publishChat(ChatService.ChatEvent event) {
-        for (ChatListener listener : chatListeners) {
-            if (event instanceof ChatService.PublicChat publicChat) {
+        if (event instanceof ChatService.PublicChat publicChat) {
+            // THE CONSOLE LOG (Wave C1 — the reference's own law,
+            // PlayerManager.sendMessage lines 758-762: {@code this
+            // .server.sendMessage(message)} runs BEFORE the broadcast,
+            // so player chat lands in the server console/latest.log
+            // exactly like the reference — the reported "player
+            // messages never show up in console" gap closed). The log
+            // runs regardless of the adapter listeners — the server's
+            // own console is never adapter-dependent.
+            LOGGER.info("<" + publicChat.sender().name() + "> " + publicChat.content());
+            for (ChatListener listener : chatListeners) {
                 listener.onChatMessage(publicChat.sender(), publicChat.content());
-            } else if (event instanceof ChatService.SystemToPlayer system) {
+            }
+        } else if (event instanceof ChatService.SystemToPlayer system) {
+            for (ChatListener listener : chatListeners) {
                 listener.onSystemMessage(system.recipient(), system.content());
             }
         }
@@ -36070,47 +36081,160 @@ public final class EngineServer implements Server, EngineBridge {
         if (session.ridingAny()) {
             return;
         }
-        // The anti-cheat baseline (the mango-adopted shape): proposals outside
-        // the historical physics envelope are dropped and the client is
-        // snapped back to the authoritative position — the historical
-        // "moved wrongly" behavior. The grace window (teleports, knockback,
-        // join bursts) suspends the speed caps for honest bursts.
+        // THE VANILLA MOVEMENT CHECK (Wave M1 — the setback repair,
+        // ServerPlayNetworkHandler.handlePlayerMove lines 296-357 read
+        // whole over the engine's own 1:1 solver): the retired per-tick
+        // caps (0.45/0.55/5.0 — never in the reference) rejected honest
+        // sprint-jumps, Speed-potion strides, ice bursts and lag-spaced
+        // packets; every rejection snapped the client back. The law now:
+        // "moved too quickly!" only past ten blocks a packet (d15 - d14 >
+        // 100.0), the collision-walk "moved wrongly!" residual with the
+        // was-free/would-be-free gates (creative exempt), and the
+        // floating KICK at 80 non-descending ticks over nothing — a
+        // disconnect, never a setback.
         //
         // The spectator's no-clip (the reference's own walk,
         // PlayerEntity.tick line 191: {@code this.noClip =
         // this.isSpectator()} + ServerPlayNetworkHandler.handlePlayerMove's
         // {@code if (!this.player.noClip)} band, line 335): a spectator's
-        // flight never meets the guard — its client-side envelope is the
-        // free camera (through blocks, at flight speed), so the pushback
-        // would fight an honest spectator every fast tick. The wire-side
-        // sanity band (isSaneMovement's finiteness + coordinate bounds,
-        // the reference's isInvalidMove/"Illegal position" pair) still
-        // bounds spectators exactly like every other mode — only the
-        // guard's pushback is gated out, and never for any other gamemode.
+        // flight never meets the wrongly band — its client-side envelope
+        // is the free camera (through blocks, at flight speed). The
+        // wire-side sanity band (isSaneMovement's finiteness + coordinate
+        // bounds, the reference's isInvalidMove/"Illegal position" pair)
+        // still bounds spectators exactly like every other mode.
         Position from = session.position();
         if (session.gamemode() == GameMode.SPECTATOR) {
             session.applyMovement(position, rotation, onGround);
             session.acknowledgeTeleportIfAtAnchor(position);
             return;
         }
-        if (!MovementGuard.permits(session, from, position, onGround,
-                fluidAt(from.x(), from.y(), from.z())
-                        || ladderAt(from.x(), from.y(), from.z()))) {
-            session.link().resyncPosition();
-            LOGGER.fine(() -> "Movement rejected for " + session.name()
-                    + " (" + from + " -> " + position + ")");
+        // THE TELEPORT WINDOW (the reference's own order, lines 202-213 +
+        // 358-360): every position proposal first consults the in-flight
+        // teleport's anchor (d3 < 0.25 squared closes the window), and a
+        // proposal arriving while the window still stands is IGNORED —
+        // neither applied nor rejected, exactly the reference's
+        // {@code if (this.teleported) ... else} band (the re-teleport
+        // arm rides the 20-tick consult the wire's keep-alive walk owns).
+        // Without this gate the quickly band would snap the client back
+        // mid-teleport — the rubber-band the setbacks reported.
+        session.acknowledgeTeleportIfAtAnchor(position);
+        if (session.teleportPending()) {
             return;
         }
-        // Per-channel ordering (transport guarantee) makes this safe.
-        session.applyMovement(position, rotation, onGround);
-        // THE TELEPORT ACKNOWLEDGMENT (the movement handler's own band,
-        // lines 203-211): a position proposal within d3 < 0.25 squared of
-        // the in-flight teleport's anchor closes the teleport window (the
-        // look-only packet never acknowledges in the reference — the
-        // engine's unified proposal carries the current position, so a
-        // look packet AT the anchor acknowledges identically; the client
-        // is at the anchor either way).
-        session.acknowledgeTeleportIfAtAnchor(position);
+        MovementGuard.Verdict verdict = MovementGuard.check(
+                movementWorldFor(session), session, from, position, onGround,
+                jumpBoostBonusOf(session));
+        switch (verdict) {
+            case MovementGuard.Verdict.Kick kick -> {
+                // Lines 348-352: the floating disconnect.
+                session.link().kick(kick.reason());
+            }
+            case MovementGuard.Verdict.SnapBack snapBack -> {
+                // Lines 306/338: the historical teleport-back.
+                session.link().resyncPosition();
+                LOGGER.fine(() -> "Movement rejected for " + session.name()
+                        + " (" + snapBack.reason() + ": " + from + " -> " + position + ")");
+            }
+            case MovementGuard.Verdict.Accept ignored -> {
+                // Per-channel ordering (transport guarantee) makes this safe.
+                session.applyMovement(position, rotation, onGround);
+                // The teleport acknowledgment already ran at the head (the
+                // window gate's own consult — the reference's d3 < 0.25 band
+                // on every proposal, lines 202-211).
+            }
+        }
+    }
+
+    /**
+     * The acting dimension's block surface for the movement check (the
+     * reference's {@code serverworld} consults): the collision world, the
+     * non-air probe and the cobweb consult, all owner-checked on the tick
+     * lane the proposal itself rides.
+     */
+    private MovementGuard.MovementWorld movementWorldFor(PlayerSession session) {
+        EngineWorld world = worldFor(session.dimension());
+        return new MovementGuard.MovementWorld() {
+            @Override
+            public net.zaminmc.torch.block.BlockType blockAt(int x, int y, int z) {
+                if (world == null) {
+                    return net.zaminmc.torch.server.block.BuiltinBlocks.AIR;
+                }
+                if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                        || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                    return world.airType();
+                }
+                return world.getBlock(new BlockPosition(x, y, z));
+            }
+
+            @Override
+            public boolean chunkLoaded(int x, int z) {
+                return world != null && world.isChunkLoadedAt(new BlockPosition(x, 64, z));
+            }
+
+            @Override
+            public boolean borderContains(int x, int z) {
+                return borderFor(session.dimension()).contains(x, z);
+            }
+
+            @Override
+            public boolean containsNonAir(net.zaminmc.torch.server.physics.Aabb region) {
+                var air = world != null ? world.airType()
+                        : net.zaminmc.torch.server.block.BuiltinBlocks.AIR;
+                int minX = (int) Math.floor(region.minX);
+                int maxX = (int) Math.floor(region.maxX);
+                int minY = (int) Math.floor(region.minY);
+                int maxY = (int) Math.floor(region.maxY);
+                int minZ = (int) Math.floor(region.minZ);
+                int maxZ = (int) Math.floor(region.maxZ);
+                for (int x = minX; x <= maxX; x++) {
+                    for (int y = minY; y <= maxY; y++) {
+                        for (int z = minZ; z <= maxZ; z++) {
+                            if (!blockAt(x, y, z).equals(air)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            @Override
+            public boolean cobwebAt(Position feet) {
+                // The hull's own cells at the body's feet (the tick's
+                // doBlockCollisions approximation): a web anywhere in the
+                // stride's start reads as the reference's inCobweb flag.
+                var cobweb = net.zaminmc.torch.util.Identifier.parse("minecraft:cobweb");
+                int minX = (int) Math.floor(feet.x() - MovementGuard.PLAYER_WIDTH / 2.0);
+                int maxX = (int) Math.floor(feet.x() + MovementGuard.PLAYER_WIDTH / 2.0);
+                int minY = (int) Math.floor(feet.y());
+                int maxY = (int) Math.floor(feet.y() + 1.0);
+                int minZ = (int) Math.floor(feet.z() - MovementGuard.PLAYER_WIDTH / 2.0);
+                int maxZ = (int) Math.floor(feet.z() + MovementGuard.PLAYER_WIDTH / 2.0);
+                for (int x = minX; x <= maxX; x++) {
+                    for (int y = minY; y <= maxY; y++) {
+                        for (int z = minZ; z <= maxZ; z++) {
+                            if (blockAt(x, y, z).identifier().equals(cobweb)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+        };
+    }
+
+    /**
+     * The active jump-boost bonus for a session's body (0.1 × (level+1),
+     * LivingEntity.jump lines 1666-1673): the effect store's own consult,
+     * 0.0 with no effect.
+     */
+    private double jumpBoostBonusOf(PlayerSession session) {
+        var instance = potionSystem != null
+                ? potionSystem.allOf(session)
+                        .get(net.zaminmc.torch.server.potion.StatusEffects.JUMP_BOOST)
+                : null;
+        return instance == null ? 0.0 : 0.1 * (instance.amplifier() + 1);
     }
 
     @Override
