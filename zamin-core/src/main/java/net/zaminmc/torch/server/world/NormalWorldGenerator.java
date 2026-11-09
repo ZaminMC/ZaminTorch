@@ -264,7 +264,18 @@ public final class NormalWorldGenerator implements WorldGenerator {
      * RegionHills +128 band, the sunflower roll).
      */
     public Biome biomeAt(int x, int z) {
-        long key = (long) (x >> 4) | ((long) (z >> 4) << 32);
+        // THE MASKED PACKING (Wave SA's negative-coordinate audit — the
+        // sign-collapse retired): the two 32-bit halves carry the chunk
+        // coords' own bit patterns, the pair injective over the whole int
+        // domain. The retired bare-cast packing smeared the sign extension
+        // — every chunk with a negative z collapsed onto ONE key per
+        // x-band (the first-cached chunk's 16x16 array answering the whole
+        // band — the biome map south of the origin a consult-order smear,
+        // the whole negative half-world reading wrong biomes: the owner's
+        // own all-negative-coordinates world). The VR wave's fixedPoint
+        // lane-collapse was the same class.
+        long key = ((long) (x >> 4) & 0xFFFFFFFFL)
+                | (((long) (z >> 4) & 0xFFFFFFFFL) << 32);
         int[] cell;
         synchronized (blockBiomeCache) {
             cell = blockBiomeCache.get(key);
@@ -480,7 +491,12 @@ public final class NormalWorldGenerator implements WorldGenerator {
      * {@code (chunkX*4 - 2, chunkZ*4 - 2)}).
      */
     private double[] heightMapFor(int chunkX, int chunkZ) {
-        long key = (long) chunkX | ((long) chunkZ << 32);
+        // THE MASKED PACKING (the biome cache's own fix — the sign-collapse
+        // retired here too: the retired bare-cast key collapsed every
+        // negative-z chunk onto one entry, the terrain heights south of
+        // the origin answering the first-cached chunk's snapshot).
+        long key = ((long) chunkX & 0xFFFFFFFFL)
+                | (((long) chunkZ & 0xFFFFFFFFL) << 32);
         synchronized (heightMapCache) {
             double[] cached = heightMapCache.get(key);
             if (cached != null) {

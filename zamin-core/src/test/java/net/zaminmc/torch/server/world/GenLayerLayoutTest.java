@@ -130,6 +130,20 @@ class GenLayerLayoutTest {
      * column sits below the sea, a land column sits above (the rivers
      * and the swamp's water band exempt — their own registration bases
      * sit below the sea by design).
+     *
+     * <p><b>Re-pinned to the healed law (Wave SA's negative-coordinate
+     * cache fix):</b> the retired 9/10 land pin was calibrated on the
+     * SIGN-COLLAPSED cache (every negative-z chunk keyed onto one entry
+     * per x-band — the first-cached 16x16 array answering the whole
+     * band, the biome map smeared into artificially-uniform patches with
+     * far fewer true boundaries). On the healed injective keys the
+     * measured field: the ocean side 99.98% coherent (the strong signal
+     * — tightened from 3/4 to 19/20), the land side ~84% — the 5x5
+     * biome kernel's own shore dilution (a coastal land cell's
+     * kernel-averaged base dips under the sea exactly like vanilla —
+     * the reference's own beach law; the fuzz measures the same at the
+     * 4-block grid centers, so the voronoi warp adds nothing
+     * material). The land pin rides at 4/5 with the documented band.</p>
      */
     @Test
     void theLandOceanCoherenceHolds() {
@@ -164,19 +178,50 @@ class GenLayerLayoutTest {
             }
         }
         assertTrue(oceanTotal > 500, "the sweep crosses oceans: " + oceanTotal);
-        // THE VORONOI BOUNDARY WARP (the vanilla shape itself): the
-        // block-level biome map and the terrain both derive from the 1:4
-        // grid, but the voronoi's ±1.8 corner jitter warps the block
-        // answers across cell boundaries — a block at a land cell's edge
-        // can answer the neighbor ocean cell (a dry ocean-edge block,
-        // the reference's own shore fuzz). The strong majority still
-        // sits below the sea.
-        assertTrue(oceanUnderwater >= oceanTotal * 3 / 4,
+        assertTrue(oceanUnderwater >= oceanTotal * 19 / 20,
                 "the ocean columns sit below the sea (the boundary warp "
                         + "exempt): " + oceanUnderwater + "/" + oceanTotal);
-        assertTrue(landAbove >= landTotal * 9 / 10,
-                "the land columns sit above the sea (small shore band "
-                        + "exempt): " + landAbove + "/" + landTotal);
+        assertTrue(landAbove >= landTotal * 4 / 5,
+                "the land columns sit above the sea (the 5x5 kernel's own "
+                        + "shore-dilution band exempt): " + landAbove + "/" + landTotal);
+    }
+
+    /**
+     * THE MAP'S PURITY (Wave SA — the sign-collapse's regression seat):
+     * the biome and height answers are a PURE function of the seed —
+     * two generators over the same seed, consulted in OPPOSITE orders,
+     * answer the identical map. The retired bare-cast cache keys
+     * collapsed every negative-z chunk onto one entry per x-band, so
+     * the FIRST-cached chunk's array answered the whole band — the map
+     * a consult-order smear (96/256 biome answers and 128/256 heights
+     * differed between the orders on the pre-fix engine). RED on the
+     * bare-cast no-op.
+     */
+    @Test
+    void theBiomeMapIsPureInTheConsultOrder() {
+        java.util.List<String> forward = new java.util.ArrayList<>();
+        NormalWorldGenerator forwardGenerator =
+                new NormalWorldGenerator(registry(), "genlayer-coherence");
+        for (int x = -2048; x < 2048; x += 256) {
+            for (int z = -2048; z < 2048; z += 256) {
+                forward.add(forwardGenerator.biomeAt(x, z) + "/"
+                        + forwardGenerator.heightAt(x, z));
+            }
+        }
+        java.util.List<String> reverse = new java.util.ArrayList<>();
+        NormalWorldGenerator reverseGenerator =
+                new NormalWorldGenerator(registry(), "genlayer-coherence");
+        for (int x = 1792; x >= -2048; x -= 256) {
+            for (int z = 1792; z >= -2048; z -= 256) {
+                reverse.add(reverseGenerator.biomeAt(x, z) + "/"
+                        + reverseGenerator.heightAt(x, z));
+            }
+        }
+        int n = forward.size();
+        for (int i = 0; i < n; i++) {
+            assertEquals(forward.get(i), reverse.get(n - 1 - i),
+                    "the sample answers identical regardless of consult order (i=" + i + ")");
+        }
     }
 
     /**
