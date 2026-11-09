@@ -41,14 +41,15 @@ import java.util.Random;
  * chunkZ*l ^ worldSeed)} — the two odd longs drawn once per world, the
  * per-chunk population seed the reference's own form.</p>
  *
- * <p><b>THE LEDGERED STAGE</b>: {@code placeVeins} (lines 333-345) —
- * the ore and stone-family veins — stays retired whole: the engine's
- * ores ride the generation-side depth ladder ({@code oreOrStone}, the
- * documented standing adaptation), whose position-pure answers the
- * populate-time out-of-chunk reads REQUIRE (a decorate-time vein write
- * is chunk-local; the pure terrain function could never see it). The
- * stone-family composition (the dirt/gravel/granite/diorite/andesite
- * veins) rides the same ledger.</p>
+ * <p><b>THE VEINS LANDED</b> (the owner's report 'ore veins generation
+ * etc all are very wrong' read whole): {@code placeVeins} (lines
+ * 333-345) rides the decorate head above — the vanilla vein families
+ * whole (VeinFeature's ellipsoid chains, the linear/triangular
+ * walkers, the default table's counts/sizes/heights). The retired
+ * generation-side hash ladder ({@code oreOrStone}) could never express
+ * a vein: single scattered cells, wrong depth bands, and no stone
+ * family at all — the salt-and-pepper ores the owner saw. Its ore arms
+ * are retired; the pure terrain answers stone.</p>
  *
  * <p><b>The counted notes</b> (the named adaptations, recorded in the
  * slice's PR): the village gate on the lakes drops (the structure
@@ -80,6 +81,25 @@ public final class FeatureDecorator {
     /** The two mushroom families' sixteen-state bands. */
     private final BlockType[][] mushroomStates;
 
+    // THE ORE-VEIN FAMILY (the reference's placeVeins — the default
+    // OverworldGeneratorOptions counts/sizes/heights, the vanilla 1.8.8
+    // table whole): the dirt/gravel/diorite/granite/andesite stone-family
+    // veins and the coal/iron/gold/redstone/diamond/lapis ore veins, each
+    // a VeinFeature of its own size placed linear (or triangular for the
+    // lapis) over the populate stream's own chunk Random — the shape the
+    // retired generation-side hash ladder could never express (single
+    // scattered cells, wrong bands, no stone family at all).
+    private final BlockType dirtBlock;
+    private final BlockType graniteBlock;
+    private final BlockType dioriteBlock;
+    private final BlockType andesiteBlock;
+    private final BlockType coalOreVein;
+    private final BlockType ironOreVein;
+    private final BlockType goldOreVein;
+    private final BlockType redstoneOreVein;
+    private final BlockType diamondOreVein;
+    private final BlockType lapisOreVein;
+
     /**
      * The reference's own FOLIAGE_NOISE (Biome.java line 595): the fixed
      * 2345 seed, one level — identical across every world, the plains and
@@ -98,6 +118,16 @@ public final class FeatureDecorator {
         this.gravel = registry.require(Identifier.parse("minecraft:gravel"));
         this.mossyCobblestone = registry.require(Identifier.parse("minecraft:mossy_cobblestone"));
         this.podzol = registry.require(Identifier.parse("minecraft:podzol"));
+        this.dirtBlock = registry.require(Identifier.parse("minecraft:dirt"));
+        this.graniteBlock = registry.require(Identifier.parse("minecraft:granite"));
+        this.dioriteBlock = registry.require(Identifier.parse("minecraft:diorite"));
+        this.andesiteBlock = registry.require(Identifier.parse("minecraft:andesite"));
+        this.coalOreVein = registry.require(Identifier.parse("minecraft:coal_ore"));
+        this.ironOreVein = registry.require(Identifier.parse("minecraft:iron_ore"));
+        this.goldOreVein = registry.require(Identifier.parse("minecraft:gold_ore"));
+        this.redstoneOreVein = registry.require(Identifier.parse("minecraft:redstone_ore"));
+        this.diamondOreVein = registry.require(Identifier.parse("minecraft:diamond_ore"));
+        this.lapisOreVein = registry.require(Identifier.parse("minecraft:lapis_ore"));
         this.emeraldOre = registry.require(Identifier.parse("minecraft:emerald_ore"));
         this.infestedStone = registry.require(Identifier.parse("minecraft:infested_stone"));
         this.water = registry.require(Identifier.parse("minecraft:water"));
@@ -171,6 +201,12 @@ public final class FeatureDecorator {
     private void decorate(Biome biome, Random random, int baseX, int baseZ,
                           FeatureWorld world) {
         DecoratorProfile profile = biome.decorator();
+        // THE VEINS FIRST (the reference's own order — FeatureDecorator
+        // .decorate's first statement, placeVeins() at the head of the
+        // base walk, BEFORE every patch and flavor pass): the stone
+        // family and the ore ladder over the populate stream's own
+        // Random, the default table's counts/sizes/heights verbatim.
+        placeVeins(random, baseX, baseZ, world);
         // The pre-passes (each subclass's own order).
         if (profile.flavor().contains(DecoratorProfile.Flavor.ROOFED_GRID)) {
             roofedGridPass(random, baseX, baseZ, world);
@@ -209,8 +245,81 @@ public final class FeatureDecorator {
 
     /**
      * The walk whole (lines 98-298, every stage in the reference's exact
-     * order with the exact dice — the veins stage ledgered out).
+     * order with the exact dice — the veins stage riding the decorate
+     * head above).
      */
+    /**
+     * THE VEINS (the reference's placeVeins whole — FeatureDecorator
+     * lines 333-345 over the default OverworldGeneratorOptions table,
+     * OverworldGeneratorOptions lines 213-258): eleven vein families in
+     * the fixed order, each placed by the linear walker (the lapis by
+     * the triangular one). The stone family's own rows (dirt 10/33
+     * 0-256, gravel 8/33 0-256, diorite/granite/andesite 10/33 0-80),
+     * the ore ladder (coal 20/17 0-128, iron 20/9 0-64, gold 2/9 0-32,
+     * redstone 8/8 0-16, diamond 1/8 0-16, lapis triangular 1/7 at the
+     * 16-center 16-spread).
+     */
+    private void placeVeins(Random random, int baseX, int baseZ,
+                            FeatureWorld world) {
+        placeVeinLinear(random, baseX, baseZ, world, 10, dirtBlock, 33, 0, 256);
+        placeVeinLinear(random, baseX, baseZ, world, 8, gravel, 33, 0, 256);
+        placeVeinLinear(random, baseX, baseZ, world, 10, dioriteBlock, 33, 0, 80);
+        placeVeinLinear(random, baseX, baseZ, world, 10, graniteBlock, 33, 0, 80);
+        placeVeinLinear(random, baseX, baseZ, world, 10, andesiteBlock, 33, 0, 80);
+        placeVeinLinear(random, baseX, baseZ, world, 20, coalOreVein, 17, 0, 128);
+        placeVeinLinear(random, baseX, baseZ, world, 20, ironOreVein, 9, 0, 64);
+        placeVeinLinear(random, baseX, baseZ, world, 2, goldOreVein, 9, 0, 32);
+        placeVeinLinear(random, baseX, baseZ, world, 8, redstoneOreVein, 8, 0, 16);
+        placeVeinLinear(random, baseX, baseZ, world, 1, diamondOreVein, 8, 0, 16);
+        placeVeinTriangular(random, baseX, baseZ, world, 1, lapisOreVein, 7, 16, 16);
+    }
+
+    /**
+     * The linear walker (placeVeinLinear lines 304-322 1:1): the
+     * swapped/equal-height edge band first, then the count placements at
+     * (next16, nextInt(max-min)+min, next16) over the chunk origin.
+     */
+    private void placeVeinLinear(Random random, int baseX, int baseZ,
+                                 FeatureWorld world, int count, BlockType ore,
+                                 int size, int minHeight, int maxHeight) {
+        if (maxHeight < minHeight) {
+            int swap = minHeight;
+            minHeight = maxHeight;
+            maxHeight = swap;
+        } else if (maxHeight == minHeight) {
+            if (minHeight < 255) {
+                maxHeight++;
+            } else {
+                minHeight--;
+            }
+        }
+        TerrainFeatures.VeinFeature vein = new TerrainFeatures.VeinFeature(ore, size);
+        for (int i = 0; i < count; i++) {
+            vein.place(world, random,
+                    baseX + random.nextInt(16),
+                    random.nextInt(maxHeight - minHeight) + minHeight,
+                    baseZ + random.nextInt(16));
+        }
+    }
+
+    /**
+     * The triangular walker (placeVeinTriangular lines 325-331 1:1): the
+     * lapis family's own two-dice sum (nextInt(max) + nextInt(max) + min
+     * - max), the triangle centred at minHeight.
+     */
+    private void placeVeinTriangular(Random random, int baseX, int baseZ,
+                                     FeatureWorld world, int count, BlockType ore,
+                                     int size, int minHeight, int maxHeight) {
+        TerrainFeatures.VeinFeature vein = new TerrainFeatures.VeinFeature(ore, size);
+        for (int i = 0; i < count; i++) {
+            vein.place(world, random,
+                    baseX + random.nextInt(16),
+                    random.nextInt(maxHeight) + random.nextInt(maxHeight)
+                            + minHeight - maxHeight,
+                    baseZ + random.nextInt(16));
+        }
+    }
+
     private void walk(Biome biome, DecoratorProfile profile, Random random,
                       int baseX, int baseZ, FeatureWorld world) {
         // The working counts (the plains band mutates its own pair

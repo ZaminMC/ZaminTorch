@@ -137,6 +137,11 @@ public final class MapColors {
         // The core terrain (Material colors + the named overrides).
         row(t, "air", AIR);
         row(t, "stone", STONE);
+        // The 1.8 stone family (StoneBlock's own MapColor rows: granite
+        // DIRT, diorite QUARTZ, andesite STONE).
+        row(t, "granite", DIRT);
+        row(t, "diorite", QUARTZ);
+        row(t, "andesite", STONE);
         row(t, "bedrock", STONE);
         row(t, "grass_block", GRASS);
         row(t, "mycelium", PURPLE); // MyceliumBlock(Material.GRASS, PURPLE)

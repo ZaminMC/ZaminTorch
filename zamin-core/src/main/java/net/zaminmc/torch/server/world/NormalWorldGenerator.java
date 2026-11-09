@@ -686,24 +686,18 @@ public final class NormalWorldGenerator implements WorldGenerator {
     }
 
 
-    /** The depth-banded ore ladder (community blocks.json distributions). */
+    /**
+     * The pure stone core (the generation-side ore ladder RETIRED — the
+     * owner's report 'ore veins generation etc all are very wrong'): the
+     * retired stateless per-cell hash could only ever answer scattered
+     * single ore cells in wrong depth bands (coal to 60, iron to 54, no
+     * stone family, no lapis), never a vein. The vanilla ore law rides
+     * the populate walk's own decorate head now — FeatureDecorator's
+     * placeVeins over VeinFeature's ellipsoid chains with the default
+     * table's counts/sizes/heights, stone-replacing, chunk-seeded — and
+     * the pure terrain function answers stone alone.
+     */
     private BlockType oreOrStone(int x, int y, int z) {
-        long roll = hash3(x, y, z, 0x51ED);
-        if (y <= 13 && roll % 10_000 < 12) {
-            return diamondOre;
-        }
-        if (y <= 16 && roll % 10_000 < 22) {
-            return redstoneOre;
-        }
-        if (y <= 30 && roll % 10_000 < 20) {
-            return goldOre;
-        }
-        if (y <= 54 && roll % 10_000 < 60) {
-            return ironOre;
-        }
-        if (y <= 60 && roll % 10_000 < 80) {
-            return coalOre;
-        }
         return stone;
     }
 

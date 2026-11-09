@@ -15,6 +15,16 @@ public final class BuiltinBlocks {
             Identifier.parse("minecraft:air"), "Air");
     public static final EngineBlockType STONE = new EngineBlockType(
             Identifier.parse("minecraft:stone"), "Stone");
+    // The 1.8 stone family (the ore-vein census's own rows — vanilla 1.8.8's
+    // diorite/granite/andesite veins, StoneBlock.VARIANT over legacy id 1):
+    // each drops itself, each mines like stone, each rides the wire as
+    // stone with its variant damage (1/3/5).
+    public static final EngineBlockType GRANITE = new EngineBlockType(
+            Identifier.parse("minecraft:granite"), "Granite");
+    public static final EngineBlockType DIORITE = new EngineBlockType(
+            Identifier.parse("minecraft:diorite"), "Diorite");
+    public static final EngineBlockType ANDESITE = new EngineBlockType(
+            Identifier.parse("minecraft:andesite"), "Andesite");
     public static final EngineBlockType GRASS_BLOCK = new EngineBlockType(
             Identifier.parse("minecraft:grass_block"), "Grass Block");
     public static final EngineBlockType DIRT = new EngineBlockType(
@@ -917,6 +927,9 @@ public final class BuiltinBlocks {
         builder = builder
                 .register(AIR)
                 .register(STONE)
+                .register(GRANITE)
+                .register(DIORITE)
+                .register(ANDESITE)
                 .register(GRASS_BLOCK)
                 .register(DIRT)
                 .register(BEDROCK)

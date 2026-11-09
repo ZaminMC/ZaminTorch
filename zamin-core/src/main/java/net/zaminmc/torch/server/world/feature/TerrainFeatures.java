@@ -54,6 +54,80 @@ final class TerrainFeatures {
     // ---------------------------------------------------------------- the lake
 
     /**
+     * THE VEIN (VeinFeature 1:1, the reference's WorldGenMinable form —
+     * the whole place() body verbatim): a chain of ellipsoid cross
+     * sections along a randomly-rotated segment, each section's radii
+     * re-rolled per step (the {@code d9 = random.nextDouble() * size /
+     * 16.0} per cross, the {@code (sin(PI * f1) + 1) * d9 + 1} envelope),
+     * replacing ONLY stone (the {@code BlockPredicate.of(Blocks.STONE)}
+     * replaceable gate — a vein never cuts dirt skins, caves, or other
+     * veins' ore). The +8 centering is the reference's own quirk (the
+     * vein's segment anchors eight blocks east/south of the sampled
+     * origin — veins cross chunk borders exactly like vanilla's).
+     */
+    static final class VeinFeature implements FloraFeatures.Feature {
+        private final BlockType ore;
+        private final int size;
+
+        VeinFeature(BlockType ore, int size) {
+            this.ore = ore;
+            this.size = size;
+        }
+
+        @Override
+        public boolean place(FeatureWorld world, Random random, int x, int y, int z) {
+            float angle = random.nextFloat() * (float) Math.PI;
+            double d0 = x + 8 + Math.sin(angle) * this.size / 8.0F;
+            double d1 = x + 8 - Math.sin(angle) * this.size / 8.0F;
+            double d2 = z + 8 + Math.cos(angle) * this.size / 8.0F;
+            double d3 = z + 8 - Math.cos(angle) * this.size / 8.0F;
+            double d4 = y + random.nextInt(3) - 2;
+            double d5 = y + random.nextInt(3) - 2;
+
+            for (int i = 0; i < this.size; i++) {
+                float f1 = (float) i / this.size;
+                double d6 = d0 + (d1 - d0) * f1;
+                double d7 = d4 + (d5 - d4) * f1;
+                double d8 = d2 + (d3 - d2) * f1;
+                double d9 = random.nextDouble() * this.size / 16.0;
+                double d10 = (Math.sin((float) Math.PI * f1) + 1.0F) * d9 + 1.0;
+                double d11 = (Math.sin((float) Math.PI * f1) + 1.0F) * d9 + 1.0;
+                int j = (int) Math.floor(d6 - d10 / 2.0);
+                int k = (int) Math.floor(d7 - d11 / 2.0);
+                int l = (int) Math.floor(d8 - d10 / 2.0);
+                int i1 = (int) Math.floor(d6 + d10 / 2.0);
+                int j1 = (int) Math.floor(d7 + d11 / 2.0);
+                int k1 = (int) Math.floor(d8 + d10 / 2.0);
+
+                for (int l1 = j; l1 <= i1; l1++) {
+                    double d12 = (l1 + 0.5 - d6) / (d10 / 2.0);
+                    if (d12 * d12 < 1.0) {
+                        for (int i2 = k; i2 <= j1; i2++) {
+                            double d13 = (i2 + 0.5 - d7) / (d11 / 2.0);
+                            if (d12 * d12 + d13 * d13 < 1.0) {
+                                for (int j2 = l; j2 <= k1; j2++) {
+                                    double d14 = (j2 + 0.5 - d8) / (d10 / 2.0);
+                                    if (d12 * d12 + d13 * d13 + d14 * d14 < 1.0) {
+                                        if (isStone(world.blockAt(l1, i2, j2))) {
+                                            world.setBlockAt(l1, i2, j2, this.ore);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        /** The replaceable gate (BlockPredicate.of(Blocks.STONE)). */
+        private static boolean isStone(BlockType type) {
+            return type != null && type.identifier().value().equals("stone");
+        }
+    }
+
+    /**
      * The lake (LakeFeature 1:1, lines 13-146): the -8 base shift, the
      * air drop-down with the y 5 floor and the -4 sink, the 4-7 ellipsoid
      * rolls, the wall material gates (a liquid at the dome refuses whole,

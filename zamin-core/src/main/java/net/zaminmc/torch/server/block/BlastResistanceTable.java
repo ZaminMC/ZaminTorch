@@ -216,6 +216,11 @@ public final class BlastResistanceTable {
         Map.entry("standing_sign", 1f),
         Map.entry("sticky_piston", 0.5f),
         Map.entry("stone", 6f),
+        // The 1.8 stone family (the ore-vein census's variants — the same
+        // 6 as stone, Blocks.java's own registerVariants values).
+        Map.entry("granite", 6f),
+        Map.entry("diorite", 6f),
+        Map.entry("andesite", 6f),
         Map.entry("stone_brick_stairs", 0f),
         Map.entry("stone_button", 0.5f),
         Map.entry("stone_pressure_plate", 0.5f),

@@ -24,6 +24,11 @@ final class LegacyBlockIds {
             // blocks
             Map.entry(Identifier.parse("minecraft:air"), 0),
             Map.entry(Identifier.parse("minecraft:stone"), 1),
+            // The 1.8 stone family: the variants ride the SAME legacy id 1,
+            // the variant living in the metadata nibble (METADATA's rows).
+            Map.entry(Identifier.parse("minecraft:granite"), 1),
+            Map.entry(Identifier.parse("minecraft:diorite"), 1),
+            Map.entry(Identifier.parse("minecraft:andesite"), 1),
             Map.entry(Identifier.parse("minecraft:grass_block"), 2),
             Map.entry(Identifier.parse("minecraft:dirt"), 3),
             Map.entry(Identifier.parse("minecraft:cobblestone"), 4),
@@ -1504,6 +1509,12 @@ final class LegacyBlockIds {
      * real "grass" variant on the wire).
      */
     private static final Map<Identifier, Integer> METADATA = withVineStateMetadata(withDyeFamilyMetadata(Map.ofEntries(
+            // The 1.8 stone family's variant nibble (StoneBlock.VARIANT —
+            // the ore-vein census's granite/diorite/andesite veins ride
+            // legacy id 1 with these damages).
+            Map.entry(Identifier.parse("minecraft:granite"), 1),
+            Map.entry(Identifier.parse("minecraft:diorite"), 3),
+            Map.entry(Identifier.parse("minecraft:andesite"), 5),
             Map.entry(Identifier.parse("minecraft:tall_grass"), 1),
             // The VIII14 decorators slice: the fern (block 31's variant 2
             // — TallPlantBlock.Type.FERN's own nibble).

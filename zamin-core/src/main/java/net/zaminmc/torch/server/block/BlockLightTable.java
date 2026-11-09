@@ -70,6 +70,11 @@ public final class BlockLightTable {
 
             // Full opaque cubes: filter 15, no emission (dataset filterLight 15).
             Map.entry(Identifier.parse("minecraft:stone"), new LightData(0, 15)),
+            // The 1.8 stone family (the ore-vein census's variants —
+            // opaque cubes exactly like stone).
+            Map.entry(Identifier.parse("minecraft:granite"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:diorite"), new LightData(0, 15)),
+            Map.entry(Identifier.parse("minecraft:andesite"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:grass_block"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:dirt"), new LightData(0, 15)),
             Map.entry(Identifier.parse("minecraft:bedrock"), new LightData(0, 15)),

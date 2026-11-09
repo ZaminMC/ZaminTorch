@@ -108,6 +108,19 @@ public final class BlockBehaviorTable {
                     new BlockBehavior(1.5, true, true, "rock", 1,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:cobblestone"), 1)))),
 
+            // The 1.8 stone family (StoneBlock lines 95-101's own ladder —
+            // each variant mines like stone but drops ITSELF, never
+            // cobblestone): hardness 1.5, tool rock, tier 1.
+            Map.entry(Identifier.parse("minecraft:granite"),
+                    new BlockBehavior(1.5, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:granite"), 1)))),
+            Map.entry(Identifier.parse("minecraft:diorite"),
+                    new BlockBehavior(1.5, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:diorite"), 1)))),
+            Map.entry(Identifier.parse("minecraft:andesite"),
+                    new BlockBehavior(1.5, true, true, "rock", 1,
+                            List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:andesite"), 1)))),
+
             Map.entry(Identifier.parse("minecraft:grass_block"),
                     new BlockBehavior(0.6, true, false, "dirt", 0,
                             List.of(new BlockBehavior.Drop(Identifier.parse("minecraft:dirt"), 1)))),
