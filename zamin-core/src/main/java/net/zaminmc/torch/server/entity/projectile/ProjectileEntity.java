@@ -435,6 +435,11 @@ public final class ProjectileEntity implements net.zaminmc.torch.entity.Projecti
         return fireTicks > 0;
     }
 
+    /** @return ticks of burning flight left (the parity seats' read). */
+    public int fireTicks() {
+        return fireTicks;
+    }
+
     /** The potion payload (the metadata carrying the effect set), or -1. */
     public int potionDamage() {
         return potionDamage;

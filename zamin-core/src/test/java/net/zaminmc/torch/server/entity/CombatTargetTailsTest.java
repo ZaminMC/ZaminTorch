@@ -2,7 +2,9 @@ package net.zaminmc.torch.server.entity;
 
 import net.zaminmc.torch.server.net.ClientLink;
 import net.zaminmc.torch.server.player.PlayerSession;
+import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.util.Position;
+import net.zaminmc.torch.server.item.BuiltinItems;
 import net.zaminmc.torch.util.Rotation;
 import net.zaminmc.torch.World;
 import org.junit.jupiter.api.Test;
@@ -520,6 +522,9 @@ class CombatTargetTailsTest {
     void theSkeletonFeudsWithIronGolemsAlways() {
         TargetWorld world = new TargetWorld();
         MobEntity skeleton = spawn(world, 920, MobType.SKELETON, new Position(0.5, 8.0, 0.5), 86L);
+        // Wave EK — the attack-type consult keys the ranged mind on the held
+        // bow (updateAttackType): the rig pins the spawn state.
+        skeleton.setHeldEquipment(ItemStack.of(BuiltinItems.BOW, 1));
         MobEntity golem = spawn(world, 921, MobType.IRON_GOLEM, new Position(6.5, 8.0, 0.5), 87L);
 
         MobEntity found = null;
@@ -543,6 +548,9 @@ class CombatTargetTailsTest {
     void theSkeletonShootsAtItsMobTargetInsteadOfMeleeing() {
         TargetWorld world = new TargetWorld();
         MobEntity skeleton = spawn(world, 922, MobType.SKELETON, new Position(0.5, 8.0, 0.5), 88L);
+        // Wave EK — the attack-type consult keys the ranged mind on the held
+        // bow (updateAttackType): the rig pins the spawn state.
+        skeleton.setHeldEquipment(ItemStack.of(BuiltinItems.BOW, 1));
         MobEntity golem = spawn(world, 923, MobType.IRON_GOLEM, new Position(10.5, 8.0, 0.5), 89L);
 
         // The revenge write (or the feud scan's) hands the golem over: the

@@ -6702,6 +6702,28 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
+     * THE ATTACK-TYPE CONSULT (Wave EK — SkeletonEntity.updateAttackType
+     * lines 240-251 over setEquipment's own re-route, lines 305-310): the
+     * SKELETON's mind keys on the DISPLAY ITEM — a bow in slot 0 answers
+     * the shooting band WHATEVER THE VARIANT (a wither skeleton handed a
+     * bow shoots in the reference; the vanilla spawn-time stone sword is
+     * what made the variant melee, never the flag itself), and a
+     * disarmed or sword-swapped archer walks the melee family exactly
+     * like the reference's else arm. The other ranged carriers (the
+     * witch, the blaze, the guardian, the snow golem) hold no
+     * attack-type swap of their own — updateAttackType is the skeleton's
+     * override alone — so their trait answers unchanged.
+     */
+    boolean rangedMindArmed() {
+        if (type != MobType.SKELETON) {
+            return type.traits.ranged();
+        }
+        ItemStack held = heldEquipment();
+        return held != null && !held.isEmpty()
+                && held.type().identifier().value().equals("bow");
+    }
+
+    /**
      * The held equipment (setEquipment slot 0): the bow at the archer's
      * spawn (addRandomEquipment line 211), the stone sword at the wither
      * conversion (initialize line 220). The wire rides the Entity
@@ -11858,7 +11880,7 @@ public final class MobEntity implements LivingEntity {
             // target on a bow carrier rides the shooting band, the arrows
             // landing through the engine's projectile-on-mob collision
             // family with the shooter's identity on the wound.
-            if (type.traits.ranged() && !skeletonWither) {
+            if (rangedMindArmed()) {
                 double dx = mobTarget.position().x() - position.x();
                 double dy = mobTarget.position().y() - position.y();
                 double dz = mobTarget.position().z() - position.z();
@@ -11970,7 +11992,7 @@ public final class MobEntity implements LivingEntity {
                 tickCreeperMind(huntTarget, horizontal, dy);
                 return;
             }
-            if (type.traits.ranged() && !skeletonWither) {
+            if (rangedMindArmed()) {
                 // The player hunt's aim band: the standing player's own
                 // 1.8 hull (the ctor's target.height / 3 read).
                 tickSkeletonMind(huntTarget, horizontal, 1.8);
@@ -12018,7 +12040,7 @@ public final class MobEntity implements LivingEntity {
             // The ProjectileAttackGoal's stop() reset (lines 56-60): the
             // seen counter and the cadence counter return to their start
             // forms — the next claim re-arms the first-shot window whole.
-            if (type.traits.ranged() && !skeletonWither) {
+            if (rangedMindArmed()) {
                 resetRangedGoal();
             }
         }
@@ -17676,6 +17698,22 @@ public final class MobEntity implements LivingEntity {
                 net.zaminmc.torch.server.potion.StatusEffects.JUMP_BOOST);
         int wound = (int) Math.ceil((distance - 3.0f - boost) * damageMultiplier);
         if (wound > 0) {
+            // THE FALL'S ENCHANT HALF (Wave EK — getDamageAfterEffectsAnd
+            // Enchantments lines 898-905 at the FALL source): the
+            // equipment row's Protection family folds through the EPF
+            // consult — Feather Falling's 2.5x curve the only off-kind
+            // arm that ever bites here — clamped at 20, then
+            // {@code (25 - k) / 25}.
+            int k = net.zaminmc.torch.server.enchantment.EnchantmentHelper
+                    .modifyProtection(equipmentStacks(),
+                            net.zaminmc.torch.server.entity.damage.DamageKind.FALL,
+                            random);
+            if (k > 20) {
+                k = 20;
+            }
+            if (k > 0 && k <= 20) {
+                wound = (int) (wound * (25 - k) / 25.0f);
+            }
             // FALL bypasses armor (the source family's own setter); the
             // wound rides the hurt frame like every reference takeDamage
             // call — a recent stronger hit holds the landing off for the

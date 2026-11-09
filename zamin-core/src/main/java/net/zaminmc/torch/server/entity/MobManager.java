@@ -688,6 +688,15 @@ public final class MobManager {
 
     private final MobEntity.WorldQuery world;
     private final Random random;
+
+    /**
+     * The enchant-helper rolls' own stream (Wave EK — the reference's
+     * STATIC {@code EnchantmentHelper.RANDOM}, EnchantmentHelper lines
+     * 26-27: the EPF half-to-full draw never touches the per-entity or
+     * the manager's own seeded streams — the parity seats' deterministic
+     * dice stay untouched by the walk).
+     */
+    private final Random enchantRolls = new Random(0x5EED_1EAFL);
     private final LootSink lootSink;
     /**
      * The live bodies. Copy-on-write because {@link #all()} is the whole
@@ -3393,6 +3402,24 @@ public final class MobManager {
     }
 
     /**
+     * Whether the kind's melee carries MonsterEntity.tryDamage's enchant
+     * riders (Wave EK): every monster rides the super's consults — the
+     * zombie's iron sword swings with its Sharpness, a summoned skeleton's
+     * Smite bites the undead — while the five kinds whose OWN tryDamage
+     * overrides never call the super stay flat: the iron golem (its own
+     * 7 + nextInt(15) draw), the wolf (the flat attribute wound), the
+     * ocelot (the flat 3.0), the rabbit (the flat 3.0/8.0) and the
+     * creeper (its arm answers true and never melees — the explosion is
+     * its whole attack).
+     */
+    public static boolean meleeRidersApply(MobEntity attacker) {
+        return switch (attacker.type()) {
+            case IRON_GOLEM, WOLF, OCELOT, RABBIT, CREEPER -> false;
+            default -> true;
+        };
+    }
+
+    /**
      * Melee hit from another mob (Slice 16b — the mob-vs-mob target family's
      * damage land): the attacker's identity rides the walk. The victim's
      * RevengeGoal answers inside the walk (the reference's takeDamage sets
@@ -3409,6 +3436,25 @@ public final class MobManager {
             // draw — the heavy 7 + nextInt(15) roll per swing.
             amount = attacker.golemDamageRoll();
         }
+        // THE MELEE ENCHANT RIDERS (Wave EK — MonsterEntity.tryDamage
+        // lines 78-95, the super every monster's own tryDamage rides):
+        // the held weapon's damage-family enchantments join the swing
+        // ({@code f += modifyDamage(held, target.getMobType())} — Smite
+        // on the undead victim, Bane on the bug, Sharpness on all) and
+        // the Knockback level arms the amplified impulse. The five kinds
+        // whose own tryDamage overrides NEVER call the super stay flat:
+        // the golem (its own draw above), the wolf, the ocelot, the
+        // rabbit and the creeper (its arm answers true and never melees).
+        int knockbackLevel = 0;
+        if (meleeRidersApply(attacker)) {
+            net.zaminmc.torch.item.ItemStack held = attacker.heldEquipment();
+            if (held != null && !held.isEmpty()) {
+                amount += net.zaminmc.torch.server.enchantment.EnchantmentHelper
+                        .modifyDamage(held, victim.type().damageCategory());
+                knockbackLevel = net.zaminmc.torch.server.enchantment
+                        .EnchantmentHelper.knockbackLevel(held);
+            }
+        }
         double kbYaw = Math.toDegrees(Math.atan2(
                 -(victim.position().x() - attacker.position().x()),
                 victim.position().z() - attacker.position().z()));
@@ -3421,6 +3467,36 @@ public final class MobManager {
                 attacker.type() == MobType.ENDERMITE,
                 false, attacker);
         if (landed) {
+            // THE KNOCKBACK-ENCHANT IMPULSE (tryDamage lines 96-102):
+            // the victim takes {@code -sin(yaw) * i * 0.5} horizontally
+            // plus the 0.1 rise along the ATTACKER'S OWN yaw (never the
+            // wound's away-direction), and the attacker's own horizontal
+            // motion decays to 60% (the reference's recoil).
+            if (knockbackLevel > 0) {
+                double radians = Math.toRadians(attacker.bodyYawLive());
+                victim.addVelocity(
+                        -Math.sin(radians) * knockbackLevel * 0.5, 0.1,
+                        Math.cos(radians) * knockbackLevel * 0.5);
+                attacker.setVelocity(attacker.velocityX() * 0.6,
+                        attacker.velocityY(), attacker.velocityZ() * 0.6);
+            }
+            // THE FIRE-ASPECT IGNITE (tryDamage lines 104-107): the held
+            // level re-arms the victim's burn to {@code j * 4} seconds —
+            // setOnFireFor's own Fire Protection shortening over the
+            // VICTIM's equipment row (ProtectionEnchantment.
+            // modifyOnFireTimer, Entity.setOnFireFor lines 365-371).
+            if (meleeRidersApply(attacker)) {
+                net.zaminmc.torch.item.ItemStack held = attacker.heldEquipment();
+                int fireAspect = held == null || held.isEmpty() ? 0
+                        : net.zaminmc.torch.server.enchantment.EnchantmentHelper
+                                .fireAspectLevel(held);
+                if (fireAspect > 0) {
+                    int ticks = net.zaminmc.torch.server.enchantment
+                            .EnchantmentHelper.modifyOnFireTimer(
+                                    victim.equipmentStacks(), fireAspect * 4 * 20);
+                    victim.ignite(ticks);
+                }
+            }
             if (attacker.type() == MobType.IRON_GOLEM) {
                 // tryDamage line 204: the landed golem hit launches the
                 // victim into the air (velocityY += 0.4F) — the famous
@@ -3845,6 +3921,25 @@ public final class MobManager {
         if (mob.invulnerable()) {
             return false;
         }
+        // THE FIRE-RESISTANCE REFUSAL (Wave EK — LivingEntity.takeDamage
+        // line 645: {@code source.isFire() && hasStatusEffect(FIRE_
+        // RESISTANCE)} answers false BEFORE any walk runs — the gate's
+        // own position in the reference, right after the invulnerable
+        // pin and before the event's i-frame ladder). The engine's cause
+        // carries the fire family: the in-fire cell, the on-fire residual
+        // and the lava (the reference's three setFire constructors — the
+        // fireball's own fire flag rides the projectile cause here, its
+        // direct wound carrying no fire flag in the engine's vocabulary).
+        // A witch mid her fire-resistance drink stands in the lava whole.
+        if (cause == net.zaminmc.torch.event.DamageCause.IN_FIRE
+                || cause == net.zaminmc.torch.event.DamageCause.ON_FIRE
+                || cause == net.zaminmc.torch.event.DamageCause.LAVA) {
+            net.zaminmc.torch.server.potion.PotionSystem potions = potionSystem;
+            if (potions != null && potions.hasEffect(mob,
+                    net.zaminmc.torch.server.potion.StatusEffects.FIRE_RESISTANCE)) {
+                return false;
+            }
+        }
         var bus = eventBus;
         if (bus != null) {
             var event = new net.zaminmc.torch.event.entity.MobDamageEvent(
@@ -3935,10 +4030,33 @@ public final class MobManager {
             return false; // the redundant hit inside the window's first half
         }
         boolean excessArm = frameVerdict > 0.0f;
+        // THE ENCHANT + EFFECT WALK (Wave EK — LivingEntity.applyDamage
+        // lines 909-930's SECOND half, getDamageAfterEffectsAnd
+        // Enchantments 882-907): the unblockable family (starve alone in
+        // the engine's vocabulary) returns untouched; the Resistance
+        // effect halves through {@code (25 - (amplifier+1)*5) / 25} (never
+        // on the void — the reference's own {@code source != OUT_OF_WORLD}
+        // guard); then the Protection EPF consult clamped at 20 and folded
+        // through {@code (25 - k) / 25} over the body's five-slot equipment
+        // row (the held helmet contributes its Protection exactly like the
+        // reference's own {@code getEquipment()} loop). THE FIRST HALF —
+        // the armor envelope — rides MobEntity.hurt's own
+        // damageAfterArmor consult, with THIS walk now threading the
+        // reference's setBypassesArmor family through the bypass flag (the
+        // retired walk paid the envelope on every cause — a MAGIC or
+        // IN_WALL wound through the manager shaved against armor the
+        // reference's own source constructors refuse). Both paying arms
+        // reduce: the reference's excess arm passes the raw difference
+        // through the same applyDamage. The mob's armor never WEARS (the
+        // reference's damageArmor is the player's override alone —
+        // LivingEntity's own body is a no-op).
+        float deduct = excessArm ? frameVerdict : amount;
+        deduct = applyMobEnchantments(mob, deduct, cause);
+        boolean bypass = causeBypassesMobArmor(cause);
         if (excessArm) {
-            mob.hurt(frameVerdict, false, false);
+            mob.hurt(deduct, bypass, false);
         } else {
-            mob.hurt(amount);
+            mob.hurt(deduct, bypass, true);
         }
         // Wave PE-15 — setAttacker at the wound's own site (LivingEntity
         // .takeDamage lines 671-676): a wound whose source carries a
@@ -4034,6 +4152,91 @@ public final class MobManager {
             }
         }
         return true;
+    }
+
+    /**
+     * THE MOB VICTIM'S ENCHANT + EFFECT REDUCTION (Wave EK — the reference's
+     * {@code LivingEntity.getDamageAfterEffectsAndEnchantments}, lines
+     * 882-907, read 1:1): the unblockable family (starve alone in the
+     * engine's vocabulary) returns untouched; the Resistance effect halves
+     * through {@code (25 - (amplifier+1)*5) / 25} (never on the void — the
+     * reference's own {@code source != OUT_OF_WORLD} guard); then the
+     * Protection EPF consult clamped at 20 and folded through
+     * {@code (25 - k) / 25} over the body's five-slot equipment row (the
+     * held helmet contributes its Protection exactly like the reference's
+     * own {@code getEquipment()} loop — modifyProtection reads the whole
+     * row, the armor-points quirk's mirror). The armor envelope — the
+     * walk's FIRST half — lives inside MobEntity.hurt's own consult.
+     *
+     * <p>Package-private shape over the instance's random: the parity
+     * seats pin the reduction for every enchant shape without sampling
+     * the half-to-full roll more than once.</p>
+     */
+    float applyMobEnchantments(MobEntity mob, float damage,
+            net.zaminmc.torch.event.DamageCause cause) {
+        if (damage <= 0.0f) {
+            return damage;
+        }
+        // the unblockable family returns untouched (line 885's early return)
+        if (cause == net.zaminmc.torch.event.DamageCause.STARVE) {
+            return damage;
+        }
+        // Resistance halving (lines 888-893) — never on the void
+        if (cause != net.zaminmc.torch.event.DamageCause.OUT_OF_WORLD) {
+            net.zaminmc.torch.server.potion.PotionSystem potions = potionSystem;
+            if (potions != null) {
+                net.zaminmc.torch.server.potion.StatusEffectInstance resistance =
+                        potions.get(mob, net.zaminmc.torch.server.potion.StatusEffects.RESISTANCE);
+                if (resistance != null && resistance.duration() > 0) {
+                    int i = (resistance.amplifier() + 1) * 5;
+                    damage = damage * (25 - i) / 25.0f;
+                }
+            }
+        }
+        if (damage <= 0.0f) {
+            return 0.0f; // the reference's own floor (line 896)
+        }
+        // The Protection EPF consult (lines 898-905) — the STATIC helper
+        // random's own draw, never the manager's seeded stream (the
+        // reference's EnchantmentHelper.RANDOM).
+        int k = net.zaminmc.torch.server.enchantment.EnchantmentHelper.modifyProtection(
+                mob.equipmentStacks(), damageKindOf(cause), enchantRolls);
+        if (k > 20) {
+            k = 20;
+        }
+        if (k > 0 && k <= 20) {
+            damage = damage * (25 - k) / 25.0f;
+        }
+        return damage;
+    }
+
+    /**
+     * The cause's armor-bypass family (Wave EK — the reference's own
+     * {@code setBypassesArmor} constructors, DamageSource lines 16-25:
+     * on-fire, in-wall, drown, starve, fall, out-of-world, generic and
+     * magic; the engine's vocabulary carries the seven it emits).
+     */
+    private static boolean causeBypassesMobArmor(
+            net.zaminmc.torch.event.DamageCause cause) {
+        return switch (cause) {
+            case ON_FIRE, IN_WALL, DROWN, STARVE, FALL, OUT_OF_WORLD, MAGIC -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * The cause's enchant-protection kind (the join the reference's own
+     * DamageSource flags carry): identical constant names, the MAGIC arm
+     * answering the plain-Protection-only family.
+     */
+    private static net.zaminmc.torch.server.entity.damage.DamageKind damageKindOf(
+            net.zaminmc.torch.event.DamageCause cause) {
+        return switch (cause) {
+            case MELEE, PROJECTILE, EXPLOSION, IN_FIRE, ON_FIRE, LAVA, FALL,
+                    DROWN, CACTUS, STARVE, OUT_OF_WORLD, MAGIC, LIGHTNING,
+                    IN_WALL -> net.zaminmc.torch.server.entity.damage.DamageKind
+                    .valueOf(cause.name());
+        };
     }
 
     /**

@@ -24329,8 +24329,13 @@ public final class EngineServer implements Server, EngineBridge {
         @Override
         public void mobIgniteFromProjectile(MobEntity mob) {
             // The burning arrow's hit (the reference's setOnFireFor(5)):
-            // the mob carries no equipment, the plain 5-second burn.
-            mob.ignite(PROJECTILE_FLAME_TARGET_TICKS);
+            // setOnFireFor's own Fire Protection shortening over the
+            // victim's equipment row (Entity.setOnFireFor lines 365-371 —
+            // the mob's armor shortens the burn exactly like the player's,
+            // Wave EK; the retired arm's "the mob carries no equipment"
+            // note died with the equipment store).
+            mob.ignite(EnchantmentHelper.modifyOnFireTimer(
+                    mob.equipmentStacks(), PROJECTILE_FLAME_TARGET_TICKS));
         }
 
         @Override
@@ -24840,10 +24845,104 @@ public final class EngineServer implements Server, EngineBridge {
             // so a death inside the tracker's own staleness window pays the
             // entityKilledBy row at the death walk.
             target.noteMobAttacker(mob.type(), world.totalTicks());
-            damageOnTick(target,
-                    applyEnchantProtection(target, applyArmor(target, damage),
-                            DamageKind.MELEE),
-                    "was slain by " + titledMobName(mob), DamageKind.MELEE);
+            // THE MELEE ENCHANT RIDERS (Wave EK — MonsterEntity.tryDamage
+            // lines 78-107, the super every monster's melee rides): the
+            // held weapon's damage family joins the swing against the
+            // PLAYER's own creature attribute (MobType.DEFAULT — the
+            // reference's {@code ((LivingEntity) target).getMobType()}
+            // read; Sharpness alone lands, the Smite/Bane rows refuse),
+            // the Knockback level arms the amplified impulse, and the
+            // Fire Aspect level re-arms the victim's burn. The five
+            // flat-override kinds (the golem, the wolf, the ocelot, the
+            // rabbit, the creeper) never call the reference's super —
+            // their swings stay unenchanted.
+            int knockbackLevel = 0;
+            int fireAspect = 0;
+            if (MobManager.meleeRidersApply(mob)) {
+                ItemStack mobHeld = mob.heldEquipment();
+                if (mobHeld != null && !mobHeld.isEmpty()) {
+                    damage += EnchantmentHelper.modifyDamage(mobHeld, 0);
+                    knockbackLevel = EnchantmentHelper.knockbackLevel(mobHeld);
+                    fireAspect = EnchantmentHelper.fireAspectLevel(mobHeld);
+                }
+            }
+            // THE ZOMBIE'S BURNING IGNITE (Wave EK — ZombieEntity.tryDamage
+            // lines 251-258, the super's own tail): an EMPTY-HANDED burning
+            // zombie rolls {@code nextFloat() < difficultyId * 0.3F} on the
+            // landed hit and ignites the victim for {@code 2 * difficultyId}
+            // seconds (setOnFireFor's own Fire Protection shortening over
+            // the victim's armor row — Entity.setOnFireFor lines 365-371).
+            if (mob.type() == net.zaminmc.torch.server.entity.MobType.ZOMBIE
+                    && mob.burning()) {
+                ItemStack mobHeld = mob.heldEquipment();
+                if ((mobHeld == null || mobHeld.isEmpty())
+                        && gameplayRandom.nextFloat() < difficulty() * 0.3f) {
+                    igniteWithFireProtection(target, 2 * difficulty());
+                }
+            }
+            float reduced = applyEnchantProtection(target,
+                    applyArmor(target, damage), DamageKind.MELEE);
+            // THE PLAYER'S OWN TAKE DAMAGE SHAPE (Wave EK — the arrow site's
+            // established convention over LivingEntity.takeDamage lines
+            // 652-669): the absorbed bruise inside the window's first half
+            // lands nothing; a stronger one pays its excess; the fresh hit
+            // pays in full. The mob-melee walk never carried the window —
+            // every swing paid whole however fast they came.
+            if (reduced <= 0.0f) {
+                return;
+            }
+            if (target.hurtInvulnerable() && reduced <= target.lastHurtDamage()) {
+                return; // absorbed by the hurt window
+            }
+            float applied = target.hurtInvulnerable()
+                    ? Math.max(0.0f, reduced - target.lastHurtDamage()) : reduced;
+            target.beginHurtInvulnerability(Math.max(reduced, 0.01f));
+            if (applied > 0.0f) {
+                damageOnTick(target, applied,
+                        "was slain by " + titledMobName(mob), DamageKind.MELEE);
+            }
+            // THE MELEE KNOCKBACK (LivingEntity.takeDamage lines 695-712 +
+            // applyKnockback lines 778-793): the server-known motion halves
+            // on every axis, then the impulse rides the normalized
+            // away-direction (the 1e-4 jitter when the attacker stands
+            // inside the victim) with the +0.4 rise capped at 0.4 — the
+            // recipe the player's own melee and the arrow family already
+            // carry; the mob's swing NEVER knocked the player back before.
+            // THE KNOCKBACK-ENCHANT EXTRA (tryDamage lines 96-102) rides
+            // the same velocity set on top: {@code -sin(yaw) * i * 0.5}
+            // along the ATTACKER'S OWN yaw plus the 0.1 rise, and the
+            // attacker's own horizontal motion decays to 60%.
+            double kbdx = target.position().x() - mob.position().x();
+            double kbdz = target.position().z() - mob.position().z();
+            for (double d1 = kbdx, d0 = kbdz; d1 * d1 + d0 * d0 < 1.0E-4; ) {
+                d1 = (Math.random() - Math.random()) * 0.01;
+                d0 = (Math.random() - Math.random()) * 0.01;
+                kbdx = d1;
+                kbdz = d0;
+            }
+            float kf = (float) Math.sqrt(kbdx * kbdx + kbdz * kbdz);
+            double nvx = target.motionX() / 2.0 + kbdx / kf * 0.4;
+            double nvy = Math.min(target.motionY() / 2.0 + 0.4, 0.4);
+            double nvz = target.motionZ() / 2.0 + kbdz / kf * 0.4;
+            if (knockbackLevel > 0) {
+                double radians = Math.toRadians(mob.bodyYawLive());
+                nvx += -Math.sin(radians) * knockbackLevel * 0.5;
+                nvy += 0.1;
+                nvz += Math.cos(radians) * knockbackLevel * 0.5;
+                mob.setVelocity(mob.velocityX() * 0.6, mob.velocityY(),
+                        mob.velocityZ() * 0.6);
+            }
+            target.setMotion(nvx, nvy, nvz);
+            publishPlayerHurt(target);
+            publishKnockback(target, nvx, nvy, nvz);
+            // THE FIRE-ASPECT IGNITE (tryDamage lines 104-107): the held
+            // level re-arms the victim's burn to {@code j * 4} seconds with
+            // the Fire Protection shortening (the same ignite the player's
+            // own melee carries at its landed site).
+            if (fireAspect > 0) {
+                igniteWithFireProtection(target,
+                        fireAspect * FIRE_ASPECT_SECONDS_PER_LEVEL);
+            }
             applyThornsWildcard(target, thornsRow, new ThornsTarget() {
                 @Override
                 public void takeThornsDamage(int amount, PlayerSession wearer) {
@@ -25075,9 +25174,36 @@ public final class EngineServer implements Server, EngineBridge {
                     d0, d1 + gravityCompensation, d2,
                     MobEntity.SKELETON_ARROW_SPEED, divergence, mob.dimension());
             if (arrow != null) {
-                arrow.setDamageOverride(charge * 2.0
+                float damageField = (float) (charge * 2.0
                         + (mobManager.random().nextGaussian() * 0.25
                         + difficulty * 0.11));
+                // THE BOW RIDERS (Wave EK — doRangedAttack lines 252-271,
+                // the standing enchant-store row retired): the held bow's
+                // POWER adds {@code i * 0.5 + 0.5} on top of the field,
+                // PUNCH arms the arrow's own knockback level, and FLAME —
+                // OR THE WITHER VARIANT'S OWN FIRE (the reference's
+                // {@code getType() == 1} arm, line 268: every wither
+                // skeleton's arrow burns whatever the bow carries) —
+                // ignites the arrow itself for the hundred-second
+                // flight (the same FLAME_ARROW_TICKS the player's own
+                // flame bow rides).
+                ItemStack bow = mob.heldEquipment();
+                int power = bow == null || bow.isEmpty() ? 0
+                        : EnchantmentHelper.level(bow, Enchantments.POWER.id);
+                if (power > 0) {
+                    damageField += power * 0.5f + 0.5f;
+                }
+                arrow.setDamageOverride(damageField);
+                int punch = bow == null || bow.isEmpty() ? 0
+                        : EnchantmentHelper.level(bow, Enchantments.PUNCH.id);
+                if (punch > 0) {
+                    arrow.setPunchLevel(punch);
+                }
+                int flame = bow == null || bow.isEmpty() ? 0
+                        : EnchantmentHelper.level(bow, Enchantments.FLAME.id);
+                if (flame > 0 || mob.skeletonWither()) {
+                    arrow.setOnFireFor(FLAME_ARROW_TICKS);
+                }
             }
             fxManager.sound(mob.position(), "random.bow", 1.0f,
                     (float) (1.0 / (mobManager.random().nextFloat() * 0.4 + 0.8)),
@@ -28988,7 +29114,16 @@ public final class EngineServer implements Server, EngineBridge {
             mobManager.hurtFromExplosion(mob, damage, blastSourceMob);
             // The reference's own impulse (lines 137-139): velocity +=
             // dir * d11 — the Y component included, no melee yaw hop.
-            mob.addVelocity(d5 * d10, d7 * d10, d9 * d10);
+            // THE BLAST-PROTECTION SHAVE (Wave EK — Explosion line 134:
+            // {@code d11 = ProtectionEnchantment.modifyExplosionDamage(
+            // entity, d10)}): the victim's highest Blast Protection
+            // shaves {@code floor(d10 * level * 0.15)} off the IMPULSE
+            // itself — the retired arm's "the mobs carry no equipment"
+            // stand-in answered d10 whole, a blast-protected mob flying
+            // the unenchanted distance.
+            double d11 = EnchantmentHelper.modifyExplosionDamage(
+                    mobEquipmentRow(mob), d10);
+            mob.addVelocity(d5 * d11, d7 * d11, d9 * d11);
         }
     }
 

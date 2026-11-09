@@ -40,6 +40,16 @@ public enum DamageKind {
     STARVE,
     /** {@code outOfWorld}: the void (every piece contributes zero). */
     OUT_OF_WORLD,
+    /**
+     * The {@code magic} family ({@code DamageSource.magic} and the
+     * indirect-magic potion source — Wave EK): {@code setBypassesArmor}
+     * (the armor envelope never runs) but NEVER {@code setUnblockable},
+     * so the effects-and-enchantments half still walks — the plain
+     * Protection's "all" arm alone contributes (the fire/fall/blast/
+     * projectile branches all refuse: {@code extraProtection}'s own
+     * subtype ladder).
+     */
+    MAGIC,
     /** The lightning bolt ({@code DamageSource.lightningBolt} — an ordinary
      * source: the armor ladder applies, no projection family). */
     LIGHTNING,

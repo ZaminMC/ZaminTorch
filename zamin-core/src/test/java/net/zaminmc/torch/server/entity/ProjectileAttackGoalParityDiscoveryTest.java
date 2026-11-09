@@ -3,7 +3,9 @@ package net.zaminmc.torch.server.entity;
 import net.zaminmc.torch.server.entity.projectile.ProjectileEntity;
 import net.zaminmc.torch.server.entity.projectile.ProjectileManager;
 import net.zaminmc.torch.server.fx.FxManager;
+import net.zaminmc.torch.item.ItemStack;
 import net.zaminmc.torch.util.Position;
+import net.zaminmc.torch.server.item.BuiltinItems;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -77,6 +79,10 @@ class ProjectileAttackGoalParityDiscoveryTest {
         GoalWorld world = new GoalWorld();
         MobEntity skeleton = spawn(world, 300, MobType.SKELETON,
                 new Position(0.5, 8.0, 0.5), 61L);
+        // Wave EK — the attack-type consult keys the ranged mind on the
+        // held bow (updateAttackType): the bare ctor carries the
+        // pre-initialize empty hand, so the rig pins the spawn state.
+        skeleton.setHeldEquipment(ItemStack.of(BuiltinItems.BOW, 1));
         MobEntity golem = spawn(world, 301, MobType.IRON_GOLEM,
                 new Position(10.5, 8.0, 0.5), 62L);
         skeleton.setMobAttackTarget(golem);
@@ -138,6 +144,10 @@ class ProjectileAttackGoalParityDiscoveryTest {
         GoalWorld world = new GoalWorld();
         MobEntity skeleton = spawn(world, 310, MobType.SKELETON,
                 new Position(0.5, 8.0, 0.5), 63L);
+        // Wave EK — the attack-type consult keys the ranged mind on the
+        // held bow (updateAttackType): the bare ctor carries the
+        // pre-initialize empty hand, so the rig pins the spawn state.
+        skeleton.setHeldEquipment(ItemStack.of(BuiltinItems.BOW, 1));
         MobEntity golem = spawn(world, 311, MobType.IRON_GOLEM,
                 new Position(2.0, 8.0, 0.5), 64L);
         skeleton.setMobAttackTarget(golem);
@@ -168,6 +178,10 @@ class ProjectileAttackGoalParityDiscoveryTest {
         GoalWorld world = new GoalWorld();
         MobEntity skeleton = spawn(world, 320, MobType.SKELETON,
                 new Position(0.5, 8.0, 0.5), 65L);
+        // Wave EK — the attack-type consult keys the ranged mind on the
+        // held bow (updateAttackType): the bare ctor carries the
+        // pre-initialize empty hand, so the rig pins the spawn state.
+        skeleton.setHeldEquipment(ItemStack.of(BuiltinItems.BOW, 1));
         MobEntity golem = spawn(world, 321, MobType.IRON_GOLEM,
                 new Position(10.5, 8.0, 0.5), 66L);
         skeleton.setMobAttackTarget(golem);
@@ -351,6 +365,10 @@ class ProjectileAttackGoalParityDiscoveryTest {
         GoalWorld world = new GoalWorld();
         MobEntity skeleton = spawn(world, 370, MobType.SKELETON,
                 new Position(0.5, 8.0, 0.5), 72L);
+        // Wave EK — the attack-type consult keys the ranged mind on the
+        // held bow (updateAttackType): the bare ctor carries the
+        // pre-initialize empty hand, so the rig pins the spawn state.
+        skeleton.setHeldEquipment(ItemStack.of(BuiltinItems.BOW, 1));
         MobEntity golemA = spawn(world, 371, MobType.IRON_GOLEM,
                 new Position(10.5, 8.0, 0.5), 73L);
         skeleton.setMobAttackTarget(golemA);

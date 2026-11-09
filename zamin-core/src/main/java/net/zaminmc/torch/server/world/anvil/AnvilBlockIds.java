@@ -93,6 +93,13 @@ public final class AnvilBlockIds {
     private static final Map<Long, Identifier> STATES_0 = Map.ofEntries(
             state(0, 0, "minecraft:air"),
             state(1, 0, "minecraft:stone"),
+            // The stone variants (Wave OV's vein census — StoneBlock's
+            // VARIANT nibble: 1 granite, 3 diorite, 5 andesite; the
+            // integrity seat's own ledger caught the import table
+            // missing the family the ore-vein wave registered).
+            state(1, 1, "minecraft:granite"),
+            state(1, 3, "minecraft:diorite"),
+            state(1, 5, "minecraft:andesite"),
             state(2, 0, "minecraft:grass_block"),
             state(3, 0, "minecraft:dirt"),
             // The dirt variants (VIII14's surface slice — DirtBlock's
