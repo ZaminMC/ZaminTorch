@@ -9810,27 +9810,121 @@ command-cart, detector-rail, drop-stamp, falling-anvil, hopper,
 piston-push, armorstand, seated-mob) 85/85, the entity lane run at
 close.
 
-NEXT WORK (re-pinned after the OWNER-REPORT WAVES VR + OV, in order):
-THE VANILLA TERRAIN NOISE CORE — the owner's report 'terrain is not
-vanilla like... biomes... all sucks' — the overworld generator's own
-header confesses 'the noise core is our own': a custom value-noise
-heightmap (fbm scales 0.0085/0.0035, biome coefficients *17, clamped
-8..120) standing in for the reference's 4-noise density stack. The
-port, read whole from the reference sources in hand:
-OverworldChunkGenerator lines 63-153 + 216-323 (the PerlinNoise octaves
-16/16/8, PerlinSimplexNoise 4, the scale/depth noises, the 5x33x5
-heightMap with the 5x5 biome kernel and the biomeWeights ladder, the
-33-step density walk with the l1>29 fade, the 0.125/0.25 trilinear
-chunk fill), the noise family (ImprovedNoise 193 lines, PerlinNoise 52,
-PerlinSimplexNoise 56 — the seed shuffles whole), and the depth-scaled
-surface consult (perlinNoise3 at 0.0625 — BiomeSurfaceBuilder's depth
-band). The overhang-bearing density model replaces the engine's column
-heights at the generator's core walk; the caves (CaveWorldCarver 267 +
-RavineWorldCarver 194, the isCave fbm stand-in's retirement) and the
-remaining structure-placement alignments follow on their own lanes.
-Then: the vanilla carver pair; the terrain-shape acceptance seats over
-the reference's own seeded outputs; the verifier's PRs when they open;
-the flake-family watch.
+WAVES TN + CV — THE TERRAIN NOISE CORE + THE CARVER PAIR LANDED
+(2026-11-09, commits 0dc1e4d2 + 293e2869 — the owner's world-gen
+complaint closed at its root: the terrain SHAPE, the surface law, the
+caves and the ravines all ride the reference's own arithmetic now):
+
+WAVE TN — THE VANILLA TERRAIN NOISE CORE (the owner's 'terrain is not
+vanilla like... biomes... all sucks'; the generator's own header
+confession 'the noise core is our own' RETIRED): OverworldDensityCore —
+the reference's OverworldChunkGenerator lines 63-153 + 216-323 ported
+VERBATIM. One new Random(seed) stream constructs the seven noises in
+the reference's own order (minLimit 16, maxLimit 16, perlinNoise1 8,
+perlinNoise3 4, scaleNoise 10, depthNoise 16, forestNoise 8 — the last
+two constructed but never consulted, their stream consumption part of
+the seed law); the default options table whole (684.412/512/80/160/80,
+baseSize 8.5, stretchY 12, the depth scales 200/200/0.5, seaLevel 63);
+the 5x33x5 heightMap — the 10x10 noise-grid biome sample at
+(chunkX*4-2, chunkZ*4-2), the 5x5 kernel with the biomeWeights ladder
+(10/sqrt(i*i+j*j+0.2), the higher-neighbor /2 falloff), the depth
+noise's folded d7 walk, the base-size line, the 33-step density walk
+(the (l1-d0)*stretchY*128/256/d9 ladder with the negative *4 swell,
+the clampedLerp between the two 16-octave limit noises, the l1>29
+fade); the 0.125/0.25 trilinear chunk fill with the reference's own
+repeated-add accumulation ladder — the OVERHANG-BEARING world the
+retired fbm column model (0.0085/0.0035, bands *17, clamped 8..120)
+could never place. THE COLUMN PROBE (columnTop): the fill's own
+accumulation walked to one column (bit-identical by construction, the
+33-step coarse scan with the convex-combination skip + the 8 sub-cell
+refine) — every consult (the spawn scan, the structures' surface
+height, the out-of-chunk probes) reads the same law the terrain was
+built from. THE SURFACE PASS RESTRUCTURED to the reference's own shape:
+ONE stateful top-down column walk per chunk with the CHUNK RANDOM
+(chunkX*341873128712L + chunkZ*132897987541L) consumed exactly — the k
+roll's nextDouble, the bedrock gate's nextInt(5) at EVERY y (the 0..4
+band replacing the retired flat y=0), the sandstone extension's
+nextInt(4)+max(0,y-63) — the stateful j/l countdown, the pair reset in
+[sea-4, sea+1], the temperature-gated ice/water floor skin, the deep
+gravel arm, the mesa's own band law (the l = k + max(0, y-sea)
+re-anchor, the tall clay band outside 64-127, the cos band, the seeded
+layer table, the red-sand cap's orange banding, the has-trees plateau
+tops, the Bryce pillar's air-fill). THE MIRRORED CONSULTS (the
+reference's own [j + i*16] quirk, kept verbatim): the surface pass
+reads biomes[j + i*16] and depthBuffer[j + i*16] for the column (i, j)
+— the CHUNK-LOCAL MIRRORED cells of the x-fastest arrays — while the
+mesa's own noise consults read the TRUE column coordinates; the
+out-of-chunk probe mirrors the same way. THE DEPTH CONSULT REWIRED to
+the shared perlinNoise3 (the construction stream's fourth noise — the
+retired DEPTH_SALT derivation answered a different field at the same
+seed): SimplexNoise.add + PerlinSimplexNoise.getRegion ported (the
+0.0625/0.55 halving-doubling octave walk). THE SEA LEVEL 63 (the
+reference World.java line 62): the fill's y < 63 water band, the
+structures' seaLevel() consult, the spawn gate, the water-top consult
+realigned. SEATS: TerrainNoiseCoreParityTest 8 NEW (the determinism;
+the overhang law over the hills kernel — RED on the monotone-column
+no-op; the sea band; the bedrock roll — RED on the flat-floor no-op;
+the mirrored consult — RED on the un-mirrored no-op; the plains band;
+the probe agreement). LANES: the world package tree whole — the
+GenLayerLayout band/skins seats re-pinned to the density model's own
+law (the 5x5 kernel's river dilution reads the channel percentile, the
+band MEDIANS, the mirrored skin selection, the probe cost moved inside
+the wanted-biome checks).
+
+WAVE CV — THE VANILLA CARVER PAIR (the TN wave's named follow-up):
+world/carver/CaveCarver + RavineCarver — the reference's
+CaveWorldCarver (267 lines) + RavineWorldCarver (194 lines) verbatim.
+THE REGION WALK (the Generator base): the 17x17 chunk neighborhood,
+every region chunk seeded l*j ^ i1*k ^ worldSeed off the world-seed
+stream's two longs — the caves cross chunk borders exactly like the
+reference's. THE CAVE LAW: the count ladder
+(nextInt(nextInt(nextInt(15)+1)+1), kept 1-in-7), the start rolls (the
+y nextInt(nextInt(120)+8)), the room form (1-in-4, the 1+nextFloat*6
+one-shot), the tunnel walk whole (the sin-scaled width, the yaw/pitch
+advance over the ReferenceMath table-quantized sin/cos — the table's
+quantization IS the vanilla cave shape, THE SPLIT at the branch step,
+the spiral early-out, THE WATER SUPPRESSION — any water in the carve
+box's shell cancels the step, the ellipsoid test with the d9 > -0.7
+floor guard, the canReplace family gate, THE LAVA FLOOR below 10, THE
+SANDSTONE CEILING FIX, THE GRASS/MYCELIUM FLOOR FIX with the biome's
+registered surface). THE RAVINE LAW: the 1-in-50 roll, the y band
+nextInt(nextInt(40)+8)+20, the doubled width, the ratio 3.0, the
+1024-entry pinched-waist profile buffer (allocated PER CALL — the
+parallel-gen discipline), the carve test
+(d10*d10+d7*d7)*buffer[j2-1]+d8*d8/6 < 1, the narrow family gate, the
+FLOWING lava floor. THE INTEGRATION: the carvers run AFTER the surface
+pass (the reference's getChunk order), the CarverChunk seam over the
+chunk's cells + the biome consult; THE HEIGHTS AFTER THE CARVERS (the
+reference's populate reads the carved world): the topmost
+movement-blocking cell, water passed through, leaves excluded (the
+reference's getSurfaceHeight). THE RETIREMENTS: the isCave fbm worm
+and the whole value-noise tail — the generator's noise section is
+empty; the out-of-chunk probe answers the un-carved terrain (the
+documented stand-in — the carves are region-walk dependent). SEATS:
+CarverParityTest 6 NEW (the determinism; THE LAVA FLOOR as a unit seat
+over the synthetic all-stone chunk, pinned seed, RED on the
+lava-to-air no-op; THE RAVINE TRENCH as a unit seat, RED on the
+ravine-off no-op; the bedrock floor; the underground opening; the
+surface probe solid). LANES: the world package tree whole (the
+mineshaft's spawner seat re-pinned to the carver era — the dungeons
+land their own typed spawners in the carved caves, the seat skips the
+dungeon-box signatures), the light package, the protocol
+WorldgenDeterminismRunTest green.
+
+NEXT WORK (re-pinned after WAVES TN + CV, in order): THE
+STRUCTURE-PLACEMENT ALIGNMENTS — the last standing world-gen lane: the
+engine's structures place at POPULATE time over the pure-probe contract
+(the reference's getChunk-time BlockStateStorage placement + the
+populate-time world placement both exist; the engine chose the populate
+shape in Slice 12a/b) — the alignment read: the reference's
+StrongholdStructure/VillageStructure/MineshaftStructure/TempleStructure/
+OceanMonumentStructure placement laws against the engine's, the
+remaining deviations documented or closed (the surfaceHeight consult
+now reading the density probe; the sea-level 63 shift landing in the
+gates). Then: the terrain-shape acceptance seats over the reference's
+own seeded outputs (the cross-engine shape comparison when the
+verifier's census provides the reference outputs); the verifier's PRs
+when they open; the flake-family watch.
 
 WAVES VR + OV — THE OWNER-REPORT BATCH LANDED (2026-11-09, commits
 9e3a826e + a3e4d460 — the owner's nine reported bugs read whole, the
