@@ -24,7 +24,7 @@ architecture, decisions and milestones.
 [![1.8.8 vanilla parity](https://img.shields.io/badge/1.8.8_vanilla_parity-%E2%89%8895%25-brightgreen)](#status)
 [![dimension ownership](https://img.shields.io/badge/dimension_ownership-%E2%89%8897%25-brightgreen)](#status)
 [![CI pipeline](https://img.shields.io/badge/CI_pipeline-%E2%89%8897%25-brightgreen)](#status)
-[![automated seats](https://img.shields.io/badge/automated_seats-3%2C852-brightgreen)](#status)
+[![automated seats](https://img.shields.io/badge/automated_seats-3%2C860-brightgreen)](#status)
 
 | Workstream | Done | State |
 |------------|------|-------|
@@ -41,7 +41,7 @@ architecture, decisions and milestones.
 
 [Progress history](WORKLOG.md)
 
-<sub>Every row's estimate is measured against its own ledger — the wave/section named in the row — not a feeling; percentages move as work lands and a row leaves the table at 100%. The landed record behind these numbers lives in [`Torch-Arcetecture.txt`](Torch-Arcetecture.txt) §22/§29, [`VANILLA_1_8_8_COMPATIBILITY.md`](VANILLA_1_8_8_COMPATIBILITY.md), [`NATIVE_API_CAPABILITIES.md`](NATIVE_API_CAPABILITIES.md) and [`WORKLOG.md`](WORKLOG.md). Last full re-verification of the table: 2026-10-31 (the FL4-F10 redstone world-binding wave + the parity PR wave #101/#102/#104); latest landing: 2026-11-09 (the ProjectileAttackGoal family census — the goal's own law whole: the distance-scaled cadence floor(f*(max−min)+min), the twenty-seen-ticks stand band with no retreat, the first-shot arming window, the refused loose's re-arm; the skeleton's loose — the ArrowEntity-ctor aim (feet + height/3 + the 0.2×horizontal gravity compensation), the 1.6 speed with the difficulty-scaled divergence, the distance-scaled damage field, the bow pitch jitter; the witch's throw — the target's own eye-height aim, the velocity lead, the mob-target resolution; the drink ladder's own duplicated speed arm (43.75%, the vanilla source's quirk) and the drinking stop's additive −0.25 → exactly zero; the witch's walkSpeed aligned to her speed-class twin — the same 0.25 vanilla base as the skeleton, 0.038 not the retired 0.03; 9 new seats all RED-verified on the no-op patches).</sub>
+<sub>Every row's estimate is measured against its own ledger — the wave/section named in the row — not a feeling; percentages move as work lands and a row leaves the table at 100%. The landed record behind these numbers lives in [`Torch-Arcetecture.txt`](Torch-Arcetecture.txt) §22/§29, [`VANILLA_1_8_8_COMPATIBILITY.md`](VANILLA_1_8_8_COMPATIBILITY.md), [`NATIVE_API_CAPABILITIES.md`](NATIVE_API_CAPABILITIES.md) and [`WORKLOG.md`](WORKLOG.md). Last full re-verification of the table: 2026-10-31 (the FL4-F10 redstone world-binding wave + the parity PR wave #101/#102/#104); latest landing: 2026-11-09 (the owner-report batch — the negative-coordinate ride wire: the vehicle move broadcast's fixed-point key packed without lane masks, a negative z flooding every lane so carts NEVER broadcast movement south/west of origin; the riding wire's own law: exactly one mount-anchor Position-And-Look, no per-move rider resyncs, the seated rider's look landing at the seat, the flags byte's sprint/using-item bits corrected with the phantom riding bit retired; the ore-vein census: vanilla's ellipsoid-chain veins with the default table's counts/sizes/heights whole and the 1.8 stone family (granite/diorite/andesite) registered — the retired per-cell hash ladder measured iron 35× coal; 8 new seats all RED-verified).</sub>
 
 ## Downloading a dev build (no build tools needed)
 

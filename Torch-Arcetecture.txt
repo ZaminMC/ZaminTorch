@@ -9810,8 +9810,93 @@ command-cart, detector-rail, drop-stamp, falling-anvil, hopper,
 piston-push, armorstand, seated-mob) 85/85, the entity lane run at
 close.
 
-NEXT WORK (re-pinned after the PROJECTILEATTACKGOAL FAMILY CENSUS, in
-order): the verifier's PRs when they open (none open at this session's
+NEXT WORK (re-pinned after the OWNER-REPORT WAVES VR + OV, in order):
+THE VANILLA TERRAIN NOISE CORE — the owner's report 'terrain is not
+vanilla like... biomes... all sucks' — the overworld generator's own
+header confesses 'the noise core is our own': a custom value-noise
+heightmap (fbm scales 0.0085/0.0035, biome coefficients *17, clamped
+8..120) standing in for the reference's 4-noise density stack. The
+port, read whole from the reference sources in hand:
+OverworldChunkGenerator lines 63-153 + 216-323 (the PerlinNoise octaves
+16/16/8, PerlinSimplexNoise 4, the scale/depth noises, the 5x33x5
+heightMap with the 5x5 biome kernel and the biomeWeights ladder, the
+33-step density walk with the l1>29 fade, the 0.125/0.25 trilinear
+chunk fill), the noise family (ImprovedNoise 193 lines, PerlinNoise 52,
+PerlinSimplexNoise 56 — the seed shuffles whole), and the depth-scaled
+surface consult (perlinNoise3 at 0.0625 — BiomeSurfaceBuilder's depth
+band). The overhang-bearing density model replaces the engine's column
+heights at the generator's core walk; the caves (CaveWorldCarver 267 +
+RavineWorldCarver 194, the isCave fbm stand-in's retirement) and the
+remaining structure-placement alignments follow on their own lanes.
+Then: the vanilla carver pair; the terrain-shape acceptance seats over
+the reference's own seeded outputs; the verifier's PRs when they open;
+the flake-family watch.
+
+WAVES VR + OV — THE OWNER-REPORT BATCH LANDED (2026-11-09, commits
+9e3a826e + a3e4d460 — the owner's nine reported bugs read whole, the
+six already-fixed by the M1/C1/C2/I1 waves verified standing, the two
+vehicle rows and the ore row closed here):
+
+WAVE VR — THE NEGATIVE-COORDINATE RIDE WIRE (the owner's 'placing
+rails and minecart on top of rails do not render, unable to see
+minecarts on rails, sitting in one is glitchy, in second person im
+entirely invisible sitting on minecart'): THE ROOT CAUSE the stream
+diagnostic caught — VehicleManager.fixedPoint packed (x<<42)|(y<<21)|z
+WITHOUT lane masks, so any position with a NEGATIVE z (two's-complement
+ones all the way up) flooded every lane above it and every same-z-cell
+pair collapsed onto ONE key: onVehicleMoved NEVER fired south/west of
+origin (the owner's whole world) — the cart ran its rail physics
+server-side while rider and observers saw a body frozen at its spawn.
+Each lane masked to its own width now (22/21/21 bits, ±32,768 blocks).
+THE RIDING WIRE'S OWN LAW (the reference's riding arm read whole —
+handlePlayerMove lines 215-252 + startRiding lines 516-522): the rider
+receives EXACTLY ONE Position-And-Look at mount (the startRiding
+teleport, added to the mount listener) and NOTHING per move (the
+retired per-move resync fought the client's own vehicle interpolation
+twenty times a second — the camera-snap 'sitting is glitchy'); the
+vehicle's own move packets carry the camera for the rider exactly like
+every observer; the seated rider's LOOK lands at the seat (the riding
+client's C05 packets — updatePositionAndAngles at the seat; the retired
+whole-packet discard dropped the rider's LOOK server-side too, so the
+cart's steer consult read the STALE mount-time yaw). THE FLAGS BYTE
+LADDER (Entity.setFlag lines 347/1494/1502/1514/1522): 1.8.8 has NO
+riding bit (bit 2 has no setter arm); the retired 0x08 'riding'
+constant actually held flag 3 SPRINTING (every seated player SPRINTED
+on observers' screens) and the retired 0x10 'sprinting' held flag 4
+USING-ITEM — corrected, the riding bit retired. THE REMOUNT WIRE
+(rejoinRestoreRide): the seat anchors BEFORE the mount listeners fire
+so the mount's own ONE anchor carries the authoritative seat (the
+retired walk sent a second resync after the listeners' anchor, doubling
+the remount's wire — the bobbing boat's relog seat caught it). SEATS:
+VehicleNegativeCoordinateRideParityTest 3 NEW, all RED on the pre-fix
+engine. LANES: the vehicle suites, the relog remount (re-pinned),
+MovementGuardTest, RiderSpareFallParityTest, the core vehicle package
+— all green.
+
+WAVE OV — THE ORE-VEIN CENSUS (the owner's 'ore veins generation etc
+all are very wrong'): the vanilla vein law rides the populate walk's
+decorate head — TerrainFeatures.VeinFeature (the reference's
+WorldGenMinable place() body verbatim: the PI-angle ellipsoid chain,
+the +8 centering quirk, the per-step re-rolled radii, the
+stone-only replaceable gate) placed by the linear walker (the lapis by
+the triangular two-dice sum) with the default table's counts/sizes/
+heights whole — the stone family (dirt/gravel 0-256,
+diorite/granite/andesite 0-80 — the family the engine NEVER generated)
+and the ore ladder (coal 20/17 0-128, iron 20/9 0-64, gold 2/9 0-32,
+redstone 8/8 0-16, diamond 1/8 0-16, lapis 1/7 triangular). The
+retired generation-side hash ladder measured IRON 35x COAL over the
+RED field (55,690 vs 1,576 cells — cascading roll bands) with no
+stone family and no lapis; the pure terrain answers stone alone. The
+stone family registered whole: the wire mappings (legacy 1 with the
+variant metadata 1/3/5 — packedStateId 17/49/81), the light table,
+the behavior table (each drops ITSELF), the blast table, the map
+colors. SEATS: OreVeinParityTest 5 NEW, RED 3/5 on the pre-fix engine
+(no family; y=16 redstone outside the band; the iron/coal inversion),
+5/5 green. LANES: the world package whole, the block package whole,
+the map package whole — all green.
+
+NEXT WORK (the standing rows the re-pin above supersedes, in order):
+the verifier's PRs when they open (none open at this session's
 close — the agent's branch fix/furnace-fuel-parity-audit still carries
 no PR); the vanilla-grade census's next family pick; the flake-family
 watch (the panic seat, the enderman-hunt seat, the wolf-collar seat —
