@@ -59,6 +59,85 @@ public final class ItemEntityManager {
             new java.util.concurrent.CopyOnWriteArrayList<>();
     private final List<Listener> listeners = new ArrayList<>();
     private int nextEntityId;
+    /**
+     * WAVE KO-A — THE PER-CHUNK ITEM CENSUS (the engine-native port of
+     * KigPaper/Paper 0089 "Avoid hopper searches if there are no items",
+     * the proven lineup's own hopper fix): a live count of item bodies
+     * per (dimension, chunk) so the hopper suck and the minecart-hopper
+     * scans skip their whole-candidate walks — and the {@link #all()}
+     * snapshot those walks would take — whenever the chunks their query
+     * box covers hold zero items (the common case: a hopper idling under
+     * nothing). Provably EXACT: a zero count over the covered chunks
+     * means the walk's box tests would answer nothing, so the skip
+     * changes no output, only the work. The count is maintained at every
+     * spawn/remove site and re-keyed on chunk crossings inside the tick
+     * walk (tick-lane confined, the single-writer law §6.2).
+     */
+    private final java.util.HashMap<ChunkKey, Integer> chunkItemCounts =
+            new java.util.HashMap<>();
+
+    /** The census key: the body's own world and its 16x16 cell. */
+    private record ChunkKey(int dimension, int chunkX, int chunkZ) {
+    }
+
+    /** @return whether any live item body stands in the chunk. */
+    private ChunkKey chunkKeyOf(ItemEntity entity) {
+        Position at = entity.position();
+        return new ChunkKey(entity.dimension(),
+                (int) Math.floor(at.x()) >> 4, (int) Math.floor(at.z()) >> 4);
+    }
+
+    private void indexAdd(ItemEntity entity) {
+        chunkItemCounts.merge(chunkKeyOf(entity), 1, Integer::sum);
+    }
+
+    private void indexRemove(ItemEntity entity) {
+        ChunkKey key = chunkKeyOf(entity);
+        Integer count = chunkItemCounts.get(key);
+        if (count != null) {
+            if (count <= 1) {
+                chunkItemCounts.remove(key);
+            } else {
+                chunkItemCounts.put(key, count - 1);
+            }
+        }
+    }
+
+    /**
+     * WAVE KO-A's public consult: whether the chunk (the body's own
+     * dimension) holds at least one live item body. The callers gate
+     * their candidate walks on it — the zero case's walk is provably
+     * empty, so the skip is behavior-identical (the Paper patch's own
+     * law, the engine's exactness proof standing in for the config
+     * toggle the CraftBukkit shape needed: the chunk slices the engine
+     * never carried make the count complete by construction).
+     */
+    public boolean chunkHoldsItems(int dimension, int chunkX, int chunkZ) {
+        return chunkItemCounts.containsKey(new ChunkKey(dimension, chunkX, chunkZ));
+    }
+
+    /**
+     * The box form of the census consult: whether any chunk the
+     * [minX, maxX] x [minZ, maxZ] block-space box covers holds a live
+     * item. The hopper's suck box straddles at most two chunks per
+     * axis (the cell above plus the 0.125 fringe), the cart's scan hull
+     * the same — at most four lookups, each exact.
+     */
+    public boolean itemsWithinChunkSpan(int dimension, double minX, double minZ,
+                                        double maxX, double maxZ) {
+        int minChunkX = (int) Math.floor(minX) >> 4;
+        int maxChunkX = (int) Math.floor(maxX) >> 4;
+        int minChunkZ = (int) Math.floor(minZ) >> 4;
+        int maxChunkZ = (int) Math.floor(maxZ) >> 4;
+        for (int cx = minChunkX; cx <= maxChunkX; cx++) {
+            for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
+                if (chunkHoldsItems(dimension, cx, cz)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
     /** Events the protocol adapter translates into wire updates. */
     public interface Listener {
@@ -180,6 +259,7 @@ public final class ItemEntityManager {
         ItemEntity entity = new ItemEntity(nextEntityId++, at, stack, 0);
         entity.setDimension(dimension);
         entities.add(entity);
+        indexAdd(entity);
         for (Listener listener : listeners) {
             listener.onItemSpawned(entity);
         }
@@ -230,6 +310,7 @@ public final class ItemEntityManager {
         entity.setDimension(dimension);
         entity.setVelocity(random.nextDouble() * 0.2 - 0.1, 0.2, random.nextDouble() * 0.2 - 0.1);
         entities.add(entity);
+        indexAdd(entity);
         for (Listener listener : listeners) {
             listener.onItemSpawned(entity);
         }
@@ -259,6 +340,7 @@ public final class ItemEntityManager {
                 ItemEntity.PICKUP_DELAY_PLAYER_THROW_TICKS);
         entity.setDimension(dimension);
         entities.add(entity);
+        indexAdd(entity);
         for (Listener listener : listeners) {
             listener.onItemSpawned(entity);
         }
@@ -290,6 +372,7 @@ public final class ItemEntityManager {
         entity.setVelocity(random.nextDouble() * 0.2 - 0.1, 0.2,
                 random.nextDouble() * 0.2 - 0.1);
         entities.add(entity);
+        indexAdd(entity);
         for (Listener listener : listeners) {
             listener.onItemSpawned(entity);
         }
@@ -344,6 +427,7 @@ public final class ItemEntityManager {
                     random.nextGaussian() * f3 + 0.2,
                     random.nextGaussian() * f3);
             entities.add(entity);
+            indexAdd(entity);
             for (Listener listener : listeners) {
                 listener.onItemSpawned(entity);
             }
@@ -402,10 +486,28 @@ public final class ItemEntityManager {
             // nether item lands on the nether's blocks, never on the
             // overworld's same-coordinate terrain.
             ground.setActiveDimension(entity.dimension());
+            // WAVE KO-A — the census key before the physics walk (a body
+            // that crosses a chunk border re-keys below; the compare is
+            // two record reads against the walk's own block consults).
+            ChunkKey keyBefore = chunkKeyOf(entity);
             if (entity.tick(ground, random, sounds)) {
                 for (Listener listener : listeners) {
                     listener.onItemMoved(entity);
                 }
+            }
+            ChunkKey keyAfter = chunkKeyOf(entity);
+            if (!keyBefore.equals(keyAfter)) {
+                // The crossing body leaves its old chunk's count and joins
+                // the new one's — the census stays exact through motion.
+                Integer count = chunkItemCounts.get(keyBefore);
+                if (count != null) {
+                    if (count <= 1) {
+                        chunkItemCounts.remove(keyBefore);
+                    } else {
+                        chunkItemCounts.put(keyBefore, count - 1);
+                    }
+                }
+                chunkItemCounts.merge(keyAfter, 1, Integer::sum);
             }
 
             if (!entity.pickupAllowed()) {
@@ -447,6 +549,7 @@ public final class ItemEntityManager {
                 }
                 if (remainder.isEmpty()) {
                     entities.remove(entity); // mid-walk removal is copy-on-write safe
+                    indexRemove(entity);
                     for (Listener listener : listeners) {
                         listener.onItemCollected(entity, player, collected);
                     }
@@ -562,6 +665,9 @@ public final class ItemEntityManager {
         }
         if (absorbed != null) {
             entities.removeAll(absorbed);
+            for (ItemEntity absorbedBody : absorbed) {
+                indexRemove(absorbedBody);
+            }
         }
     }
 
@@ -819,6 +925,7 @@ public final class ItemEntityManager {
     public boolean collectByMob(ItemEntity entity,
             net.zaminmc.torch.server.entity.MobEntity collector) {
         if (entities.remove(entity)) {
+            indexRemove(entity);
             for (Listener listener : listeners) {
                 listener.onItemCollectedByMob(entity, collector);
             }
@@ -829,6 +936,7 @@ public final class ItemEntityManager {
 
     public void remove(ItemEntity entity, String reason) {
         if (entities.remove(entity)) {
+            indexRemove(entity);
             for (Listener listener : listeners) {
                 listener.onItemRemoved(entity, reason);
             }
@@ -969,6 +1077,7 @@ public final class ItemEntityManager {
             entity.setOwner(record.owner());
             entity.setDimension(record.dimension());
             entities.add(entity);
+            indexAdd(entity);
             for (Listener listener : listeners) {
                 listener.onItemSpawned(entity);
             }

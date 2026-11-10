@@ -4565,6 +4565,10 @@ public final class EngineServer implements Server, EngineBridge {
                     // submitted-task drain — the sections stand empty here,
                     // ledgered), then root closes.
                     tickProfilerEnd();
+                    // WAVE KO-B: the explosion density cache lives ONE tick
+                    // (Paper 0050's own clear at the world tick end — a
+                    // later tick's blasts re-walk the world as it stands).
+                    explosionDensityCache.clear();
                 });
                 witherSweepDrops = new DropService(new java.util.Random()); // Slice 59: the engine-side break walk's own table
                 // The skull store (Slice 60): the tiles + the summon
@@ -29604,7 +29608,53 @@ public final class EngineServer implements Server, EngineBridge {
      * ({@code rayTrace == null}) is the density. The float accumulation
      * of the sample walk is the reference's own (the float loop counter).
      */
+    /**
+     * WAVE KO-B — THE EXPLOSION DENSITY CACHE (the port of KigPaper/Paper
+     * 0050 "Optimize explosions", the proven lineup's own stacked-blast
+     * fix): the density ray fan ({@code World.getBlockDensity}, ~45 rays
+     * per victim box, each a block walk) is the per-entity cost that
+     * dominates when hundreds of bodies stand in range — and a stacked
+     * blast chain (the classic TNT pile: every body in the same cell
+     * detonating the same tick) walks the SAME (position, box) pairs over
+     * and over. The cache keys the exact blast center + victim box and
+     * lives ONE TICK (cleared at the tick tail, the patch's own law).
+     * GATED exactly like the patch's own {@code optimize-explosions}
+     * config row — default OFF, because the reuse across same-tick
+     * blasts reads the world as it stood before the earlier blast's
+     * crater (Paper's accepted approximation; the engine's default stays
+     * vanilla-exact, the operator arms the proven win with
+     * {@code -Dtorch.optimize-explosions=true}).
+     */
+    private final java.util.HashMap<ExplosionDensityKey, Double> explosionDensityCache =
+            new java.util.HashMap<>();
+
+    /** The cache's key: the blast's own world, center, and victim box. */
+    private record ExplosionDensityKey(EngineWorld world, double cx, double cy, double cz,
+                                       double minX, double minY, double minZ,
+                                       double maxX, double maxY, double maxZ) {
+    }
+
+    /** The density consult — the cached consult when the flag is armed. */
     private double blockDensity(EngineWorld densityWorld, double cx, double cy, double cz,
+                                double minX, double minY, double minZ,
+                                double maxX, double maxY, double maxZ) {
+        if (Boolean.getBoolean("torch.optimize-explosions")) {
+            ExplosionDensityKey key = new ExplosionDensityKey(
+                    densityWorld, cx, cy, cz, minX, minY, minZ, maxX, maxY, maxZ);
+            Double cached = explosionDensityCache.get(key);
+            if (cached != null) {
+                return cached;
+            }
+            double density = computeBlockDensity(densityWorld, cx, cy, cz,
+                    minX, minY, minZ, maxX, maxY, maxZ);
+            explosionDensityCache.put(key, density);
+            return density;
+        }
+        return computeBlockDensity(densityWorld, cx, cy, cz,
+                minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    private double computeBlockDensity(EngineWorld densityWorld, double cx, double cy, double cz,
                                 double minX, double minY, double minZ,
                                 double maxX, double maxY, double maxZ) {
         double d0 = 1.0 / ((maxX - minX) * 2.0 + 1.0);

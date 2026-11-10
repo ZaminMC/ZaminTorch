@@ -338,19 +338,27 @@ public final class HopperSystem implements WorldChangeListener {
             double boxMaxY = pointY + 0.5;
             double boxMinZ = pointZ - 0.5;
             double boxMaxZ = pointZ + 0.5;
-            for (ItemEntity item : itemEntities.all()) {
-                if (item.dimension() != cart.dimension()) {
-                    continue; // another world's body
-                }
-                Position at = item.position();
-                if (at.x() + ItemEntity.HALF_WIDTH > boxMinX
-                        && at.x() - ItemEntity.HALF_WIDTH < boxMaxX
-                        && at.y() + ItemEntity.HALF_HEIGHT > boxMinY
-                        && at.y() - ItemEntity.HALF_HEIGHT < boxMaxY
-                        && at.z() + ItemEntity.HALF_WIDTH > boxMinZ
-                        && at.z() - ItemEntity.HALF_WIDTH < boxMaxZ
-                        && pickUpInto(item, cart.hopper())) {
-                    return true; // a full suck arms the cooldown
+            // WAVE KO-A: the census gate over the candidate centers (the
+            // query box grown by the item's own half width on every face)
+            // — the chunks hold no items, so arm 2's walk (and its all()
+            // snapshot) is provably empty and the fallback alone runs.
+            if (itemEntities.itemsWithinChunkSpan(cart.dimension(),
+                    boxMinX - ItemEntity.HALF_WIDTH, boxMinZ - ItemEntity.HALF_WIDTH,
+                    boxMaxX + ItemEntity.HALF_WIDTH, boxMaxZ + ItemEntity.HALF_WIDTH)) {
+                for (ItemEntity item : itemEntities.all()) {
+                    if (item.dimension() != cart.dimension()) {
+                        continue; // another world's body
+                    }
+                    Position at = item.position();
+                    if (at.x() + ItemEntity.HALF_WIDTH > boxMinX
+                            && at.x() - ItemEntity.HALF_WIDTH < boxMaxX
+                            && at.y() + ItemEntity.HALF_HEIGHT > boxMinY
+                            && at.y() - ItemEntity.HALF_HEIGHT < boxMaxY
+                            && at.z() + ItemEntity.HALF_WIDTH > boxMinZ
+                            && at.z() - ItemEntity.HALF_WIDTH < boxMaxZ
+                            && pickUpInto(item, cart.hopper())) {
+                        return true; // a full suck arms the cooldown
+                    }
                 }
             }
         }
@@ -370,6 +378,14 @@ public final class HopperSystem implements WorldChangeListener {
         double bandTop = cart.position().y()
                 + net.zaminmc.torch.server.entity.vehicle.MinecartEntity.HALF_HEIGHT;
         double centerZ = cart.position().z();
+        // WAVE KO-A: the census gate over the hull's candidate centers.
+        if (!itemEntities.itemsWithinChunkSpan(cart.dimension(),
+                centerX - 0.74 - ItemEntity.HALF_WIDTH,
+                centerZ - 0.74 - ItemEntity.HALF_WIDTH,
+                centerX + 0.74 + ItemEntity.HALF_WIDTH,
+                centerZ + 0.74 + ItemEntity.HALF_WIDTH)) {
+            return false; // the fallback's scan is provably empty
+        }
         for (ItemEntity item : itemEntities.all()) {
             if (item.dimension() != cart.dimension()) {
                 continue; // another world's body (the cart's own gate)
@@ -440,7 +456,7 @@ public final class HopperSystem implements WorldChangeListener {
                 world.isChunkLoadedAt(entry.getKey())
                         && !HopperBlocks.isHopper(world.getBlock(entry.getKey())));
         for (Map.Entry<BlockPosition, HopperBlockEntity> entry : List.copyOf(
-                new ArrayList<>(hoppers.entrySet()))) {
+                hoppers.entrySet())) {
             BlockPosition position = entry.getKey();
             HopperBlockEntity hopper = entry.getValue();
             if (!world.isChunkLoadedAt(position)) {
@@ -602,6 +618,15 @@ public final class HopperSystem implements WorldChangeListener {
         // Wave FL4-GAP2 Slice B: the reference's getEntities runs on THIS
         // hopper's own world — the dimension gate comes first, an item at
         // the same coordinates in another world is invisible.
+        // WAVE KO-A (Paper 0089's engine-native port): the census gate —
+        // the chunks the candidate centers can occupy hold no items, so
+        // the walk (and its all() snapshot) is provably empty; the skip
+        // changes no output, only the work.
+        if (!itemEntities.itemsWithinChunkSpan(world.dimension(),
+                pos.x() - 0.125, pos.z() - 0.125,
+                pos.x() + 1.125, pos.z() + 1.125)) {
+            return false;
+        }
         for (ItemEntity item : itemEntities.all()) {
             if (item.dimension() != world.dimension()) {
                 continue; // another world's body: never a suck candidate
