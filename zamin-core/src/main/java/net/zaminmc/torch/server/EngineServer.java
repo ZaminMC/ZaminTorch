@@ -9617,6 +9617,40 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * THE MAGIC FAMILY'S OWN ENCHANT + EFFECT WALK (Wave EK-2 — the same
+     * {@code getDamageAfterEffectsAndEnchantments} halves over the player
+     * victims the mob walk landed in Wave EK, at the two player-side magic
+     * sites: the splash/wither-effect arm and the guardian laser's magic
+     * half): the reference's {@code DamageSource.magic} family carries
+     * {@code setBypassesArmor} — the ARMOR envelope never runs — but is
+     * NEVER {@code setUnblockable}, so the effects-and-enchantments half
+     * still walks: the Resistance effect halves through
+     * {@code (25 - (amplifier+1)*5) / 25}, then the Protection EPF consult
+     * over the armor row with the MAGIC kind (the plain Protection's "all"
+     * family alone contributing — the fire/fall/blast/projectile branches
+     * all refuse, {@code extraProtection}'s own subtype ladder). The
+     * retired arms' "no protection shave" notes conflated the armor pierce
+     * with the enchant consult the reference never skips.
+     */
+    private float applyMagicEffectAndEnchantments(PlayerSession victim, float damage) {
+        // Resistance halving (lines 888-893) — the magic family is no void
+        if (potionSystem != null) {
+            net.zaminmc.torch.server.potion.StatusEffectInstance resistance =
+                    potionSystem.get(victim, net.zaminmc.torch.server.potion.StatusEffects.RESISTANCE);
+            if (resistance != null && resistance.duration() > 0) {
+                int i = (resistance.amplifier() + 1) * 5;
+                damage = damage * (25 - i) / 25.0f;
+            }
+        }
+        if (damage <= 0.0f) {
+            return 0.0f; // the reference's own floor (line 896)
+        }
+        // The Protection EPF consult (lines 898-905) — the MAGIC kind's
+        // "all"-only family.
+        return applyEnchantProtection(victim, damage, DamageKind.MAGIC);
+    }
+
+    /**
      * The reference {@code Entity.setOnFireFor}: seconds in, the victim's
      * own Fire Protection shortens the tick count
      * ({@code ticks -= floor(ticks * level * 0.15)}), and a shorter clock
@@ -22749,15 +22783,20 @@ public final class EngineServer implements Server, EngineBridge {
                 if (attacker instanceof MobEntity attackerMob) {
                     player.noteMobAttacker(attackerMob.type(), world.totalTicks());
                 }
-                // The magic damage: no knockback, no protection shave (the
-                // reference's DamageSource.MAGIC pierces armor). The
-                // creative gate stands exactly like the reference's own
-                // takeDamage head (PlayerEntity line 773: {@code
-                // abilities.invulnerable && !source.isOutOfWorld()} — the
-                // magic family carries NO out-of-world flag, so a
-                // creative body refuses the poison, the wither and the
-                // harming potion alike).
-                damageOnTick(player, amount, false, cause, 0.0f,
+                // The magic damage: no knockback, no ARMOR shave (the
+                // reference's DamageSource.MAGIC pierces armor) — but the
+                // effects-and-enchantments half still walks (Wave EK-2:
+                // the Resistance halving + the Protection "all" family
+                // over the victim's armor row — the magic source is
+                // bypass-armor, never unblockable). The creative gate
+                // stands exactly like the reference's own takeDamage head
+                // (PlayerEntity line 773: {@code abilities.invulnerable
+                // && !source.isOutOfWorld()} — the magic family carries
+                // NO out-of-world flag, so a creative body refuses the
+                // poison, the wither and the harming potion alike).
+                damageOnTick(player,
+                        applyMagicEffectAndEnchantments(player, amount), false,
+                        cause, 0.0f,
                         net.zaminmc.torch.event.DamageCause.MAGIC);
             } else {
                 MobEntity mob = (MobEntity) body;
@@ -26298,12 +26337,17 @@ public final class EngineServer implements Server, EngineBridge {
             float magic = magicDamage
                     + (difficulty() == 3 ? GUARDIAN_MAGIC_HARD_BONUS : 0.0f);
             if (magic > 0.0f) {
-                // The magic pierce: no knockback, no armor shave (the
-                // potion family's own arm) — but the creative gate stands
-                // (the reference's takeDamage head: the indirect-magic
-                // source carries no out-of-world flag, so an invulnerable
-                // body refuses the beam's magic half whole).
-                damageOnTick(target, magic, false, cause, 0.0f,
+                // The magic pierce: no knockback, no ARMOR shave (the
+                // potion family's own arm) — but the
+                // effects-and-enchantments half still walks (Wave EK-2:
+                // the Resistance halving + the Protection "all" family)
+                // — and the creative gate stands (the reference's
+                // takeDamage head: the indirect-magic source carries no
+                // out-of-world flag, so an invulnerable body refuses the
+                // beam's magic half whole).
+                damageOnTick(target,
+                        applyMagicEffectAndEnchantments(target, magic),
+                        false, cause, 0.0f,
                         net.zaminmc.torch.event.DamageCause.MAGIC);
             }
             // The melee half: the armor + enchantment ladder, the melee
