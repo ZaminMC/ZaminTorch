@@ -3199,16 +3199,14 @@ Work Log:
   the stone under the upper flats added, the canonical vanilla hill),
   and the from-rest floor eating the ascent's arm (T9-T10 of the
   probe trace: vel −0.0078125 then 0 — the exemption landed).
-- THE CI RELEASE WATCH CLOSED and the pipeline CONFIRMED GREEN ON THE
-  WAVE ITSELF: run #676 green — torch-1.8.8-158 PUBLISHED (22:48 Nov
-  7), the first green release since #598 (Nov 1); run #677 green on
-  ef5597e8 — torch-1.8.8-159 PUBLISHED (00:32 Nov 8), the first
-  release carrying the shape model. The six-day window closed whole
-  and the pipeline is green on every push again.
+- THE CI RELEASE WATCH CLOSED: run #676 GREEN — torch-1.8.8-158
+  PUBLISHED (the jar + the server zip, 22:48 Nov 7), the first green
+  release since #598 (Nov 1). The six-day window closed whole.
 - LANES: the vehicle package 101/101, the related batch (push,
   seated-mob, armorstand, spawn-stamp, detector-rail, rail-blocks,
   rail-placement, hopper, anvil, drop-stamp) green, the protocol
-  module green, bukkit/api/transport green.
+  module green, bukkit/api/transport green; the full zamin-core
+  suite running at close (the release run #677 carries the wave).
 - The architecture's record appended (Waves SL + BS + the six new
   census rows: the track-end run-off, the boat's 5-slice buoyancy,
   the boat's heading law, the boat's death drops, the boat's
@@ -3219,465 +3217,867 @@ SESSION COMMITS (all as Abasing): ef5597e8 (the waves + the seats +
 the stale-seat repairs) + the docs commit.
 
 AT CLOSE: the next session's first acts per the re-pin: the CI watch
-(the pipeline green on ef5597e8's tree — run #677 already confirmed,
-torch-1.8.8-159 out), the verifier's PRs when they open (none at
-close), the six new census rows' three-pass verification, and the
-flank walk's steal-poll cadence row.
+(run #677 on ef5597e8 — the first release carrying the shape model;
+a red run's forensics the census law's first-occurrence reads), the
+verifier's PRs when they open (none at close), the six new census
+rows' three-pass verification, and the flank walk's steal-poll
+cadence row.
 
 ---
-## 2026-11-08 — Waves TR + BB + CY + the #678 forensics (session 4)
-
-Task: the re-pin's first acts — the CI watch on run #678's red tree,
-the verifier's PRs (none open), then the SL+BS session's own six
-census rows closed whole.
+Task ID: 2026-11-08 session (fourth run)
+Agent: main (ZaminTorch session)
+Task: the re-pin's first acts — the CI watch on run #678's red tree +
+the verifier's PRs (none open) — then the SL+BS session's own six
+census rows closed whole (a large, faithful 1:1 batch).
 
 Work Log:
-- Read the worklog, synced develop (1833e0c5 clean), checked the PRs
-  (0 open — the verifier's lane still empty) and the CI: run #678
-  RED on d20a8ae7 (a docs-only tree — both seats load flakes, not
-  regressions), the pipeline idle on the [skip ci] bump.
+- Read the worklog, synced develop (1833e0c5 clean — the -160 bump,
+  [skip ci], the pipeline idle), checked the PRs: 0 open (the
+  verifier's lane still empty — the first-priority lane vacated).
 - RUN #678'S TWO RED SEATS ROOT-CAUSED FROM THE UPLOADED FORENSICS
-  (commit 9d1de3a4 — the engine 1:1 at both, the bench's own
-  vanilla-validity the defect, the wall-clip seat's pattern):
-  (1) DragonContactBounds' edge-stand player — the survival body
-  standing in a flying dragon's path died to the HEAD arm mid-seat,
-  and a dead body's every teleport is silently dropped
-  (teleportOnTick's own dead gate) with the fling walk skipping it
-  whole: all 30 rounds ran against a body frozen at its death spot.
-  The seat joins CREATIVE now — the reference flings every
-  LivingEntity with no gamemode gate (creative players ARE flung by
-  the wing hulls) while the creative body takes no head wound — and
-  both seats' round windows count COMPLETED ENGINE TICKS (14 in
-  2-tick steps, the census's ML-002 law). (2) PistonBreakDrop's
-  mature-wheat seat — WheatBlock.dropItems rolls the seed bonus
-  3 x nextInt(15) <= 7 at age 7, so a single break drops NO seeds
-  (7/15)^3 ~ 10.2% of the time: a LEGITIMATE 1:1 outcome the
-  single-sample await blamed as a divergence. The seat re-breaks
-  (retract, re-place, re-extend, each round's rolls fresh, bounded
-  12) with the wheat await still gating every round. Both classes
-  2/2 green.
-- WAVES TR + BB + CY LANDED (commit 20aafdc1 — the six census rows,
-  each law read from the reference source and each verified RED on
-  the neutralized engine by the no-op patches): TR the track-end
-  run-off (the flat walk's advance UNCONDITIONAL — the reference
-  consults no continuation; the halt and the beside-rail corner turn
-  retired whole); BB-1 the 5-slice buoyancy (the hull's band sliced
-  into five, each shifted -0.125, the wet fraction steering the
-  ±0.04 bob — the d0=0 form IS the gravity — and the submerged
-  +0.007 rise; the WorldQuery's waterInBox with the production
-  per-cell WATER-only walk); BB-2 the heading law (the yaw follows
-  the MOVEMENT — fastAtan2 over the NEGATED displacement, clamped
-  ±20°/tick, never the rider's look; followRiderLook retired); BB-3
-  the wreck drops (the crash and the 3.0+ dry fall break into 3
-  planks + 2 sticks through the new wreck arm — the real wiring,
-  five drops merging into their stacks; the damage walk's own break
-  keeps the boat item; the fall debt gated on the below-not-water
-  consult); BB-4 the flora mow (the four corners x the two y-bands —
-  snow layers vanish, lily pads break with drops); CY the cart's
-  wire-yaw convention (fastAtan2(d2, d0)·180/π over the NEGATED
-  displacement with the flipped flag's +180 and the ±170 wrap pair —
-  VehicleMath ports the reference's fastAtan2/wrapDegrees/fastInvSqrt
-  verbatim, the 2^44 index trick documented; the internal consults
-  convert through wireYawAsLook).
-- THE TNT CART'S IMPACT ARM RE-SHAPED (commit 33c43f68 — the TR
-  row's adjacent tail, surfaced by the vehicle package's rerun): the
-  old arm keyed on the track-end halt's zeroed pair; the reference's
-  law is the move's collidingHorizontally flag over the POST-move
-  speed (the blocked axis zeroed, the surviving PERPENDICULAR axis
-  carrying the 0.01 band — a head-on halt never detonates, exactly
-  vanilla). VehicleEntity gains the collision flag (cleared at the
-  tick's head, marked by the walks' arms), and the off-rail manual
-  walk's standing gap closed: the horizontal clip the reference's
-  move always ran now stops the off-rail cart at walls.
-- SEATS: BoatBodyLawsParityDiscoveryTest 11 NEW +
-  MinecartYawConventionParityDiscoveryTest 5 NEW; the stale seats
-  updated to the landed laws (the float seat's waterline bob, the
-  track-end seat's run-off, the TNT wall-clip law with the head-on
-  refusal, the cap seat's submerged rise, the relog seat's bob
-  window — commit e82a385a). Each law RED-verified by the no-op
-  patches in turn.
-- LANES: the vehicle package 117/117, the protocol module 247/247
-  (after the relog pin), the related batch (activator-rail, anvil,
-  command-cart, detector-rail, drop-stamp, falling-anvil, hopper,
-  piston-push, armorstand, seated-mob) 85/85, the entity lane run at
-  close.
-- The architecture's record appended (Waves TR + BB + CY, the
-  census-rows paragraph closed) + the NEXT WORK re-pin (the
-  verifier's PRs, the flank walk's cadence row, the CI watch on the
-  next push's run — the first to carry this wave); the README's
-  rows, badge (3,811 seats) and footnote refreshed.
+  (commit 9d1de3a4): the dragon edge-stand seat's survival body died
+  to the head arm mid-seat and its teleports were silently dropped
+  (the dead gate) — the seat joins CREATIVE now (the reference's fling
+  filter carries no gamemode gate; the creative body takes no head
+  wound) with tick-counted round windows (ML-002); the wheat seat's
+  single-sample await blamed vanilla's own 10.2% zero-seed roll — the
+  re-break form (bounded 12 rounds) owns the probability now. The
+  engine 1:1 at both; both classes 2/2 green.
+- WAVES TR + BB + CY LANDED (commit 20aafdc1): the track-end run-off
+  (the advance UNCONDITIONAL — the halt and the beside-rail corner
+  retired with their dead helpers); the boat's 5-slice buoyancy (the
+  ±0.04 bob, the submerged +0.007, the waterInBox production walk);
+  the movement-following heading (fastAtan2 over the negated
+  displacement, ±20°/tick, followRiderLook retired); the wreck drops
+  (3 planks + 2 sticks through the new wreck arm — the crash, the
+  3.0+ fall; the damage break keeps the boat item); the flora mow
+  (snow layers vanish, lily pads break with drops, the four corners x
+  the two y-bands); the cart's wire-yaw convention (VehicleMath's
+  verbatim fastAtan2 port with the 2^44 index trick, the flipped
+  pair's ±170 wrap, wireYawAsLook for the internal consults).
+- THE TNT IMPACT ARM RE-SHAPED + THE OFF-RAIL MANUAL WALK'S WALL CLIP
+  (commit 33c43f68): the reference's collidingHorizontally gate over
+  the POST-move speed (the head-on refusal 1:1); VehicleEntity's
+  collision flag plumbing; the standing gap closed.
+- SEATS: 16 NEW (BoatBodyLaws 11 + MinecartYawConvention 5), each law
+  RED-verified by the no-op patches in turn; the stale seats updated
+  (the float bob, the run-off, the TNT wall-clip, the cap's submerged
+  rise, the relog bob window — e82a385a).
+- LANES: the vehicle package 117/117, the protocol module 247/247,
+  the related batch 85/85, the entity lane 779/779 — all green.
+- The architecture's record + the census-rows paragraph closed + the
+  NEXT WORK re-pin; the README (badge 3,811) + the repo WORKLOG
+  refreshed (commit 3cc75c4b).
 
-SESSION COMMITS (all as Abasing): 9d1de3a4 (the #678 bench repairs)
-+ 20aafdc1 (the six census rows) + 33c43f68 (the TNT impact arm +
-  the off-rail clip) + e82a385a (the relog pin) + the docs commit.
+SESSION COMMITS (all as Abasing): 9d1de3a4 + 20aafdc1 + 33c43f68 +
+e82a385a + 3cc75c4b (docs).
 
-AT CLOSE: the entity lane's full rerun finishing in the background;
-the next push's release run the first to carry the wave — a red
-run's forensics the census law's first-occurrence reads.
+AT CLOSE: pushing — the next release run the first to carry the wave;
+the verifier's PRs when they open; the flank walk's cadence row next.
 
 ---
+Task ID: 2026-11-08 session (fifth run)
+Agent: main (ZaminTorch session)
+Task: the re-pin's first named row (the flank steal-poll cadence) + the
+CI watch on runs #679-#681 + the census's next family pick (Waves FT +
+CE — a large, faithful 1:1 batch).
 
-## 2026-11-08 — the LN + CJ session (the re-pin's census picks)
+Work Log:
+- Read the worklog, synced develop (3cc75c4b clean), checked the PRs:
+  0 open (the verifier's lane still empty at every check this session).
+- THE FLANK STEAL-POLL CADENCE ROW CLOSED (commit 90e1f33d): read
+  GoalSelector.tick whole from the reference — the setup pass (the
+  whole canStart consult walk) runs every 3rd tick of the selector's
+  own counter (ticks++ % constantThree == 0, constantThree = 3), NOT
+  every tick (the prior session's reading corrected); while the band-2
+  flank claim holds the MOVE, the melee goal's canStart consult STILL
+  RUNS at every setup pass (canUse passes: the melee's band-1
+  precedence over the flank's band 2, the flank's canStop() default
+  true), so the steal consult is REAL and its cadence 3. The engine's
+  20-tick countdown retired for the age-anchored (age-1) % 3 gate, and
+  THE CLAIM'S OWN ROUTE ADOPTION (MeleeAttackGoal.start line 74's
+  moveAlong) landed with the steal — the discovery probe's find: the
+  pre-fix fall-through walked the RETIRED flank route at the chase
+  band for ~30 ticks (the stolen golem sliding south along the opened
+  wall at 0.275). Seat +1, RED two ways (the full pre-fix engine and
+  the isolated cadence no-op: 13 ticks late).
+- RUN #679'S FOUR RED SEATS ROOT-CAUSED (same commit): two STALE SEATS
+  the TR+BB+CY sweeps missed (RiderSpareFall's health pin vs the BB-3
+  hull break — the stone landing pays the rider AND breaks the hull,
+  the pad's ZERO and the farmland's gate sparing the rider alone since
+  the override never consults the landing block; AnvilImport's chest-
+  cart yaw vs the CY movement law), the piston seat's full-AI
+  observation pig pinned NoAI, the furnace seat's awaitLong widened
+  (the first repair) + allowlisted with the census row.
+- WAVES FT + CE LANDED (commit ade02967): THE FARM TEMPT FAMILY (the
+  four animals' TemptGoal registrations — the chicken's seeds 1.0, the
+  cow's wheat 1.25 (the mooshroom inheriting), the sheep's wheat 1.1,
+  the pig's carrot PAIR 1.2 with the pair's item-change-holds-claim
+  law; the engine's animals ignored held food entirely), THE CLAIM'S
+  SWIM PARK retrofitted onto the ocelot/rabbit too, THE CTOR SWIM
+  CENSUS (ten kinds armed — the engine had only the ocelot; the
+  chicken alone off; the prior session's WOLF MISREADING corrected
+  from WolfEntity ctor line 56, the stale TameableFollow seat
+  re-pinned), THE CHICKEN'S EGG LAYER (the short-circuit clock — a
+  baby's/jockey's FROZEN; the plop with the two-draw jitter; ONE egg
+  at +0.5 through the TF-9 spawn; the 6000-12000 re-roll; the NBT pair
+  EggLayTime/IsChickenJockey) and THE SLOW FALL (the 60% descent
+  dampening; the flap pair documented animation-only). 8 new seats,
+  8/8 RED on the no-op-neutralized engine.
+- RUN #680'S TWO RED SEATS ROOT-CAUSED (commit 2505892b): the furnace
+  seat's WALL-deadline defect — the burn measured exactly the bound
+  while the parallel core suite started 27s into the window (the
+  approved Phase A cross-module --parallel starves the runner's
+  ticker; the wall bound expires by wall time even when the engine
+  runs slow) — converted to the tick-denominated EngineAwaits form,
+  the one-day allowlist entry RETIRED with the fix, the census row
+  corrected to fixed-at-source, and THE FIRST-OCCURRENCE FORENSICS
+  ARMED (the failing await dumps the furnace's live state + the probe's
+  furnace lines) for the residual intermittent miss under the two-JVM
+  parallel configuration (reproduced 2-in-3 locally, clean in 8 since);
+  the wither seat's item race closed (the drop itself the awaited
+  condition). RUN #681's hunger seat: the forensics armed the same way
+  (commit 8d5cd181).
+- The architecture's record appended (the flank row + FT + CE + the
+  NEXT WORK re-pin: the verifier's PRs, the CI watch on the runs
+  carrying the tick-form furnace, the flank's ADJACENT TAILS the source
+  pass surfaced — the claim-end stale-route walk, the leash's
+  leeched-navigation arm, the chicken's jockey family); the README
+  refreshed (badge 3,823).
 
+SESSION COMMITS (all as Abasing): 90e1f33d + ade02967 + 2505892b +
+8d5cd181 (the docs commit follows).
+
+AT CLOSE: pushing the docs; the next runs carry the tick-form furnace
+and the wither/hunger repairs (the watch's own reads); the flank's
+claim-end tail and the leash's navigation arm the next family picks;
+the verifier's PRs when they open.
+
+THE CLOSE'S OWN ADDITION: the flank's claim-end tail DRAFTED AND
+HELD OPEN — the repathCooldown-reopen at the claim end (the
+fall-through consulting at once, vanilla's next-setup-pass shape)
+reverted unseated (the probe's interleave — the detour, the claim-
+hold, the TargetFinder dice — beyond an honest pin this session) and
+the row recorded with THE STUCK-IN-WALL OBSERVATION the probe
+surfaced (a body entering a solid cell in one +0.86 write past the
+walk bound, every subsequent move clipped — a 20-tick freeze until
+the detour's expiry): both rows standing for their own careful source
+passes. The session's final commits: 996dac7c + 1b0d3efe (the open
+rows). The flank class 4/4 green; the CI watch passes to the next
+session with the runs on 2505892b/8d5cd181/dde9d985/1b0d3efe carrying
+the tick-form furnace, the wither item-race fix and the hunger
+forensics.
+
+---
+Task ID: 2026-11-08 session (sixth run)
+Agent: main (ZaminTorch session)
+Task: the re-pin's two census family picks (Waves LN + CJ — a large,
+faithful 1:1 batch) + run #682's red-seat repairs + the CI watch.
+
+Work Log:
 - Read the worklog, synced develop (1b0d3efe clean), checked the PRs:
-  0 open (the verifier's lane still empty at every check).
-- RUN #682'S TWO RED SEATS ROOT-CAUSED AND REPAIRED BENCH-SIDE
+  0 open (the verifier's lane still empty at every check this session).
+- RUN #682'S TWO RED SEATS ROOT-CAUSED FROM THE UPLOADED FORENSICS
   (commit 94c5784f): the furnace seat's armed forensics dump NPE'd on
-  an EMPTY slot's null type before the state could speak — the
-  null-safe slotView form landed so the next landing SPEAKS (the
-  tick-denominated await form itself stands, green locally); the
-  survival-flow seat's wire timeout (packet 48, the placement's
-  consume sync — the test's first failure ever) burned its 10s wall
-  budget under the parallel load — the wire form of the
-  tick-denominated repair (the 60s wall patience over a living
-  engine's packet stream) + the first-occurrence forensics armed.
-- WAVE LN — THE LEASH'S LEECHED-NAVIGATION ARM (PathFinderMobEntity
-  .updateLeashStatus lines 72-121 read whole): the holder-centered
-  village pin (radius 5, before the distance gates — the retired
-  slack early-return skipped it), the sitting tameable's early
-  return (the snap alone), the swim park on the first leashed tick,
-  updateForLeashLength at its own unconditional call-site, the
-  band-2 wander's stroll-lane claim (the toward-pin best-favor pick,
-  the in-band gate), and the detach's recovery at the single choke
-  point — the swim returned UNCONDITIONALLY true (the
-  leashed-then-released chicken quirk) + the pin reset. Seats:
+  an EMPTY slot's NULL type before the state could speak (the smelt
+  await missed again — the residual intermittent; the dump was armed
+  to explain it) — the null-safe slotView form landed so the next
+  landing SPEAKS (the tick-denominated await itself stands, green
+  locally on 1b0d3efe); the survival-flow seat's wire timeout
+  (packet 48, the placement's consume sync — the test's FIRST failure
+  ever) burned its 10s wall budget under the parallel load — the WIRE
+  FORM of the tick-denominated repair (the 60s wall patience over a
+  living engine's packet stream; a dead engine throws EOF, never this
+  timeout) + the first-occurrence forensics armed (the player's
+  server-side position, the hole's block states, the held stack, the
+  tick count).
+- WAVE LN LANDED (commit 97c350a4): the leash's leeched-navigation
+  arm whole (PathFinderMobEntity.updateLeashStatus lines 72-121): the
+  holder-centered village pin (radius 5, BEFORE the distance gates —
+  the retired slack early-return skipped it; the villager's
+  village-return and the golem's band read the HOLDER's pin), the
+  sitting tameable's early return (the snap alone), the swim park on
+  the first leashed tick, updateForLeashLength at its own
+  unconditional call-site, the band-2 wander's stroll-lane claim (the
+  toward-pin best-favor pick with the in-band gate; the plain stroll
+  refused under both the claim and the navigation-busy
+  shouldContinue), and the detach's recovery at the single choke
+  point — the UNCONDITIONAL setCanSwim(true) quirk (a
+  leashed-then-released CHICKEN ends swim-ON) + the pin reset. Seats:
   LeashLeechedNavigationTest 4 NEW, RED on the no-op patches in turn
-  (the pin, the arming, the sitting gate, the release), 4/4 green;
-  the leash package, the village-return walk, the goal API and the
-  full entity package green (the two first-run reds pass isolated
-  and on the re-run — single-JVM load flakes).
-- WAVE CJ — THE CHICKEN'S JOCKEY FAMILY: the 10-XP kill (the death
-  ladder's own row), the riderless despawn (the mark alone moves on,
-  the seated mark stays), the jockey seat (updateRiderPositon — the
-  0.1-forward yaw offset, the half-height seat, the bodyYaw follow)
-  and the spawn arm (the Data pair's 5% baby draw + the two chicken
-  arms: the nearby NOT-RIDING gather over the grown (5,3,5) box, the
+  (the pin, the arming, the sitting gate, the release), 4/4 green.
+  Debug notes: a LeashSystem/LeashSystem typo cost a rabbit hole (the
+  class is LEAD-system); the wander seat needed the WALKING HOLDER
+  (the pull closes a standing gap inside the pin's five in a few
+  ticks — the claim retires; the drag itself is the honest window)
+  and the holder's steps bounded below the snap's ten.
+- WAVE CJ LANDED (commit d8b708af): the chicken's jockey family: the
+  10-XP kill (the death ladder's row), the riderless despawn (the
+  mark alone moves on, the SEATED mark stays, the plain chicken
+  never), the jockey seat (updateRiderPositon — the 0.1-forward yaw
+  offset, the HALF-height seat, the bodyYaw follow), and the spawn
+  arm (the Data pair's 5% baby draw beside the villager roll + the
+  two chicken arms: the nearby NOT-RIDING gather over the grown
+  (5,3,5) box — the FIRST of the manager's order — and the
   fresh-chicken else-branch). Seats: ChickenJockeyParityDiscoveryTest
-  4 NEW, RED on the no-op patches (two combined runs), 4/4 green;
-  the death-XP ladder, the spawn system, the persistence, the
-  mount-seats lanes green. OPEN: the jockey chase hand-off (the
-  zombie's path to the chicken's navigation at 1.5) recorded for its
-  own pass.
+  4 NEW, RED on the no-op patches (two combined runs, each reddening
+  exactly its own seats), 4/4 green. OPEN: the jockey chase hand-off
+  (the zombie's path to the chicken's navigation at 1.5) recorded for
+  its own pass (the mount-side seat model needs the rider-side mount
+  lookup first).
+- LANES: the leash package whole, the village-return walk, the goal
+  API, the FULL entity package (the two first-run reds — the
+  wounded-cow panic await and the chest-cart placement — pass
+  isolated AND on the lane's re-run: single-JVM load flakes, not the
+  laws), the death-XP ladder, the spawn system, the persistence, the
+  mount-seats API all green.
 - The architecture's record appended + the NEXT WORK re-pinned (the
   verifier's PRs, the CI watch on the first run carrying today's
-  repairs, the flank's adjacent tails, the jockey chase hand-off);
-  the README refreshed (badge 3,831).
+  repairs — run #686 in flight at the session's start carried
+  neither, the first carrying them follows this push, the flank's
+  adjacent tails, the jockey chase hand-off); the README refreshed
+  (badge 3,831) + the repo WORKLOG appended (commit 3f2807fa).
 
-SESSION COMMITS (all as Abasing): 94c5784f (the #682 bench repairs)
-+ the Wave LN release + the Wave CJ release + this docs commit.
+SESSION COMMITS (all as Abasing): 94c5784f + 97c350a4 + d8b708af +
+3f2807fa (docs).
 
 AT CLOSE: pushing — the next release run the first to carry all
-three; the flank's stuck-in-wall root-cause pass and the jockey
-chase hand-off the next family picks.
+three; the flank's stuck-in-wall root-cause pass, the jockey chase
+hand-off and the verifier's PRs (when they open) the next picks.
 
 ---
-Task ID: 2026-11-08 session (seventh run)
+Task ID: 2026-11-08 session (seventh run) — MIRRORED RECORD
 Agent: main (ZaminTorch session)
-Task: Wave JC2 (the jockey chase hand-off — the architecture's named
-open row) + the flank family's adjacent tails + the CI watch.
+(The full engineering record lives in the repo's WORKLOG.md, commit
+84c0ff56 — this mirror carries the session's summary for the next
+run's opening read.)
+
+- Synced b28820cb; 0 open PRs (the verifier's first BRANCH
+  fix/furnace-fuel-parity-audit landed mid-session, no PR yet).
+- CI WATCH: runs #686-#688 died on the Gradle wrapper's download
+  timeout — HARDENED (ea35a50b: the dist cache + the retry warm-up).
+- WAVE JC2 LANDED (f21dc5ae): the jockey chase hand-off whole — 7
+  laws, 4 new seats, RED-verified four ways. The rig lessons: fake
+  players hover (join them ON the surface), the 128-band despawn eats
+  far departures (80 blocks for the tail seat), the CJ seat rig now
+  pins the chicken (NoAI + the surface spawn).
+- FLANK TAILS (f2e1619a): (a) the claim-end fresh consult LANDED (the
+  cooldown zero at the claim's end); (b) the stuck-in-wall freeze
+  ROOT-CAUSED (the chase-beeline fallback's three arms + the stub
+  center-point clip) — the stand-down fix REVERTED over the steal
+  seat's 18-tick regression, the map recorded, the row OPEN.
+- FURNACE-BRIDGE RESIDUAL: run #688's forensics read — the furnace's
+  own tick ran ~28 times in 719 engine ticks (the chunk-freeze
+  hypothesis leads); green locally; the pass pinned.
+- Lanes: the full entity package green (800/801, the documented panic
+  flake); golem + jockey + chase tails + bukkit bridge green.
+- Docs: the architecture's record + NEXT WORK re-pinned; README badge
+  3,835. Session commits: f21dc5ae + ea35a50b + f2e1619a + c6596c21 +
+  84c0ff56, all as Abasing, all pushed.
+
+---
+Task ID: 2026-11-08 session (eighth run)
+Agent: main (ZaminTorch session)
+Task: run #690's three red seats + the re-pin's two open rows (the
+flank-tail (b) stuck-in-wall pass + the furnace-bridge residual).
 
 Work Log:
-- Read the worklog, synced develop (b28820cb clean), checked the PRs:
-  0 open (the verifier's lane still empty — though his first BRANCH,
-  fix/furnace-fuel-parity-audit, landed on the remote mid-session).
-- THE CI WATCH: runs #686-#688 all died on the Gradle WRAPPER's own
-  10-second services.gradle.org download timeout (504/timeout — never a
-  code failure; the suite never started). THE HARDENING LANDED (commit
-  ea35a50b): the wrapper distribution cached apart from setup-java's
-  user-home cache + a five-attempt retry warm-up before the build.
-- WAVE JC2 LANDED (commit f21dc5ae): the jockey chase hand-off whole —
-  the cross-body moveAlong at the reference's own 1.5, the rider-side
-  mount stamp (the per-tick both-sides convention), the canUpdatePath
-  zombie-on-chicken arm, the MOUNT-SIDE DRIVE (the body walk's
-  handed-route band — the movement control's setSpeed(nav.speed x
-  attribute) law), the park's faithful set (the reference parks the
-  horse ALONE — every other ridden body keeps its mind), the freeze/
-  steps/auto-mount/portal consults extended to the mob seat, and the
-  stroll/leash-wander lane refusals under the steer (the documented
-  adaptation — the reference's held-but-inert wander claim never
-  re-paths). SEATS: ChickenJockeyChaseHandoffDiscoveryTest 4 NEW (the
-  chase closes on the player; the 0.0525/tick slope + the shared route
-  object; the bite from the seat; the tail — the handed route finished
-  when the hunt ends), RED-verified four ways (the hand-off no-op 4/4,
-  the drive no-op 4/4, the 1.5 flattened to 1.0 the speed seat alone,
-  the park carve-out reverted 4/4), 4/4 green. Debug notes: the fake
-  players HOVER (no client gravity — the join teleport must land ON the
-  surface y 5.0, the flat world's grass top; the bite's vertical band
-  |dy| <= 2.0 broke at y 8.0); the 200-block departure triggered the
-  vanilla DESPAWN family (the riderless jockey mark beyond 128) — the
-  tail seat's departure now 80 blocks (beyond the 35 follow range,
-  inside the despawn band); the CJ seat test's rig repaired with the
-  mind restoration (the surface spawn + the NoAI pin — a live chicken
-  strolls on its own dice and the seat math wants the mount's cell
-  exact; the pre-JC2 frozen-mid-air spawn answered by accident).
-- THE FLANK TAILS (commit f2e1619a): (a) THE CLAIM-END FALL-THROUGH'S
-  FRESH CONSULT landed — the claim's end zeroes the repath cooldown
-  (the selector's next-pass shape: the melee's findPath + start()'s
-  adoption the same pass, a null verdict re-arming the flank's pick at
-  once — never the FROZEN cooldown's 15-30-tick stale window).
-  (b) THE STUCK-IN-WALL FREEZE ROOT-CAUSED WHOLE, the fix HELD OPEN:
-  reproduced deterministically (the golem frozen 153 ticks, the box
-  0.63 into the wall) — the ENGINE'S CHASE-BEELINE FALLBACK (the
-  pathYawValid ? pathYaw : yaw heading) walks the body at its yaw
-  whenever the navigation holds no live target, three arms mapped (the
-  steal's trivially-done route adoption holding the claim; the null-
-  null window's one-tick beeline with the velocity-decay carry-in; the
-  flank's null-route flicker arming the band with no target), the stub
-  path's CENTER-POINT clip (isSolidAt on the center alone) letting the
-  box in. The movement-control stand-down (no route — no walk) was
-  attempted and REVERTED (the steal seat's crossing regressed to 18
-  ticks — the stand-down/steal interleave wants its own pass); the
-  claim-end seat retired with it (the probe conflates (a) with the (b)
-  freeze); the full map recorded in the architecture's row.
-- THE FURNACE-BRIDGE RESIDUAL: run #688 (f21dc5ae) red on
-  BukkitEventBridgeGroupTwoTest's smelt await — the armed forensics
-  READ (downloaded the artifact): the furnace burning, the coal
-  consumed, cook=28 and burnRemaining=1573 after 719 engine ticks,
-  both burn events bridged — the furnace's OWN tick ran only ~28 times
-  in the window; the chunk-loaded freeze gate the leading hypothesis;
-  the seat green locally and on every re-run; the root-cause pass
-  pinned in the NEXT WORK.
-- LANES: the full entity package green twice (800/801 seats, the
-  wounded-cow panic await the documented single-JVM load flake — green
-  isolated and on re-run), the golem family + the jockey chase + the
-  chase tails + the bukkit bridge group all green.
-- The architecture's record appended (the JC2 + flank-tail + CI rows)
-  + the NEXT WORK re-pinned (the verifier's PRs, the flank-tail (b)
-  pass, the furnace-bridge residual, the CI watch on the first hardened
-  runs); the README refreshed (badge 3,835).
+- Read the worklog, synced develop (84c0ff56 clean), checked the PRs:
+  0 open (the verifier's lane still empty; the furnace-audit branch
+  still carries no PR — not pursued per the user's instruction).
+- RUN #690'S THREE RED SEATS ROOT-CAUSED FROM THE UPLOADED FORENSICS
+  (commit 5d2bf909): (1) THE CHUNK-DEDUPE TOCTOU — the request's
+  peek-then-claim and the install's publish-then-remove pairs could
+  interleave (expected 1 but was 2, every callback served); a 64-stripe
+  per-key mutex now pairs them, the request re-checks inside its stripe
+  and serves synchronously, the legacy arm serves every rider; 5/5
+  stress green. (2) THE BED CONTROL SEAT — the placement and the consume
+  ride one tick task but different visibility edges (both halves landed,
+  the count read stale 1); the spend itself awaited. (3) THE FURNACE —
+  the sweep-decision ring ARMED on the manager (64 entries) and in the
+  test's dump.
+- THE FLANK-TAIL (b) PASS (commit 017d87b0): THE MOVEMENT-CONTROL LAW
+  landed (no live route — no walk input; the yaw-beeline retired) + THE
+  MELEE CADENCE (4+nextInt(7), the distance bands, the moved/5%/first
+  gate, the +15 failure backoff — the invented 20-30 budget retired) +
+  the claim-end re-open on the melee state + the steal's start()-zero +
+  the stroll's start() moveTo. The diag pass found the TRIVIAL PARTIAL
+  law: the adjacent cell's 1-block route swallowed whole by the
+  1.4-wide golem's within-radius advance — BOTH trees alike (vanilla's
+  golem stands at the local minimum forever — the claim-hold). SEATS:
+  the MID-FLANK steal seat re-armed honest (flank LIVE at the opening:
+  steal ≤3, crossing ≤2, measured 4) + the CLAIM-HOLD standing seat NEW
+  (the face-hold + the settling). THE SIT CONTROL repaired to a clean
+  chest-less rig (the verb cannot re-arm on a perched cat — the
+  block-sit's own chest-quirk law; the old control's pass rode the
+  beeline's 1.18-block artifact walk). LANES: entity 802 green (the
+  documented panic flake alone — green isolated), vehicle green.
+- THE FURNACE RESIDUAL ROOT-CAUSED WHOLE: the ring CAUGHT the failure
+  live (sweeps normal cook+1/tick through t=147, then STOPPED, the
+  counter walking to 720) — a BOAT below the world (the bukkit
+  vehicle-create test spawns at (85,40,85), beyond the pregen area,
+  the hull falling through the unloaded chunk into the void), the
+  flora-mow corner read at y=-1 THROWING every tick, the SEVERE
+  swallowing the handler's whole tail (the furnace sweep and everything
+  after the vehicles section) while totalTicks kept counting. THE FIX:
+  the vehicle adapter's blockIdAt answers AIR for the out-of-bounds y
+  band (World.getBlockState's contains law, 1:1 — the adapter's own
+  collision surface and probe already carried the band; the mow's
+  consult was the one miss). The ring RETIRED with the pass. LANES:
+  the bukkit module GREEN WHOLE (the furnace pair's smelt await green
+  — the residual closed), the vehicle lane 125 green.
+- The architecture's record appended + the NEXT WORK re-pinned (the
+  verifier's PRs, the CI watch on the first runs carrying the repairs,
+  THE VOID KILL ROW — Entity.tick's y<-64 voidTick over the vehicle
+  family, the census's next pick); the README refreshed (badge 3,836).
 
-SESSION COMMITS (all as Abasing): f21dc5ae + ea35a50b + f2e1619a +
-c6596c21 (the diagnostic's retirement) + the docs commit (this push).
+SESSION COMMITS (all as Abasing): 5d2bf909 + 017d87b0 + the docs commit
+(follows).
 
-AT CLOSE: pushing the docs; the next runs carry the gradle hardening +
-the JC2 wave whole; the flank-tail (b) pass (the stand-down/steal
-interleave + the (a) seat it unblocks) and the furnace-bridge residual
-the next picks; the verifier's PR when it opens.
+AT CLOSE: pushing; the CI watch passes to the next session with the
+first runs carrying all three repairs; the void kill row and the
+census's next family pick the next picks; the verifier's PRs when they
+open.
 
 ---
 Task ID: 2026-11-08 session (ninth run)
 Agent: main (ZaminTorch session)
-Task: The CI watch closed green + the pearl seat's repeat CI red
-root-caused whole + the void kill row resolved as a whole-family
-census (the prior session's 5d2bf909/017d87b0 records live in the
-architecture file; this entry covers the run after 621075c6).
+Task: The CI watch + the pearl seat's repeat CI red + the void kill row
+(the re-pin's first three rows) + the census second slice.
 
 Work Log:
-- Read the worklog, synced develop (621075c6 clean), checked the PRs:
-  0 open (the verifier's branch still carries no PR — left alone per
-  the standing instruction).
-- THE CI WATCH (the re-pin's first row): read runs #694/#695's
-  artifacts from the API — #696 (the first run carrying all three
-  repairs + the furnace fix) came back GREEN WHOLE, 22m31s,
-  torch-1.8.8-159 PUBLISHED. #695's four reds all one-run flakes
-  (green in #696); the furnace pair green since its fix. ONE REPEAT
-  OFFENDER: HungerExhaustionParityTest.thePearlTeleportPaysNoPhantomJump
-  — red #693 AND #695 with BYTE-IDENTICAL forensics (exhaustion=0.3
-  y=6.62 ticks=12).
-- THE PEARL SEAT ROOT-CAUSED WHOLE: the 0.3 is a damage-taken charge
-  and y=6.62 is the pearl's block-arm teleport target (the pre-move
-  origin = eye height). The pearl's 5% ENDERMITE PASSENGER spawns
-  directly beneath the hovering teleport landing, and the reference's
-  endermite HUNTS PLAYERS (MeleeAttackGoal(PlayerEntity.class) over
-  ActiveTargetGoal) — vanilla's melee reach (d0 = 2.2 against the
-  box minY) covers the 1.62 gap, the bite lands inside the seat's
-  window, the melee path charges the legitimate 0.3. THE ENGINE IS
-  1:1; the SEAT left the 5% roll uncontrolled. FIXED AT THE
-  REFERENCE'S OWN GATE (doMobSpawning off — the roll's own consult,
-  EnderPearlEntity.onCollision line 52). VERIFIED BOTH WAYS: the
-  forced-roll diagnostic (chance temporarily 1.0) reproduced the CI
-  red byte-identical, and the fixed seat ran green under the same
-  forced roll; 25/25 green at the true 5%. Class 18/0.
-- THE VOID KILL ROW RESOLVED AS A CENSUS: the row's premise (the boat
-  "falls forever") was the prior session's unverified inference — the
-  vehicle kill ALREADY STANDS (Slice 21a), LIVE-VERIFIED in both
-  shapes (the carved column: GONE at tick 115; the bukkit harness's
-  exact ungenerated-chunk spawn (85,40,85): GONE at tick 154), and
-  already seated. The census over EVERY family found all 1:1 (items,
-  orbs, projectiles, armor stands, mobs 4.0/tick, players 4.0/tick
-  with the creative pierce, TNT/crystals/decorations with NO consult
-  per the reference's own tick shapes) EXCEPT TWO REAL GAPS:
-  (1) the falling block's BOTH drop arms (the occupied landing AND
-  the lifetime/void timeout) missed the doEntityDrops gate
-  (reference FallingBlockEntity.tick lines 123 + 129) — FIXED: a new
-  entityDropsRule supplier wired to the live gameRules (the pre-gate
-  constructor retained for the rigs), both arms gated, the dropping
-  flag's true default kept 1:1 (the engine's falling bodies are
-  transient, the DropItem NBT row unreachable by construction);
-  (2) the fishing bobber never consulted the kill plane (the
-  reference's FishingBobberEntity.tick line 173 runs super.tick() →
-  Entity.tick line 342 removes it) — FIXED: the consult at tickOne's
-  head, the base voidTick's plain remove shape.
-- SEATS: FallingDropRuleParityDiscoveryTest 3 NEW + FishingSystemTest
-  +1 — the three law seats RED-verified on the no-op patches (the
-  ungated drops x2, the missing consult), the control green both
-  ways. LANES: the falling-block family whole (6 classes), the anvil
-  family, the fishing package, the block package, the vehicle
-  package, the hunger/item/mob void seats, the bukkit module, the
-  entity package (one first-run red — the enderman-hunt seat under
-  the full parallel load, the documented flake family, green isolated
-  x4) — all green.
-- The architecture's record appended + the NEXT WORK re-pinned (the
-  verifier's PRs, the census's next family pick, the panic/hunt
-  flake watch, the pearl-endtermite hunt seat, the CI watch on the
-  runs carrying today's seats); the README refreshed (badge 3,840).
+- Synced develop (621075c6 clean), 0 open PRs (the verifier's branch
+  still carries no PR — left alone per the standing instruction).
+- THE CI WATCH: #696 GREEN WHOLE (the first run carrying all three
+  repairs + the furnace fix), torch-1.8.8-159 published. Read #694/
+  #695's artifacts: #695's four reds all one-run flakes; ONE REPEAT
+  OFFENDER — HungerExhaustionParityTest.thePearlTeleportPaysNoPhantom
+  Jump, red #693 AND #695 with byte-identical forensics
+  (exhaustion=0.3 y=6.62 ticks=12).
+- THE PEARL SEAT ROOT-CAUSED WHOLE: the 0.3 is the endermite
+  passenger's LEGITIMATE damage-taken charge — the pearl's 5% roll
+  (EnderPearlEntity.onCollision line 52) spawns the endermite directly
+  beneath the hovering teleport landing (the block arm's from = the
+  eye height), and the reference's endermite HUNTS PLAYERS
+  (MeleeAttackGoal(PlayerEntity.class), the reach consult covering the
+  1.62 gap) — the engine 1:1 at every arm; the SEAT left the 5%
+  variable uncontrolled. FIXED at the reference's own gate
+  (doMobSpawning off). Verified both ways: the forced-roll diagnostic
+  (chance temporarily 1.0) reproduced the CI red byte-identical; the
+  fixed seat green under the forced roll; 25/25 at the true 5%.
+- THE VOID KILL ROW resolved as a WHOLE-FAMILY CENSUS: the row's
+  vehicle premise was the prior session's unverified inference (the
+  kill already stands — live-verified in both a carved column (GONE
+  tick 115) and the bukkit harness's ungenerated-chunk spawn (85,40,85
+  — GONE tick 154), already seated). The census over EVERY family
+  found all 1:1 except TWO GAPS, both FIXED: (1) the falling block's
+  both drop arms (FallingBlockEntity.tick lines 123 + 129) now gate on
+  doEntityDrops (a new entityDropsRule supplier wired to the live
+  gameRules; the pre-gate constructor retained for the rigs); (2) the
+  fishing bobber (the reference's one thrown-family body whose walk
+  runs the base tick — super.tick() → Entity.tick line 342) now
+  consults the kill plane at tickOne's head. Seats:
+  FallingDropRuleParityDiscoveryTest 3 NEW + FishingSystemTest +1, the
+  three law seats RED-verified on the no-op patches.
+- LANES: the falling-block family (6 classes), the anvil family, the
+  fishing/block packages, the vehicle package, the hunger/item/mob
+  void seats, the bukkit module, the entity package (the enderman-hunt
+  seat's documented single-JVM load flake alone, green isolated x4) —
+  all green. LANDED + PUSHED 75c8d1c8 (the CI's version-sync commit
+  0a27b51a landed on top — torch-1.8.8-160/161 published by the runs).
+- SECOND SLICE — THE DAMAGE-SOURCE EXHAUSTION CENSUS + THE
+  PEARL-ENDERMITE HUNT SEAT: the exhaustion law read whole
+  (DamageSource: 0.3F default, TWO zeroing setters; the creative gate
+  = !isOutOfWorld alone — the void the only pierce). The audit over
+  every engine damage site found THREE GAPS, all FIXED: the guardian's
+  spike reflect (DamageSource.thorns is a PLAIN EntityDamageSource —
+  setThorns + isMagic neither zeroes) now rides the attacker's armor +
+  enchant ladder, charges the ordinary 0.3, refuses the invulnerable
+  body; the potion-effect family (poison/wither/harming) and the
+  guardian beam's magic half stop piercing the creative gate. The hunt
+  seat: the passenger at the pre-teleport feet, the thrower hovered
+  through the sink's own carry sequence (applyMovement +
+  resetBodyDelta — the phantom-jump-free form), the bite's exact 0.3
+  read at the first polled health drop. Seats: the census class 2 NEW
+  + the hunt class 1 NEW, all RED on the no-op patches. LANES: the
+  guardian family, the crit/witch/potion lanes, the bukkit module, the
+  entity package (the wolf-collar seat's documented flake, green
+  isolated x3) — all green. LANDED + PUSHED 118ffc3f.
+- The architecture's records + the NEXT WORK re-pin (both slices); the
+  README refreshed twice (badge 3,843); the repo WORKLOG appended.
 
-AT CLOSE: pushing the wave; the next runs carry the pearl fix + the
-void census; the census's next family pick and the pearl-endtermite
-hunt seat the next picks.
+Stage Summary:
+- THREE waves this session: the pearl seat fix + the void census
+  (75c8d1c8), the exhaustion census + the hunt seat (118ffc3f) — both
+  pushed as Abasing, zero uncommitted.
+- Runs #697/#698 in flight carrying the seats (the CI watch row).
+- The flake family grew: the panic seat, the enderman-hunt seat, the
+  wolf-collar seat (all green isolated, one red under the full
+  parallel entity load — the census row documents each).
+- Next picks per the re-pin: the census's next family pick, the
+  verifier's PR when it opens, the flake watch.
 
 ---
-Task ID: 2026-11-08 session (ninth run, second slice)
+Task ID: 2026-11-09 session (tenth run)
 Agent: main (ZaminTorch session)
-Task: The damage-source exhaustion census (the family pick) + the
-pearl-endtermite hunt seat (the row the CI forensics armed).
+Task: The CI watch close (runs #697/#698) + the census's next family
+pick — THE PROJECTILEATTACKGOAL FAMILY CENSUS.
 
 Work Log:
-- THE EXHAUSTION LAW read whole from the reference (DamageSource lines
-  29-137): the field defaults 0.3F, EXACTLY TWO setters zero it
-  (setBypassesArmor / setUnblockable), and the creative gate reads
-  abilities.invulnerable && !source.isOutOfWorld() — the VOID ALONE
-  pierces (PlayerEntity.takeDamage line 773).
-- THE AUDIT over every engine damage site: the ordinary families whole
-  (in-fire/lava/cactus/lightning/melee/projectile/explosion/anvil/
-  dragon 0.3; on-fire/suffocation/fall/drown/starve/void/magic/wither
-  0.0) and THREE GAPS FIXED: (1) the guardian's spike reflect — the
-  THORNS source (setThorns + isMagic, neither zeroes) is a PLAIN
-  EntityDamageSource: the wound now rides the attacker's armor +
-  enchantment ladder, charges the ordinary 0.3, and the creative
-  refusal stands (the pre-fix site charged 0.0 with the pierce on and
-  no envelope); (2) the potion-effect family's hurt arm (poison,
-  wither, the harming potion) — bypass=true retired, the creative gate
-  stands; (3) the guardian beam's magic half — the same gate fix.
-- THE PEARL-ENDERMITE HUNT SEAT landed (the companion law): the
-  passenger at the thrower's pre-teleport feet (the sink's own spawn
-  surface, the 5% roll controlled away), the thrower hovered through
-  the SINK'S OWN carry sequence (applyMovement + resetBodyDelta — the
-  first cut's applyMovement-alone charged the 0.2 phantom jump the
-  sink itself prevents, caught by the diagnostics), the hunt locks +
-  bites the hovering body, the exact 0.3 melee charge read at the
-  first polled health drop (the 20-tick swing cooldown holds the
-  second bite away). RED on the hostility no-op.
-- SEATS: DamageSourceExhaustionCensusParityDiscoveryTest 2 NEW +
-  PearlEndermiteHuntParityDiscoveryTest 1 NEW — all three RED on the
-  no-op patches, all green on the landed laws.
-- LANES: the guardian family, the crit lane, the witch lane, the
-  potion package, the hunger/item/mob seats, the bukkit module, the
-  entity package whole (the wolf-collar seat's one first-run red
-  under the full parallel load — the documented flake family, the
-  CI-#695 seat itself, green isolated x3) — all green.
-- The architecture's record appended + the NEXT WORK re-pinned; the
-  README refreshed (badge 3,843).
+- Synced develop (118ffc3f clean, 0 open PRs — the verifier's branch
+  still carries no PR, left alone per the standing instruction).
+- THE CI WATCH CLOSED: #698 GREEN WHOLE (the first run carrying the
+  exhaustion census + the pearl-endermite hunt seat, torch-1.8.8-161
+  published). #697's TWO REDS classified: DonkeyChest's open-window
+  timeout (the retry-allowlisted environmental row) + RiderSpareFall
+  ParityTest.theSeatedPlayerPaysTheDelegatedFall (line 362 — the
+  delegated-fall wound assertion; one red under the two-JVM parallel
+  load, GREEN ISOLATED x3 on the current tree + green in #698 whole —
+  joins the documented flake family: panic, enderman-hunt,
+  wolf-collar).
+- THE CENSUS'S NEXT FAMILY PICK — THE PROJECTILEATTACKGOAL FAMILY (the
+  goal's own law + every carrier): the reference's goal read whole
+  (lines 20-93) — the cadence counter's own walk
+  (--ticksUntilNextAttack == 0 → the loose only in-range on a visible
+  tick, the re-arm floor(f * (max - min) + min) with f the UNCLAMPED
+  distance ratio, the refused loose leaving the counter at zero for
+  the next tick's < 0 arm, the goal's start arming the first-shot
+  window WITHOUT loosing), the stand band (in-range AND twenty
+  consecutive seen ticks → the navigation stop — NO retreat band), the
+  distance to the target's FEET. THE RETIRED ENGINE FORM (the flat
+  60 + nextInt(20) cadence, the 6/12 retreat bands, the immediate
+  first shot) never the reference's shape — FIXED. Per-kind triples:
+  the skeleton's 20/60/15 (a 10-block target arms 46, a standing
+  9.316 separation re-arms 44), the witch's flat 60 over 10.
+- THE SKELETON'S LOOSE (doRangedAttack lines 252-271 over ArrowEntity's
+  ctor lines 56-78): the spawn seat (the eye band − 0.1 pushed one
+  block toward the target, the aim at feet + height/3 — the height
+  threaded through the mind per target kind — with the 0.2 ×
+  horizontal gravity compensation), the 1.6 speed (was 1.8), the
+  DIFFICULTY-SCALED DIVERGENCE 14 − 4×difficultyId, the
+  DISTANCE-SCALED DAMAGE FIELD (charge × 2 + gaussian × 0.25 +
+  difficulty × 0.11 — a new damageOverride field on the projectile,
+  NaN keeping the player bow's 2.0 base whole), the bow sound's pitch
+  jitter, NO swing broadcast (the reference swings nothing). The
+  POWER/PUNCH/FLAME riders NOT-REACHABLE (no equipment-enchant store —
+  the row stands for that family).
+- THE WITCH'S THROW TAILS: the aim reads the TARGET'S OWN EYE HEIGHT
+  (was the hardcoded player 1.62), the VELOCITY LEAD (target.x +
+  velocityX — the player's impulse-only motion fields matching the
+  reference's server-side semantics, the mob target's live
+  integration), the MOB-TARGET resolution (the revenge-on-golem throw
+  reads the golem's own eye band, health, and effects).
+- THE WITCH'S DRINK-LADDER DUPLICATION (the vanilla source's own
+  quirk — the SAME speed arm TWICE, two independent 25% draws → 43.75%
+  of eligible ticks): the engine carried it once — FIXED to the
+  duplication. THE DRINKING SPEED PENALTY'S OWN FORM: operation ZERO,
+  ADDITIVE −0.25 over the 0.25 base → EXACTLY ZERO (the drinking witch
+  stands still whole; the walkSpeed consult answers 0.0 through the
+  33-tick window).
+- SEATS: ProjectileAttackGoalParityDiscoveryTest 8 NEW (the first-shot
+  arm + the distance-scaled cadence 47/91/135; the stand band's
+  no-retreat; the refused loose's re-arm; the witch's flat cadence +
+  her own ten-block range; the DUPLICATED arm's scripted chain; the
+  drinking stop; the arrow's distance-scaled damage) — the four law
+  families RED-verified on their own no-op patches in turn (the flat
+  cadence: 4 red; the witch's range: 1; the duplicated arm: 1; the
+  drinking stop: 1; the damage override: 1), 8/8 GREEN on the landed
+  laws. The ranged-on-mob seat in CombatTargetTailsTest re-pinned to
+  the reference's cadence. LANES: the entity package whole (the
+  enderman-hunt + panic seats' documented single-JVM load flakes
+  alone, green isolated + on re-run), the projectile package, the
+  bukkit module — all green.
+- The architecture's record (WAVE PA) + the NEXT WORK re-pin (the
+  verifier's PRs, the census's next family pick, the flake watch with
+  RiderSpareFall joined, the #697 window closed, the projectile
+  census's standing tails); the README refreshed (badge 3,851).
 
-AT CLOSE: pushing the slice; the census's next family pick and the
-flake-family watch the next picks; the verifier's PR when it opens.
+Stage Summary:
+- ONE census wave this session: the ProjectileAttackGoal family
+  (the goal law + the skeleton's loose + the witch's throw tails +
+  the drink-ladder duplication + the drinking stop), all RED-verified,
+  lanes green.
+- The CI watch closed (#698 green whole; #697's reds both classified
+  environmental).
+- Next picks per the re-pin: the census's next family, the verifier's
+  PRs when they open, the flake watch.
+- SECOND SLICE — THE WITCH'S SPEED-CLASS ALIGNMENT (the census's own
+  closing tail): WitchEntity.initAttributes line 83 + SkeletonEntity
+  line 66 register the SAME 0.25 MOVEMENT_SPEED base, both walking
+  their ProjectileAttackGoal approach at the goal's own 1.0 — the
+  witch's engine walkSpeed aligned to the skeleton's calibrated 0.038
+  (the retired 0.03 walked her 21% slower than her twin: 0.684 vs
+  0.540 over the nineteen pre-stand approach ticks). SEAT +1 (the
+  twins-cover-the-same-ground law), RED on the no-op patch, GREEN on
+  the alignment; the discovery class 9/9, WitchEntityTest +
+  MobEntityTest green whole. LANDED + PUSHED c23d9ef6 (rebased over
+  b001cbf6 — run #699's own torch-1.8.8-162 version stamp, the run
+  itself still in flight carrying the census whole; #700 queued
+  behind it carrying the alignment).
 
-## 2026-11-09 — The ProjectileAttackGoal family census + the #697 CI-watch close
-
-- THE CI WATCH: #698 GREEN WHOLE (torch-1.8.8-161); #697's two reds
-  classified environmental (DonkeyChest's retry-allowlisted
-  open-window timeout + RiderSpareFall's parallel-load flake — the
-  latter green isolated x3 on the current tree, joining the
-  documented flake family).
-- WAVE PA — THE PROJECTILEATTACKGOAL FAMILY CENSUS (commit 50cdede8):
-  the goal's own law whole over every carrier — the distance-scaled
-  cadence floor(f*(max−min)+min) (the skeleton's 20/60/15 triple: the
-  looses at ticks 47/91/135 in the discovery rig; the witch's flat 60
-  over 10), the twenty-seen-ticks stand band with NO retreat (the
-  retired 6/12 bands an invention), the first-shot arming window
-  (never an immediate loose), the refused loose's re-arm whole. The
-  skeleton's loose: the ArrowEntity-ctor form (the eye band − 0.1
-  pushed one block toward the target, the feet + height/3 aim with
-  the 0.2×horizontal gravity compensation, the 1.6 speed with the
-  14 − 4×difficulty divergence, the distance-scaled damage field
-  charge×2 + N(0,0.25) + 0.11×difficulty through a new damageOverride
-  on the projectile — the player bow's 2.0 base untouched at NaN, the
-  bow sound's pitch jitter, NO swing broadcast). The witch's throw
-  tails: the target's OWN eye-height aim (the mob-target arms read
-  the golem's eye band), the velocity lead (target.x + velocityX, the
-  player's impulse-only motion matching the reference's server-side
-  semantics), the mob-target resolution. The drink ladder's own
-  DUPLICATED speed arm (the vanilla source's quirk — two independent
-  25% draws, 43.75% of eligible ticks) and the drinking speed
-  penalty's true form (operation ZERO, ADDITIVE −0.25 over the 0.25
-  base → EXACTLY ZERO — the drinking witch stands still whole).
-  POWER/PUNCH/FLAME riders NOT-REACHABLE (no equipment-enchant store).
-- SEATS: ProjectileAttackGoalParityDiscoveryTest 8 NEW + the
-  speed-class twin (+1, commit c23d9ef6: the witch's walkSpeed aligned
-  to the skeleton's 0.038 — the same 0.25 vanilla base, the retired
-  0.03 walked her 21% slower) — every law family RED-verified on its
-  own no-op patch; the ranged-on-mob seat in CombatTargetTailsTest
-  re-pinned to the reference's cadence.
-- LANES: the entity package 813 green (the enderman-hunt + panic
-  documented flakes alone, green isolated + re-run), the projectile
-  package, the bukkit module 52 green, the ranged/splash/knockback
-  spot batch green (the BedPair + ThornsMobVictim one-run load flakes
-  green isolated).
-- AT CLOSE: develop = b5e53ae1 pushed; run #699 in flight carrying
-  the census (the torch-1.8.8-162 stamp landed), #700 queued behind
-  it carrying the alignment; the next picks: the census's next family,
-  the verifier's PRs when they open, the flake watch.
+AT CLOSE: develop = c23d9ef6 pushed clean; run #699 in flight (the
+census, 50cdede8) + #700 queued (the alignment); the CI watch passes
+to the next session with both; the pin's open rows: the census's next
+family pick, the verifier's PRs when they open, the flake watch (the
+documented family + RiderSpareFall joined this session).
 
 ---
-Task ID: 2026-11-10 session (fourteenth run)
+Task ID: 2026-11-09 session (eleventh run)
+Agent: main (ZaminTorch session)
+Task: The owner-report batch — the nine reported bugs read whole: the
+six fixed by the prior session's M1/C1/C2/I1 waves verified standing;
+the vehicle pair + the ore row closed here (WAVES VR + OV).
+
+Work Log:
+- Synced develop (c48bed36 clean, 0 open PRs — the verifier's branch
+  still carries no PR, left alone per the standing instruction).
+- WAVE VR — THE NEGATIVE-COORDINATE RIDE WIRE: the prior session's
+  diagnostic test (found uncommitted) ran clean and exposed the rider
+  receiving ZERO vehicle-move packets over a 4-second steered ride while
+  the cart traveled 6.6 blocks server-side. Instrumented the tick (the
+  fixedPoint compare never fired) and the writers (the stack traces
+  proved the moves ran inside the compare window) — the ROOT CAUSE:
+  fixedPoint packed (x<<42)|(y<<21)|z WITHOUT lane masks; a NEGATIVE z
+  (0xFFFF...DE70) ORs ones across every lane, so same-z-cell positions
+  collapse onto one key — onVehicleMoved NEVER fired south/west of
+  origin. The owner's whole world is negative-coords; every existing
+  rig tests near spawn. Lanes masked (22/21/21 bits).
+  THE RIDING WIRE read whole from the reference (handlePlayerMove's
+  riding arm + startRiding + TrackedEntity): exactly ONE mount-anchor
+  S08 (added to the mount listener), NO per-move rider resyncs (the
+  retired arm fought the client's vehicle interpolation 20×/s — the
+  'sitting is glitchy'), the seated rider's LOOK lands at the seat
+  (the retired whole-packet discard dropped it — the cart's steer read
+  the STALE mount yaw), the flags byte corrected (SPRINTING=0x08,
+  USING-ITEM=0x10, the phantom RIDING bit retired — 1.8.8 never sets
+  bit 2), the remount wire de-doubled (the seat anchors before the
+  listeners so the ONE mount anchor carries the seat; the mob-seat arm
+  keeps its walk-carried anchor — a stationary mount never fires the
+  move-borne one). SEATS: VehicleNegativeCoordinateRideParityTest 3 NEW
+  (negative-coords move broadcast; one mount anchor + zero per-move
+  resyncs over a steered ride; the look lands at the seat), all RED on
+  the pre-fix engine. LANES: vehicle suites, RelogRemountAcceptanceTest
+  (re-pinned), MovementGuardTest, RiderSpareFall, the core vehicle
+  package — green. LANDED 9e3a826e, PUSHED.
+- WAVE OV — THE ORE-VEIN CENSUS: the generator's own header confesses
+  'the noise core is our own'; the ore half of the world-gen complaint
+  closed first (the most tractable 1:1 surface). VeinFeature ported
+  verbatim (the WorldGenMinable ellipsoid chain, the +8 centering
+  quirk, the stone-only replaceable gate), placed at the DECORATE HEAD
+  by the linear walker (lapis triangular) with the default table whole
+  — the stone family (dirt/gravel 0-256, diorite/granite/andesite
+  0-80, NEVER generated before) + the ore ladder (coal 20/17 0-128,
+  iron 20/9 0-64, gold 2/9 0-32, redstone 8/8 0-16, diamond 1/8 0-16,
+  lapis 1/7). The retired per-cell hash ladder measured IRON 35x COAL
+  (55,690 vs 1,576 over a 7x7 field). The stone family registered
+  whole: wire mappings (packedStateId 17/49/81), light/behavior/blast/
+  map-color tables. SEATS: OreVeinParityTest 5 NEW, RED 3/5 pre-fix.
+  LANES: world + block + map packages whole — green. LANDED a3e4d460,
+  PUSHED.
+- The architecture's records (the VR + OV waves + the next-work re-pin:
+  THE VANILLA TERRAIN NOISE CORE as the head — the full
+  OverworldChunkGenerator port read whole from the reference sources in
+  hand); the README refreshed (badge 3,860 + the latest-landing note).
+
+Stage Summary:
+- TWO waves this session: VR (9e3a826e) + OV (a3e4d460), both pushed as
+  Abasing.
+- The owner's nine reported bugs: SIX verified standing from the prior
+  session (movement M1, chat console C1, commands C2, creative/
+  crafting I1), THREE closed here (the minecart render/ride pair VR,
+  the ore veins OV).
+- The remaining world-gen complaint (terrain shape, biomes, structures)
+  pinned as the next session's head: the vanilla noise-core port —
+  the reference sources are all in hand and read.
+
+---
+Task ID: 2026-11-09 session (twelfth run)
+Agent: main (ZaminTorch session)
+Task: The architecture's named head — THE VANILLA TERRAIN NOISE CORE (the
+owner's world-gen complaint's root) + its named follow-up lane THE CARVER
+PAIR (WAVES TN + CV).
+
+Work Log:
+- Synced develop (2af08a5a clean, 0 open PRs — the verifier's branch still
+  carries no PR, left alone per the standing instruction). Re-read
+  Torch-Arcetecture.txt fresh: the NEXT WORK head named the terrain noise
+  core whole (the OverworldChunkGenerator port, the noise family, the
+  depth consult) with the carver pair as the follow-up lane.
+- WAVE TN — THE DENSITY STACK (OverworldDensityCore, ~430 lines): the
+  reference's OverworldChunkGenerator lines 63-153 + 216-323 verbatim —
+  the seven-noise construction stream (the order IS the seed law:
+  16/16/8/4/10/16/8, the never-consulted scale/forest noises still
+  consuming), the default options table, the 5x5 biome kernel with the
+  biomeWeights ladder and the higher-neighbor falloff, the depth noise's
+  folded d7 walk, the 33-step density walk (the clampedLerp between the
+  two limit noises, the l1>29 fade), and the trilinear fill with the
+  reference's own repeated-add ladder. THE LAYOUTS derived from the
+  tree's own loops (three conventions ride in one generator: the Perlin
+  octave buffers z-fastest, the heightMap x*165+z*33+y, the simplex
+  depth buffer x-fastest — the [j + i*16] surface consult reads the
+  CHUNK-LOCAL MIRRORED cell, the reference's own quirk kept verbatim).
+  The column probe (columnTop) reproduces the fill's accumulation
+  bit-identically (the 33-step coarse scan with the convex-combination
+  skip + the sub-cell refine). The surface pass restructured to the
+  reference's stateful column walk with the chunk random (the k roll,
+  the nextInt(5) bedrock band, the sandstone extension); the mesa's own
+  walk + the Bryce pillar air-fill whole. The depth consult rewired to
+  the shared perlinNoise3 (SimplexNoise.add + PerlinSimplexNoise
+  .getRegion ported); the sea level 63 (the reference World.java line
+  62 — the retired 62 named the top water cell). The retired column
+  model's helpers (fbm2/fbm3/valueNoise/lattice/hash) gone.
+  BUGS CAUGHT IN-SESSION: the columnTop y=32 round read base+33 out of
+  bounds at the edge columns (the ctor's spawn scan hit it on some
+  seeds — fixed to start at yStep 31); the mirror seat's first form
+  used the GLOBAL x/z swap (the fill's mirror is chunk-local — the seat
+  census found 2,576 boundary columns at the chunk-local law); the
+  probe's per-cell consult consulted the un-mirrored biome/depth (the
+  probe now mirrors so it answers what the fill placed).
+  SEATS: TerrainNoiseCoreParityTest 8 NEW, the RED trio (the overhang
+  over the hills kernel — the density field inverts where the vertical
+  wiggle beats the line's slope, exactly the vanilla law; the bedrock
+  roll band; the mirrored consult) verified on their no-op patches.
+  LANES: the whole world package tree; GenLayerLayout's band/skins
+  seats re-pinned to the density law (the kernel's river dilution — the
+  channel percentile, not the single-cell band; the band MEDIANS over
+  the lerp wobble; the mirrored skin selection; the heightAt cost moved
+  inside the wanted-biome checks — the probe is ~40x the retired hash).
+  LANDED 0dc1e4d2, PUSHED.
+- WAVE CV — THE CARVER PAIR (world/carver/CaveCarver + RavineCarver,
+  ~490 lines): the reference's carvers verbatim over the CarverChunk
+  seam — the 17x17 region walk (the l*j ^ i1*k ^ worldSeed seeds, the
+  caves crossing chunk borders), the count ladder, the room form, the
+  tunnel walk whole (the ReferenceMath table-quantized sin/cos — the
+  table's quantization IS the vanilla cave shape; THE SPLIT; the spiral
+  early-out; THE WATER SUPPRESSION; the ellipsoid with the d9 > -0.7
+  floor guard; the canReplace family; THE LAVA FLOOR below 10; THE
+  SANDSTONE CEILING FIX; THE GRASS/MYCELIUM FLOOR FIX), and the ravine
+  (the 1-in-50 roll, the pinched-waist profile buffer per call — the
+  parallel-gen discipline, the carve test, the FLOWING lava floor). The
+  carvers run AFTER the surface pass (the reference's getChunk order);
+  the heights now read the CARVED chunk (the topmost movement-blocking
+  cell, water through, leaves excluded — the reference's
+  getSurfaceHeight) — the animals/decorations place on the actual
+  world. The isCave stand-in and the value-noise tail retired whole.
+  SEATS: CarverParityTest 6 NEW — the lava floor and the ravine trench
+  as UNIT seats over the synthetic all-stone chunk (the integration
+  field mixes the decorate pass's own lava lakes and the dungeons'
+  spawners — the unit form isolates the carver's law; both RED-verified
+  on their no-ops). LANES: the world package tree whole (the
+  mineshaft's spawner seat re-pinned: the dungeons land typed spawners
+  in the carved caves, the seat skips the dungeon-box cobblestone
+  signatures), the light package, the protocol's
+  WorldgenDeterminismRunTest. LANDED 293e2869, PUSHED.
+- The architecture's records (the TN + CV waves + the next-work re-pin:
+  THE STRUCTURE-PLACEMENT ALIGNMENTS as the head — the last standing
+  world-gen lane, the populate-shape contract's own alignment read);
+  the README refreshed (badge 3,876 + the latest-landing note).
+
+Stage Summary:
+- TWO waves this session: TN (0dc1e4d2) + CV (293e2869), both pushed as
+  Abasing.
+- The owner's world-gen complaint closed at the root: the terrain shape,
+  the surface law, the caves and the ravines all ride the reference's
+  own arithmetic; the sea level, the bedrock band, the mirrored surface
+  consults and the carver fixes (the lava floors, the sandstone
+  ceilings, the water suppression) are the reference's own laws.
+- Next picks per the re-pin: the structure-placement alignments (the
+  populate-shape contract vs the reference's dual placement), the
+  terrain-shape acceptance seats when the reference outputs arrive, the
+  verifier's PRs when they open, the flake-family watch.
+
+AT CLOSE: develop = 293e2869 + the records commit pushed clean; the
+pin's open rows: the structure-placement alignment lane, the
+verifier's PRs when they open, the flake-family watch (the panic seat,
+the enderman-hunt seat, the wolf-collar seat, RiderSpareFall).
+
+---
+Task ID: 2026-11-10 session (thirteenth run)
+Agent: main (ZaminTorch session)
+Task: The architecture's named head — THE STRUCTURE-PLACEMENT ALIGNMENTS
+(the last standing world-gen lane) + the root find the alignment's own
+fallout opened (WAVES SA + SA-2).
+
+Work Log:
+- Synced develop (2d57eea9 clean; the verifier's branch still carries no
+  PR — left alone per the standing instruction). Re-read
+  Torch-Arcetecture.txt fresh: the NEXT WORK head named the
+  structure-placement alignments whole.
+- WAVE SA — THE PLACEMENT GATES: audited every structure placement law
+  against the reference (Generator's region walk, StructureFeature's
+  burned draw, each structure's isFeatureChunk). The region walks, the
+  seed derivations, the pick rolls and the y re-bases are 1:1 whole —
+  the deviations were ALL stale Slice-12-era biome envelopes (the gates
+  hardcoded for the three-biome engine that no longer exists): the
+  stronghold's valid set (3 biomes -> the reference's whole
+  baseHeight > 0 land family over the 61-row table), the monument's
+  water window (2 -> 5 rows), the temple's scattered family (2 -> 5
+  biomes + the hills/swamp dispatch arms), the village's family (2 ->
+  3 with the savanna). THE WITCH HUT PORTED WHOLE (the arm ledgered
+  since Slice 12f against a swampland that has since landed): the
+  7x7x9 stilt hut verbatim + the witch's clip-gated seat + her whole
+  spawn machinery (PendingWitch + the drain with the idempotence
+  guard). The palette's witch-hut set (spruce planks/stairs, the
+  cauldron via the CauldronBlocks singleton — the same instance every
+  chain registers, no registry churn, the potted red mushroom).
+  SEATS: StructurePlacementAlignmentTest 10 NEW — 7 RED on the no-op
+  patches, 10 GREEN. LANDED 16d24530, PUSHED.
+- WAVE SA-2 — THE ROOT FIND: the SA gates changed the construction-time
+  consult order and the land/ocean coherence seat flipped — the
+  investigation (clean-build bisects across TN/CV/pre-SA, purity probes
+  over raw Layer chains, an IntCache identity audit, a prefix bisect,
+  a reflection cache dump) walked the false leads to ground (the
+  layers pure, the pool never aliasing) and found THE NEGATIVE-
+  COORDINATE CACHE COLLAPSE: the biome cache and the height-map cache
+  packed their chunk keys with the bare cast (long)(chunk) |
+  (long)(chunk << 32) — the int sign extension smeared ones across the
+  whole key, every negative-z chunk collapsing onto ONE key per x-band
+  (the first-cached chunk's array answering the entire band). THE
+  OWNER'S WORLD IS ALL NEGATIVE COORDS — the deepest root of the
+  'biomes, terrain, structures all sucks' report. One methodological
+  lesson caught mid-investigation: the RED-verification's
+  `git checkout --` wiped my uncommitted fix and sent an hour of
+  debugging against the still-live bug (the reflection dump exposed it
+  — the cache entry landing at the bare-cast key, not my masked one).
+  THE FIX: the masked packing on both keys (injective over the int
+  domain). THE HEAL: the whole consult surface now a pure function of
+  the seed (the purity seat: forward-vs-reverse consult orders answer
+  256/256 identical; the pre-fix engine differed on 96/256 biomes +
+  128/256 heights); the ocean coherence 99.98% (the smeared world
+  81.7%); BOTH standing world-tree reds healed (the coherence seat AND
+  the anvil vehicle-yaw seat — the imported carts read the corrupted
+  height cache). The coherence seat re-pinned to the true law (ocean
+  19/20, land 4/5 with the 5x5-kernel shore-dilution band documented —
+  the retired 9/10 pin was calibrated on the collapsed cache's fake
+  uniformity) + the purity seat added as the regression guard (RED on
+  the bare-cast no-op). LANES: the world package tree WHOLE (278
+  green — the first fully-green world tree since TN), the structure +
+  block + map + light packages whole (397), the protocol determinism
+  green. LANDED 9a6bc8af, PUSHED.
+- The architecture's records (the SA + SA-2 waves + the next-work
+  re-pin: the terrain-shape acceptance seats over the reference's own
+  seeded outputs as the remaining verification lane); the README
+  refreshed (badge 3,896 + the latest-landing note).
+
+Stage Summary:
+- TWO waves this session: SA (16d24530) + SA-2 (9a6bc8af), both pushed
+  as Abasing.
+- The owner's world-gen complaint closed at every layer now: the
+  terrain noise (TN), the carvers (CV), the ore veins (OV), the
+  structure placement gates + the witch hut (SA), and the negative-
+  coordinate biome/height smear (SA-2) — the last one the deepest root
+  for the owner's own all-negative-coordinates world.
+- The world package tree is fully green for the first time since the
+  TN wave landed.
+
+AT CLOSE: develop = 9a6bc8af + the records commit pushed clean; the
+pin's open rows: the terrain-shape acceptance seats (awaiting the
+verifier's reference outputs), the vanilla-grade census's next family
+pick, the verifier's PRs when they open, the flake-family watch.
+
+---
+Task ID: 2026-11-10 session (fourteenth run, continued)
 Agent: main (ZaminTorch session)
 Task: WAVE EK — the mob bodies' equipment-enchant consults (the census's
 next family pick, the standing enchant-store row retired).
 
 Work Log:
-- Synced develop (07999b88 clean; 0 open PRs — the verifier's lane still
-  empty). Re-read Torch-Arcetecture.txt fresh: the next-work named the
-  terrain-shape acceptance seats (blocked on the verifier's reference
-  outputs) + the census's next family pick.
-- THE PICK: the standing row "the POWER/PUNCH/FLAME riders — NOT-REACHABLE
-  until the equipment model carries an enchant store" — the store HAS
-  landed since (ItemStack's enchantments, the SlotNbt wire rows, the
-  EntityNbt round-trip, the five-slot equipment row) but NO mob-side
-  combat path consulted it. The root find: the armor envelope lived
-  inside MobEntity.hurt; the enchant halves, the effect gates and the
-  attacker-side riders never ran.
-- LANDED WAVE EK (fa7e4951): (1) the enchant + effect walk inside
-  MobManager.hurt (the Protection EPF fold over the five-slot row, the
-  Resistance halving, the bypass family threaded through MobEntity.hurt's
-  flag); (2) the fire-resistance refusal; (3) the melee enchant riders
-  at both the mob-vs-mob and mob-vs-player sites (modifyDamage, the
-  Knockback impulse + 60% recoil, the Fire Aspect ignite; the five
-  flat-override kinds excluded); (4) the player's own takeDamage shape
-  at the mob-melee site (the hurt window + THE MELEE KNOCKBACK — the
-  mob's swing never knocked the player back before); (5) the zombie's
-  burning ignite; (6) the skeleton's bow riders (POWER/PUNCH/FLAME + the
-  wither variant's own fire); (7) the attack-type consult keyed on the
-  held bow (updateAttackType's own law — the retired !skeletonWither
-  hardcode was a deviation); (8) the fall's Feather Falling fold;
-  (9) the blast impulse's Blast Protection shave; (10) the anvil import
-  table's stone trio (a pre-existing red the protocol lane caught,
-  root-caused from the OV wave — granite/diorite/andesite over wire 1).
-- BUGS CAUGHT IN-SESSION: the first cut's EPF roll consumed the
-  manager's seeded random stream (ChargedCreeperHeadDrop's pinned loot
-  rolls shifted) — healed with the dedicated enchantRolls stream (the
-  reference's STATIC EnchantmentHelper.RANDOM); the bare-constructed
-  skeleton rigs needed the spawn-state bow re-pin (the attack-type
-  consult's own consequence); a leaked stuck gradle worker burned 30
-  minutes of the entity lane before the kill (the pot-floor seat's
-  one red was its environmental shadow, green 2/2 after).
-- SEATS: EquipmentEnchantParityTest 14 NEW, 12 RED on the no-op patches
-  (six RED rounds run: the walk+gate trio, the rider quartet, the
-  player-site pair, the bow pair, the attack-type consult).
-- LANES: the entity tree whole (490), the enchantment + projectile +
-  potion packages, the explosion/lightning/nbt suites, the survival
-  quartet, the combat acceptance neighbors, the protocol module (258 —
-  the Anvil integrity re-pinned green).
-- The architecture's record + the README refreshed (badge 3,910 + the
-  latest-landing note).
+- Synced develop (07999b88 clean; 0 open PRs). Re-read the architecture
+  fresh: the next-work named the census's next family pick (the
+  terrain-shape seats blocked on the verifier's outputs).
+- THE PICK: the standing "enchant store on the equipment model" row —
+  the store landed long ago but no mob-side combat path consulted it.
+- LANDED WAVE EK (fa7e4951, pushed): the enchant + effect walk inside
+  MobManager.hurt (Protection EPF + Resistance + the bypass threading),
+  the fire-resistance refusal, the melee riders at both victim sites,
+  the player's takeDamage shape with THE MELEE KNOCKBACK, the zombie's
+  burning ignite, the skeleton's bow riders (POWER/PUNCH/FLAME + the
+  wither variant's own fire), the attack-type consult keyed on the held
+  bow, the fall's Feather Falling fold, the blast shave, the anvil
+  import table's stone trio (a pre-existing OV-wave red).
+- IN-SESSION CATCHES: the EPF roll's stream pollution (healed with the
+  dedicated enchantRolls — the reference's STATIC helper random), the
+  bare-skeleton rig re-pins, the leaked stuck worker.
+- SEATS: EquipmentEnchantParityTest 14 NEW, 12 RED on the no-ops.
+- LANES: the entity tree whole (490), enchantment/projectile/potion,
+  explosion/lightning/nbt, survival, combat acceptance, protocol (258).
+- Records + README (badge 3,910) landed at 969d1823.
+
+AT CLOSE: develop = 969d1823 pushed clean.
+
+---
+Task ID: 2026-11-10 session (fifteenth run)
+Agent: main (ZaminTorch session)
+Task: The owner's optimization directive — EK-2 finished, the CI red
+window closed (CR), the KigPaper optimization lanes opened (KO 1+2).
+
+Work Log:
+- Synced develop (969d1823 clean; 0 open PRs). Found the prior
+  session's uncommitted EK-2 WIP (the EngineServer half) — finished
+  it: MagicFamilyEnchantParityTest 3 NEW (the plain-diamond pierce
+  control, the Protection IV fold band [1.2, 3.6], the Resistance I
+  halving exactly 4.8 — RED 2/3 on the pre-fix engine), the lanes
+  green (Witch/Guardian/Milk/EnchantmentEffect/Thorns). LANDED
+  d295c291.
+- WAVE CR — THE CI RED WINDOW (the last five release runs red, the
+  "ci task is pending" row): two independent roots. (1) The OV wave's
+  stone family (granite/diorite/andesite) landed without the
+  root-batch census re-pins — BlockRegistry 957->960, BlastResistance
+  1302->1305, PistonPushability's PUSH family, and EngineStats' fold
+  (the trio counts on the STONE row — the 1.8.8 registry's metadata
+  band, StatList.initMineStats walks the Block). (2) Wave C1's
+  refusal split + the §c embedding left three seats on the pre-C1
+  pins — the RCON capture now strips the legacy codes at the sink
+  (the reference's Console appends getString(), BaseText lines 60-68
+  — the UNFORMATTED face; the player wire keeps the red), the
+  /give op-gate and the Bukkit /gamemode waits re-pinned to the
+  permission arm's own text. All seven reds green locally; the stat +
+  rcon packages whole. LANDED e2648b7f.
+- WAVES KO 1+2 — THE KIGPAPER OPTIMIZATION LANES (the owner's
+  directive; the 258 Spigot-Server-Patches read whole, the census
+  ledgered in the architecture): KO-A the per-chunk item census
+  (Paper 0089 ported engine-native — provably exact: the hopper suck
+  + the minecart scans skip their walks when the covered chunks hold
+  zero items; 3 seats, RED on the spawn-hook and re-key no-ops),
+  KO-B the explosion density cache (Paper 0050 — gated default OFF
+  like the patch's own config row, -Dtorch.optimize-explosions=true
+  arms it; the pure-memoization proof + the stacked-crystal liveness,
+  RED on the cache poison), KO-C the hopper tick's double copy,
+  KO-D Paper 0087's pathfinding failure throttle (gated default OFF;
+  2 seats over the counting world, RED on the gate no-op), THE
+  PREGEN-LIGHT GATE RETIRED (torch.parallel-pregen-light defaults ON
+  — the lane's evidence bar met on every row it named; the whole
+  world tree green over the armed default, 278). LANDED 51bdb1cc +
+  65738853.
+- The architecture's records: the EK-2/CR/KO wave records + the
+  NEXT-WORK re-pin + the full KigPaper 258-patch census (inherent /
+  config-surface / behavior-deviation / exact-algorithmic / heavy
+  remaining) + the Phase 5/7 status lines.
 
 Stage Summary:
-- ONE wave this session: EK (fa7e4951), pushed as Abasing.
-- The equipment-enchant family closed whole: every mob wound now rides
-  the reference's own applyDamage halves, every mob swing carries its
-  weapon's enchantments, and the player finally gets knocked back.
+- FOUR waves this session: EK-2 (d295c291) + CR (e2648b7f) + KO-1
+  (51bdb1cc) + KO-2 (65738853), all pushed as Abasing.
+- THE CI IS GREEN AGAIN (the repair commit's own run should confirm —
+  the seven deterministic reds all green locally with the lanes).
+- The optimization lanes are OPEN: two exact ports landed, two gated
+  Paper-shaped flags, the Phase-6 pregen-light lane armed by default.
+- Next picks per the census: the region-compression pair (0214/0215,
+  the heaviest unclaimed row), the tile-tick-interval config pair
+  (0022/0065), the terrain-shape seats (blocked on the verifier's
+  outputs), the vanilla-grade census's next family pick.
 
-AT CLOSE: develop = fa7e4951 pushed clean; the pin's open rows: the
-terrain-shape acceptance seats (awaiting the verifier's reference
-outputs), the census's next family pick, the verifier's PRs when they
-open, the flake-family watch (the enderman-hunt seat, the pot-floor
-shadow, DonkeyChest's window timeout).
+AT CLOSE: develop = 5eaf9f12 pushed clean. THE CI WATCH'S OWN READ:
+the CR repair WORKED (e2648b7f's run healed all seven census/refusal
+reds — its two remaining failures are the flake family: DonkeyChest
+the documented one, AttributeMelee green locally 1/0). THE STANDING
+FIND, bisected with the worktree evidence: CreativeMenuWireParityTest
+.theNegativeSlotDropsIntoTheWorld ("the creative drop spawned an item
+entity") fails DETERMINISTICALLY on this machine at 969d1823 — the
+PRE-EK-2 tree, BEFORE all four of this session's waves — and
+intermittently on CI (failed d295c291's + 51bdb1cc's runs, PASSED
+969d1823's + e2648b7f's): a pre-existing race in the creative-drop
+window the EK session's protocol lane (258 green on ITS machine) never
+caught. The flake watch: the panic, enderman-hunt, wolf-collar seats,
+RiderSpareFall, DonkeyChest + JOINED by this row — the next session's
+first pick is the root-cause (the drop arm's cooldown race or the
+item-list visibility), NOT a regression of this session's waves.
