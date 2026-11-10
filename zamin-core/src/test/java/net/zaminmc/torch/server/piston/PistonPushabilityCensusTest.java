@@ -273,7 +273,9 @@ class PistonPushabilityCensusTest {
         // not the material; the material-level answer is PUSH and that
         // arm is VT-019's own lane), and the end portal frames (STONE).
         if (value.equals("air")
-                || value.equals("stone") || value.startsWith("stone_brick")
+                || value.equals("stone") || value.equals("granite")
+                || value.equals("diorite") || value.equals("andesite")
+                || value.startsWith("stone_brick")
                 || value.startsWith("stone_slab") || value.startsWith("cobblestone")
                 || value.startsWith("mossy_cobblestone")
                 || value.equals("dirt") || value.equals("coarse_dirt")

@@ -29,10 +29,37 @@ public final class RconConsoleSender implements CommandSender {
         return "Rcon";
     }
 
-    /** The reference line 24-26: append, never newline-separated. */
+    /**
+     * The reference line 24-26: append, never newline-separated — and the
+     * capture reads the UNFORMATTED face ({@code message.getString()},
+     * BaseText lines 60-68: the concatenated {@code getContent()} alone,
+     * the style's color NEVER in the text). The engine's legacy-string
+     * model embeds the {@code §} codes the reference carries in the
+     * {@link net.zaminmc.torch.server.text.Style} instead, so the sink
+     * strips them here — the remote console's buffer answers the same
+     * plain text the reference's {@code getString()} would (the player
+     * wire keeps the red: that surface rides the formatted face).
+     */
     @Override
     public void sendMessage(String message) {
-        this.text.append(message);
+        this.text.append(stripLegacyFormatting(message));
+    }
+
+    /** The {@code getString()} law over the engine's legacy strings. */
+    private static String stripLegacyFormatting(String message) {
+        if (message.indexOf('§') < 0) {
+            return message;
+        }
+        StringBuilder out = new StringBuilder(message.length());
+        for (int i = 0; i < message.length(); i++) {
+            char c = message.charAt(i);
+            if (c == '§' && i + 1 < message.length()) {
+                i++; // skip the code char (the 0-9a-fk-or band)
+                continue;
+            }
+            out.append(c);
+        }
+        return out.toString();
     }
 
     /** The reference line 22: the remote console answers every permission gate. */

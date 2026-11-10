@@ -238,11 +238,13 @@ class GiveCommandAcceptanceTest {
 
     @Test
     void theOpLevelGate() throws Exception {
-        // Bob (level 0) is refused the op-2 verb — the same unknown-command
-        // refusal every gated verb answers, never a reveal.
+        // Bob (level 0) is refused the op-2 verb — the PERMISSION arm's
+        // own text (CommandRegistry.run lines 66-70, commands.generic
+        // .permission red — Wave C1's split; the retired merged refusal
+        // masqueraded as unknown).
         server.chatService().submitChat(bob, "/give Bob diamond 1");
         await(() -> bobLines.stream().anyMatch(
-                        l -> l.contains("Unknown command")),
+                        l -> l.contains("do not have permission")),
                 "the refusal line");
         assertTrue(bob.countOf(net.zaminmc.torch.server.item.BuiltinItems.DIAMOND) == 0,
                 "nothing granted");

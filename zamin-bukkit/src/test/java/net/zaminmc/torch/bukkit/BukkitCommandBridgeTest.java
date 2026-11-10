@@ -80,10 +80,13 @@ class BukkitCommandBridgeTest {
         assertEquals(dispatchedBefore, countOf(harness.probeLogLines(), "cmd:hello by=Peon"),
                 "the refused dispatch never reached the plugin's executor");
         // The engine's own operator gate is untouched: an op-2 engine
-        // command stays unknown to the non-op player (§30.3's refusal).
+        // command answers the PERMISSION arm's own text to the non-op
+        // player (CommandRegistry.run lines 66-70 — Wave C1's notFound/
+        // permission split; the registered verb never masquerades as
+        // unknown).
         harness.adapter.player(peon).chat("/gamemode");
         harness.await(() -> heard.stream().anyMatch(
-                line -> line.contains("Unknown command. Type \"/help\" for help.")),
+                line -> line.contains("do not have permission")),
                 "the engine's own operator gate refused the non-op player");
     }
 

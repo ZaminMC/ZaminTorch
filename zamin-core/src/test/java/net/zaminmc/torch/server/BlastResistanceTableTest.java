@@ -64,7 +64,7 @@ class BlastResistanceTableTest {
         }
         assertEquals("", missing.toString(),
                 "the fold must cover every registered identifier (missing:" + missing + ")");
-        assertEquals(1302, covered, "the FULL BOOT REGISTRY's census (F-EX3: 1302 = the 957 builtin rows + the boot families' 345 extra identifiers — cauldron/ender-chest/beacon/brewing/dispenser/hopper/piston/tripwire/redstone/daylight/fluids — every one resolving through the table, the fallback never answering for a registered block)");
+        assertEquals(1305, covered, "the FULL BOOT REGISTRY's census (F-EX3: 1305 = the 960 builtin rows (the OV wave's stone family: granite/diorite/andesite — every one resolving through the stone row's own blast value, the variants sharing the material) + the boot families' 345 extra identifiers — cauldron/ender-chest/beacon/brewing/dispenser/hopper/piston/tripwire/redstone/daylight/fluids — every one resolving through the table, the fallback never answering for a registered block)");
     }
 
     @Test

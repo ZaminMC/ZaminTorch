@@ -152,6 +152,15 @@ public final class EngineStats {
 
     private static Map<String, String> buildVanillaNames() {
         Map<String, String> names = new LinkedHashMap<>();
+        // The stone family: one registry id (1) with the VARIANT damage —
+        // granite/diorite/andesite are the engine's own rows (the vein
+        // law's whole blocks) but the 1.8.8 registry keeps them as
+        // stone's metadata band, so their mine stats count on the STONE
+        // row (StatList.initMineStats walks the Block, never the
+        // variants — the OV wave's registration read whole).
+        names.put("granite", "stone");
+        names.put("diorite", "stone");
+        names.put("andesite", "stone");
         // The planks: one registry id (5) with the wood damage.
         for (String wood : new String[] {"oak", "spruce", "birch", "jungle", "acacia", "dark_oak"}) {
             names.put(wood + "_planks", "planks");
@@ -372,6 +381,15 @@ public final class EngineStats {
 
     private static Map<String, String> buildBlockNames() {
         Map<String, String> names = new LinkedHashMap<>();
+        // The stone family: one registry id (1) with the VARIANT damage —
+        // granite/diorite/andesite are the engine's own rows (the vein
+        // law's whole blocks) but the 1.8.8 registry keeps them as
+        // stone's metadata band, so their mine stats count on the STONE
+        // row (StatList.initMineStats walks the Block, never the
+        // variants — the OV wave's registration read whole).
+        names.put("granite", "stone");
+        names.put("diorite", "stone");
+        names.put("andesite", "stone");
         // The planks: one registry id (5) with the wood damage.
         for (String wood : new String[] {"oak", "spruce", "birch", "jungle", "acacia", "dark_oak"}) {
             names.put(wood + "_planks", "planks");
