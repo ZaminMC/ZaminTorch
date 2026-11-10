@@ -41,6 +41,11 @@ public class MobNavigation {
     private boolean handedPath;
     private final PathFinder pathFinder;
     private final WalkNodeEvaluator nodeEvaluator;
+    /** WAVE KO-D — Paper 0087's failure ladder: the consecutive failed
+     *  findPath attempts and the tick the latest failure landed on (the
+     *  40-tick backoff window's anchor). */
+    private int pathfindFailures;
+    private int lastPathfindFailure;
 
     public MobNavigation(MobView mob, PathWorld world, float followRange) {
         this.mob = mob;
@@ -135,8 +140,32 @@ public class MobNavigation {
      * {@code findPath(new BlockPos(floor x, (int) y, floor z))}. */
     public boolean moveTo(double x, double y, double z, double speed) {
         this.handedPath = false; // an OWN write retires the rider's steer
+        // WAVE KO-D — PAPER 0087'S PATHFINDING FAILURE THROTTLE (gated,
+        // default OFF — a deliberate behavior deviation, exactly the
+        // patch's own shape): a goal that restarts its path every tick
+        // (the arrow-attack spam the patch was written for) backs off
+        // after ten consecutive failures — while no standing path is
+        // held and the last failure sits inside the 40-tick window the
+        // next findPath never even runs. Any success clears the ladder
+        // whole (the patch's own reset); stop() clears it too.
+        if (Boolean.getBoolean("torch.optimize-pathfinding")
+                && this.pathfindFailures > 10
+                && this.path == null
+                && this.ticks < this.lastPathfindFailure + 40) {
+            return false;
+        }
         Path path = this.findPath(Math.floor(x) + 0.5, (int) y + 0.5, Math.floor(z) + 0.5);
-        return this.moveAlongCore(path, speed);
+        boolean moved = this.moveAlongCore(path, speed);
+        if (Boolean.getBoolean("torch.optimize-pathfinding")) {
+            if (moved) {
+                this.pathfindFailures = 0;
+                this.lastPathfindFailure = 0;
+            } else {
+                this.pathfindFailures++;
+                this.lastPathfindFailure = this.ticks;
+            }
+        }
+        return moved;
     }
 
     public boolean moveAlong(Path path, double speed) {
@@ -331,6 +360,10 @@ public class MobNavigation {
         this.handedPath = false; // an OWN write retires the rider's steer
         this.path = null;
         this.hasTarget = false;
+        // WAVE KO-D: Paper 0087's own reset (the patch's n() clears the
+        // failure ladder with the path).
+        this.pathfindFailures = 0;
+        this.lastPathfindFailure = 0;
     }
 
     /** The vanilla temp pos: the body's X/Z and the feet-cell surface. */

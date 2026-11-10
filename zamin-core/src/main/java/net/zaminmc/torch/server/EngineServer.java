@@ -5141,15 +5141,26 @@ public final class EngineServer implements Server, EngineBridge {
         Position spawn = engineWorld.spawnPosition();
         var center = spawn.toBlockPosition().chunkPosition();
         int radius = config.viewDistance();
-        if (Boolean.getBoolean("torch.parallel-pregen-light")) {
+        if (Boolean.parseBoolean(
+                System.getProperty("torch.parallel-pregen-light", "true"))) {
             // THE LIGHTING BATCH LANE (§22's lighting batch shape, the same
-            // deliberate gating family as torch.parallel-region-ticks): the
-            // initial light computes ride the domain worker pool in waves —
-            // default OFF until the lane's own evidence retires the gate.
-            // The pool is local to the pregen (created and shut down here):
-            // the boot's own domainWorkerPool does not exist yet at this
-            // point of the sequence, and the lane's lifetime is exactly the
-            // batch's.
+            // deliberate gating family as torch.parallel-region-ticks) —
+            // THE GATE RETIRED 2026-11-10 (Wave KO batch 2): the lane's own
+            // evidence bar is met (the measured 1.4-1.6x wall-clock win at
+            // the production boot shape, pool startup included; the FLAT
+            // shape's cell-for-cell agreement with the sequential walk;
+            // the WORKED shape's residue measured and bracketed by the
+            // durable bounds; determinism proven run-over-run including
+            // relight first-marked order; the unloaded-border storm fixed
+            // at its root) and the owner's directive arms the proven
+            // lanes. The default is ON; the flag stays as the opt-OUT
+            // (-Dtorch.parallel-pregen-light=false restores the
+            // sequential walk).
+            // The initial light computes ride the domain worker pool in
+            // waves. The pool is local to the pregen (created and shut
+            // down here): the boot's own domainWorkerPool does not exist
+            // yet at this point of the sequence, and the lane's lifetime
+            // is exactly the batch's.
             var pool = new net.zaminmc.torch.server.concurrent.DomainWorkerPool();
             try {
                 net.zaminmc.torch.server.world.light.LightBatchPregen.pregenerate(
