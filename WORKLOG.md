@@ -4287,3 +4287,101 @@ the terrain-shape acceptance seats (awaiting the verifier's reference
 outputs), the vanilla-grade census's next family pick, the verifier's
 PRs, the flake-family watch (the panic seat re-confirmed documented
 today, the enderman-hunt seat, the wolf-collar seat, RiderSpareFall).
+---
+Task ID: 2026-11-12 session (eighteenth run)
+Agent: main (ZaminTorch session)
+Task: WAVE TET — Paper 0022's chest/ender-chest open+close sounds at
+the events (the census's heaviest unclaimed engine-mappable row) +
+WAVE TR-2 — the tracking-range roll-out over the other wire families
+(the architecture's named follow-up row).
+
+Work Log:
+- Synced develop (55a0cb0b clean — the seventeenth session's CF wave
+  landed remotely). Re-read the architecture fresh (13123 lines): the
+  next-work pin named Paper 0022's tile-entity ticking as the heaviest
+  unclaimed row and the tracking-range roll-out (items, projectiles,
+  TNT, falling blocks, XP orbs, armor stands, ender crystals,
+  minecarts/boats) as the standing follow-up. The nine owner-reported
+  bugs' standing re-verified from the records: all closed.
+- Read Paper 0022 whole from the extracted KigPaper-ver-1.8.8 (the
+  chest + ender chest tick loops removed, the open/close sounds moved
+  to the ++/--numPlayersUsing events with the north/west sound-owner
+  consult and the east/south +0.5 offsets, the World.h unused list
+  dropped) and the reference ChestBlockEntity (tick lines 225-292, the
+  neighbor fields, onOpen/onClose lines 304-326) + EnderChestBlockEntity
+  (tick lines 14-53, onOpen/onClose lines 71-79) whole.
+- THE FIND that shaped WAVE TET: the engine's chest NEVER carried a
+  tick (ChestBlockEntity's own doc — nothing advances inside it) — the
+  engine was already at Paper 0022's optimization destination, but it
+  ALSO never carried the SOUNDS: the missing observable, landed at
+  Paper's own event sites (the engine has no tick loop, so the events
+  are the only site — exactly the patch's placement).
+- IMPLEMENTED WAVE TET (66effd43): the open sound at openChestOnTick
+  (the pre-open viewer count read BEFORE the window registers — the
+  0->1 probe over the derived pair count, the DoubleInventory window
+  counting on both halves), playChestSoundOnTick (the
+  isChestOfSameType consult 1:1 — a same-type chest NORTH or WEST
+  suppresses whole, a same-type EAST or SOUTH arms the +0.5 offset,
+  the still-a-chest gate on the close arm per onClose line 320), the
+  close sound at BOTH close paths (the wire close + the swap-close —
+  the count read AFTER the state clears, only the LAST closer sounds),
+  the ender chest's own pair (the lone center +0.5, no neighbor
+  consult), and the ender chest SWAP-CLOSE LID GAP closed beside (the
+  retired swap-close arm skipped the family's lid broadcast whole).
+  The vanilla quirks carried 1:1: the 3-row's south chest opens
+  SILENTLY, the second opener adds no sound, the trapped chest plays
+  the same names. Paper's World.h arm has no engine counterpart (no
+  redundant parallel tile list ever existed — noted in the record).
+  SEATS: ChestSoundParityTest 6 NEW over the real engine FX bus — all
+  GREEN FIRST RUN. LANES: the chest family + EnderChest pair + trapped
+  redstone seats green (47), the fx package whole.
+- IMPLEMENTED WAVE TR-2 (8ec41e0b): TrackingRanges.TrackedKind — the
+  per-family table 1:1 from EntityMap.onEntityAdded's non-mob rows
+  (item 64, projectiles 64 one band, bobber 64, eye 64, fireworks 64,
+  minecart/boat 80, TNT 160, falling 160, decorations 160, armor stand
+  160, XP orb 160, ender crystal 256), every family riding the same
+  registration clamp (view-in-blocks: every row answers 48 on the
+  view-4 rig). The three gates over the shared per-connection
+  trackedSpawns registry (the ids partition one global space): the
+  SPAWN GATE at all fourteen spawn senders after the chunk gate; the
+  MOVE-TIME ARM at every family's move/velocity sender (the
+  trackingRangeMoveArm — crossed-out destroyed, crossed-in re-spawned
+  through the family's full chain, the registry seeded only when the
+  packet lands and retired at EVERY removal arm including the three
+  collect paths); the PLAYER-SIDE WALK generalized
+  (reevaluateTrackedVisibility — the mob loop unchanged, then every
+  family's live list walked with the same in-box + in-chunk consult;
+  the raw fishingSystem() accessor added beside the api view for the
+  bobber census's own dimensions). SEATS:
+  TrackingRangeFamilyWireParityTest 5 NEW over the real adapter (the
+  far item never spawns until the walk crosses in; the walked-away
+  item destroyed but alive server-side; the boat's 80-row clamped to
+  48; the TNT's move-time arm on BOTH crossings via pushTnt's
+  teleport — the out-destroy and the back-in re-spawn, the SAME id;
+  the join snapshot consulting the boxes for a second client) +
+  TrackingRangesTest 2 NEW (the family table; the shared clamp).
+  The seat rig's own find re-confirmed: the 16-char username law (the
+  17-char seat name kicked at the login gate, shortened).
+- LANES: the WHOLE protocol suite green (275/275 — every existing
+  family integration test unaffected), the core entity package 840
+  tests with the ONE red the documented panic-seat load flake (a
+  DIFFERENT seat red per isolated run — theWoundedWolf... then
+  thePanickedCowOutruns... — zero overlap with the wave surfaces, the
+  census's retry-allowlisted family), the fx + fishing + vehicle +
+  tnt + experience packages whole (165).
+
+Stage Summary:
+- TWO waves this session: TET (66effd43) + TR-2 (8ec41e0b), both
+  pushed as Abasing.
+- The census's heaviest row RETIRED (the chest sounds at Paper's own
+  event sites, the engine's no-tick shape confirmed as the
+  destination) and the tracking-range law now covers EVERY tracked
+  wire family — the one exception named for the next pick: the player
+  family's 512/2 row over the remote-player relay.
+
+AT CLOSE: develop = 8ec41e0b pushed clean; the pin's open rows: the
+player-family 512/2 band over the remote relay, 0087 part 2, the
+terrain-shape acceptance seats (awaiting the verifier's reference
+outputs), the vanilla-grade census's next family pick, the verifier's
+PRs, the flake-family watch (the panic seat re-confirmed under this
+tree too).

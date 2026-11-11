@@ -10081,24 +10081,103 @@ counter's patch-exact expression). LANES: the spawner package whole
 (33), the container families whole (furnace + chest + hopper + brewing
 + beacon).
 
-NEXT WORK (re-pinned after WAVES RC + TR + CF, in order): the KigPaper
-optimization lanes' next batch (the census below names the standing
-rows — Paper 0022's tile-entity ticking optimization is the heaviest
-unclaimed engine-mappable row; the tracking-range family's OWN follow-
-up: the mob family's box law landed over its spawn/move/join gates —
-the OTHER wire families (items, projectiles, TNT, falling blocks, XP
-orbs, armor stands, ender crystals, minecarts/boats) still fan to every
-same-dimension observer with no range consult, the same three-gate
-shape over their own spawn sites is the roll-out); the terrain-shape
-acceptance seats over the reference's own seeded outputs (the
-cross-engine shape comparison when the verifier's census provides the
-reference outputs); the vanilla-grade census's next family pick; the
-verifier's PRs when they open; the flake-family watch (the panic seat
-— re-confirmed 2026-11-11 the documented load flake, green isolated
-x12 under the RC/TR tree; the CI watch itself: #726's run over the
-RC/TR tree decides whether the storm is closed — the two diagnosed
-members below landed after it queued, so a red there does not veto
-them).
+NEXT WORK (re-pinned after WAVES TET + TR-2, in order): the KigPaper
+census's next rows (the census below names the standing rows — Paper
+0022 and the tracking-range roll-out are BOTH LANDED now; the census's
+remaining engine-mappable rows: 0087 part 2, the player-family band's
+own 512/2 row over the remote-player relay — the one tracked family
+the roll-out left untouched, the join flow's remote spawn + the
+movement relay carrying their own chunk-distance consult that the box
+law should replace whole); the terrain-shape acceptance seats over the
+reference's own seeded outputs (the cross-engine shape comparison when
+the verifier's census provides the reference outputs); the vanilla-
+grade census's next family pick; the verifier's PRs when they open;
+the flake-family watch (the panic seat — re-confirmed 2026-11-11 the
+documented load flake, a DIFFERENT seat red per run under the TET/TR-2
+tree too, zero overlap with the wave surfaces, the census's retry-
+allowlisted family; the CI watch itself: #726's run over the RC/TR
+tree decides whether the storm is closed — the two diagnosed members
+below landed after it queued, so a red there does not veto them).
+
+WAVE TET — THE CHEST AND ENDER CHEST OPEN/CLOSE SOUNDS AT THE EVENTS
+(2026-11-12, commit 66effd43 — Paper 0022's tile-entity-ticking row,
+the census's heaviest unclaimed engine-mappable row, RETIRED): THE GAP
+the census's row opened — the reference plays random.chestopen /
+random.chestclosed from the chest tile entity's per-tick animation
+loop (ChestBlockEntity.tick lines 245-291: the open sound at the 0->1
+viewer transition, the close at the lid's 0.5-crossing on the 1->0
+departure, the sound-owner law's own north/west neighbor consult, the
+double-chest +0.5 offsets toward the east/south twin, volume 0.5F,
+pitch random*0.1+0.9); Paper 0022 removes the tick loop whole and
+moves both sounds to the open/close events. The engine's chest NEVER
+CARRIED A TICK (the destination Paper optimized TO — no per-tick cost)
+but ALSO NEVER CARRIED THE SOUNDS: the missing observable landed at
+Paper's own event sites. THE ENGINE MAPPING: the OPEN SOUND at
+openChestOnTick (the pre-open viewer count read BEFORE the window
+registers — the 0->1 probe over the derived pair count, the
+DoubleInventory window counting on both halves), the sound from the
+pair's sound-owner half (playChestSoundOnTick: the isChestOfSameType
+consult 1:1 over the live world — a same-type chest NORTH or WEST
+suppresses whole, a same-type EAST or SOUTH arms the +0.5 offset, the
+still-a-chest gate on the close path per onClose line 320); the CLOSE
+SOUND at BOTH close paths (the wire close AND the swap-close — the
+count read AFTER the state clears, only the LAST closer sounds); the
+ENDER CHEST'S OWN PAIR (the lone chest's center +0.5, no neighbor
+consult, both close paths); THE ENDER CHEST SWAP-CLOSE LID GAP closed
+beside (the retired swap-close arm skipped the family's lid broadcast
+whole — EnderChestBlockEntity.onClose lines 76-79's menu-close law).
+THE VANILLA QUIRKS carried 1:1: the 3-row's south chest opens
+SILENTLY (every chest's own north/west consult refuses it — the
+per-tile neighbor fields, never the pairing walk), the second opener
+over an open lid adds no second sound, the trapped chest plays the
+same family-blind names. Paper 0022's World.h unused-list arm has NO
+engine counterpart (the engine never carried the redundant parallel
+tile list — the per-family stores are the single authority). SEATS:
+ChestSoundParityTest 6 NEW over the real engine FX bus, all GREEN
+first run. LANES: the whole chest family + the EnderChest pair + the
+trapped-chest redstone seats green (47), the fx package whole.
+
+WAVE TR-2 — THE TRACKING-RANGE FAMILY ROLL-OUT (2026-11-12, commit
+8ec41e0b — the architecture's named follow-up row, LANDED): the OTHER
+wire families still fanned to EVERY same-dimension observer with no
+range consult; the roll-out lands the reference's own per-family rows
+over the same three-gate shape the mob band carried. THE TABLE
+(TrackingRanges.TrackedKind over EntityMap.onEntityAdded's non-mob
+rows, 1:1): the ITEM 64, the PROJECTILE family one band 64 (the
+arrow's 64/20 and the shards' 64/10 share the RANGE, the intervals
+differ), the BOBBER 64, the ENDER EYE 64, the FIREWORKS 64, the
+MINECART/BOAT 80, the primed TNT 160, the FALLING BLOCK 160, the
+DECORATION family 160 (the frame, the painting, the leash knot), the
+ARMOR STAND 160, the EXPERIENCE ORB 160, the ENDER CRYSTAL 256 (the
+table's lone 256 row); every family's effectiveRange rides the SAME
+registration clamp (the view distance in BLOCKS — every row answers 48
+on the view-4 rig). THE THREE GATES over the shared per-connection
+trackedSpawns registry (the mobSyncState counterpart; the engine's id
+bands partition one global space so ONE registry serves every family):
+the SPAWN GATE at all fourteen spawn senders after the chunk gate (a
+body beyond its box NEVER reaches the observer — at its own spawn or
+at any joiner's snapshot, both funnel the same choke point); the
+MOVE-TIME ARM at every family's move/velocity sender (the
+trackingRangeMoveArm: crossed-out destroyed, crossed-in re-spawned
+through the family's full chain, the registry seeded only when the
+packet lands and retired at EVERY removal arm including the collect
+paths); THE PLAYER-SIDE WALK generalized (reevaluateTrackedVisibility:
+the same >4-block cadence, the mob loop unchanged, then every family's
+live list walked — the raw fishingSystem() accessor added beside the
+api view for the bobber census's own dimensions). SEATS:
+TrackingRangeFamilyWireParityTest 5 NEW over the real adapter (the far
+item never spawns until the walk crosses in; the walked-away item
+destroyed but alive server-side; the boat's 80-row clamped to 48; the
+TNT's move-time arm on BOTH crossings — pushTnt's teleport driving the
+out-destroy and the back-in re-spawn, the SAME id; the join snapshot
+consulting the boxes for a second client) + TrackingRangesTest 2 NEW.
+The seat rig's own find re-confirmed: the 16-char username law (the
+17-char seat name kicked at the login gate, shortened). LANES: the
+WHOLE protocol suite green (275/275 — every existing family
+integration test unaffected), the core entity package 840 tests with
+the ONE red the documented panic-seat load flake (a different seat red
+per run, zero overlap with the wave surfaces), the fx + fishing +
+vehicle + tnt + experience packages whole (165).
 
 WAVE CF — THE CI FLAKE STORM'S FIRST TWO ROOTS CLOSED (2026-11-11,
 commits 0cee9f20 + a43eb679 — the storm the release pipeline rode
