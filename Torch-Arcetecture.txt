@@ -10081,7 +10081,7 @@ counter's patch-exact expression). LANES: the spawner package whole
 (33), the container families whole (furnace + chest + hopper + brewing
 + beacon).
 
-NEXT WORK (re-pinned after WAVES RC + TR, in order): the KigPaper
+NEXT WORK (re-pinned after WAVES RC + TR + CF, in order): the KigPaper
 optimization lanes' next batch (the census below names the standing
 rows — Paper 0022's tile-entity ticking optimization is the heaviest
 unclaimed engine-mappable row; the tracking-range family's OWN follow-
@@ -10095,8 +10095,57 @@ cross-engine shape comparison when the verifier's census provides the
 reference outputs); the vanilla-grade census's next family pick; the
 verifier's PRs when they open; the flake-family watch (the panic seat
 — re-confirmed 2026-11-11 the documented load flake, green isolated
-x12 under the RC/TR tree, the enderman-hunt seat, the wolf-collar
-seat, RiderSpareFall).
+x12 under the RC/TR tree; the CI watch itself: #726's run over the
+RC/TR tree decides whether the storm is closed — the two diagnosed
+members below landed after it queued, so a red there does not veto
+them).
+
+WAVE CF — THE CI FLAKE STORM'S FIRST TWO ROOTS CLOSED (2026-11-11,
+commits 0cee9f20 + a43eb679 — the storm the release pipeline rode
+through #722-#725: #723 red five seats, #725 red two, DISJOINT sets on
+the same tree — the classic load-flake signature; every seat of both
+sets verified green in isolation on the RC/TR tree, and the two that
+reproduced locally were root-caused and fixed):
+
+(1) THE POT SEAT'S VISIBILITY RACE (PotFloorSurvivalParityDiscoveryTest
+.thePotPlacesOnStone — red #723, green #725, ~1-in-3 red locally in
+isolation): the placement task's commit and its consumeHeld are two
+statements of ONE tick task — atomic on the tick lane (§431's own
+law) — but the seat's cross-thread poll could observe the pot BETWEEN
+them (the block's visibility publishes mid-task, the spend lands at
+the task's own tail), and the retired immediate assert read the
+not-yet-spent inventory in exactly that window. THE FIX is the
+observation contract, never the engine: the spend's own await
+(held().isEmpty(), the same 5s poll family) before the assert. 6/6
+consecutive class runs green (42 seat-executions) where the pre-fix
+tree failed 1-of-3.
+
+(2) THE TRACK-TIME SEAT'S KEEP-ALIVE KICK WINDOW
+(EntityPropertiesWireConformanceTest.theTrackTimePairRidesTheTracking
+Exchange — red #725, IOException at the join-exchange read): the
+class's 2s keep-alive cadence armed the engine's application-level
+kick at 3x the interval — a 6s unanswered window — while the seat's
+blocking readers (readNamedSpawn's readPacketOfType) DISCARD
+keep-alives unanswered and only the property-frame reader answers
+them; a 5s join-exchange read plus the property polls under CI load
+could cross the 6s window mid-read and the kick closed the socket
+under the read. THE FIX is the VR rig's own documented convention (the
+120s cadence — 'the scripted client only answers keep-alives when a
+test explicitly drives the exchange, so slow suites must not be
+kicked'; no seat here pins the cadence itself — the keep-alive
+family's laws live in KeepAliveTimeoutWireTest) + the three
+readNamedSpawn budgets widened 5s -> 20s (the VR spawn-poll shape).
+
+THE STANDING EVIDENCE TABLE (the next storm member's diagnosis
+starts here): both fixed seats are the run-#679 family's shape (the
+SEAT's own await/reader was the defect, never the engine); the whole
+#723/#725 red set green on this tree (ProjectileLandingSite 5/5,
+DamageSourceExhaustion + ArmorStandSystem green, AttributeMelee 1/1,
+PvpIntegration 2/2, PotFloor 7/7, EntityPropertiesWire 2/2); the
+remaining unfixed members (ProjectileLandingSite's fire-charge seat,
+DamageSourceExhaustion's guardian seat, ArmorStandSystem's ladder
+seat, AttributeMelee, Pvp) never reproduced locally — the
+parallel-load-only tier, next picks when a run reddens them again.
 
 WAVES RC + TR — THE REGION-COMPRESSION PAIR + THE PER-ENTITY TRACKING
 RANGES LANDED (2026-11-11, commits 869d96c5 + e4047e38 + 56ecaf0f —

@@ -202,8 +202,35 @@ Work Log:
   remainder); README note; repo WORKLOG.
 - COMMITTED + PUSHED 2683d958 as Abasing (develop, 6 files, +512/-81).
 
+- THE CI FLAKE STORM'S FIRST TWO ROOTS CLOSED (WAVE CF, commits
+  0cee9f20 + a43eb679): the release pipeline rode #722-#725 red with
+  DISJOINT seat sets per run (#723 five reds, #725 two, no overlap —
+  the classic load-flake signature). The whole red set verified green
+  in isolation on this tree; the two that REPRODUCED locally were
+  root-caused: (1) the pot seat's visibility race (~1-in-3 locally) —
+  the placement task's commit and its consumeHeld are two statements
+  of one tick task (atomic on the tick lane, §431) but the seat's
+  cross-thread poll could observe the pot BETWEEN them and the retired
+  immediate assert read the not-yet-spent inventory — fixed at the
+  observation contract (the spend's own await), 6/6 class runs green
+  after; (2) the track-time seat's keep-alive kick window — the class's
+  2s cadence armed the engine's 3x-interval application-level kick (a
+  6s unanswered window) while the seat's blocking readers discard
+  keep-alives unanswered; a 5s join-exchange read under CI load could
+  cross the window mid-read and the kick closed the socket — fixed at
+  the VR rig's own convention (the 120s cadence + the 20s spawn-poll
+  budgets). The remaining storm members never reproduced locally (the
+  parallel-load-only tier) — the evidence table ledgered in the
+  architecture's CF record for the next storm member's diagnosis.
+- CI run #726 (the RC/TR push) queued before the CF fixes landed — its
+  result does not veto them; the next push's run carries all three
+  waves.
+
 Stage Summary:
-- TWO waves this session: SC (9668c772, the serialized-column
+- THREE waves this session: RC (869d96c5 + e4047e38) + TR (56ecaf0f)
+  + CF (0cee9f20 + a43eb679), all pushed as Abasing.
+Stage Summary:
+- THREE waves this session: SC (9668c772, the serialized-column
   memoization) + FC (2683d958, the flight families' contact arms).
 - develop at 2683d958, zero uncommitted, everything pushed as Abasing.
 - The ML-100 remaining honest tails: the fireball's Knockback-punch
