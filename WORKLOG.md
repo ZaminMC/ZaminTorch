@@ -4385,3 +4385,52 @@ terrain-shape acceptance seats (awaiting the verifier's reference
 outputs), the vanilla-grade census's next family pick, the verifier's
 PRs, the flake-family watch (the panic seat re-confirmed under this
 tree too).
+---
+Task ID: 2026-11-12 session (eighteenth run, continuation)
+Agent: main (ZaminTorch session)
+Task: WAVE TR-3 — the player band's own 512/2 row over the remote-
+player relay (the last tracked family the roll-out left untouched).
+
+Work Log:
+- With the window still open after TET + TR-2, took the re-pinned
+  next-work row: the player family's own band. Survey: the remote
+  relay's mover broadcast (broadcastMovement) carried a CHUNK-distance
+  circle alone; the JOIN'S MUTUAL EXCHANGE (playerEnteredPlay's mutual
+  trackPlayer) spawned every same-dimension player however far; no
+  observer-side walk existed for players.
+- IMPLEMENTED WAVE TR-3 (7b336174): TrackingRanges.PLAYER_RANGE = 512
+  + effectivePlayerRange (the same registration clamp — 48 on the
+  view-4 rig); the SPAWN GATE inside trackPlayer (after the dimension
+  + spectator gates — every funnel the one choke point); the
+  MOVER-SIDE BROADCAST's box consult (playerWithinTrackingRange
+  replacing the chunk circle, the crossed-out observers un-tracking);
+  the OBSERVER-SIDE WALK's new player loop (the other sessions'
+  boxes re-consult on the >4-block walk — crossed-out un-tracked,
+  crossed-in spawned through the full chain).
+- SEATS: TrackingRangePlayerWireParityTest 3 NEW over the real adapter
+  (the mover crossing: the 60-block walk destroyed on the observer's
+  client, the SAME uuid re-spawning on the return — RED on the
+  pre-fix chunk circle which still tracked a 4-chunk walker; the
+  observer's walk spawning the far player; the join exchange never
+  spawning the out-of-box player while the in-box anchor spawns
+  whole) + TrackingRangesTest 1 NEW (the 512 row's clamp law). The
+  seat rig's own finds: the 17-char username law AGAIN (the names
+  shortened), and the buffered-join-spawn drain law (the join's
+  mutual spawn consumed before any crossing assert — the buffered
+  packet never reads as a crossing).
+- LANES: the WHOLE protocol suite green again (278/278 — every
+  existing multiplayer test unaffected, their rigs standing players
+  at the spawn), TrackingRangesTest 8/8.
+
+Stage Summary:
+- THREE waves this session: TET (66effd43) + TR-2 (8ec41e0b) + TR-3
+  (7b336174), all pushed as Abasing.
+- EVERY tracked family in the reference's EntityMap table now consults
+  its own box: the mobs (Wave TR), the fourteen other families (TR-2),
+  and the players (TR-3) — the class whole.
+
+AT CLOSE: develop = 7b336174 pushed clean; the pin's open rows: 0087
+part 2 (the census's remaining engine-mappable row), the terrain-shape
+acceptance seats (awaiting the verifier's reference outputs), the
+vanilla-grade census's next family pick, the verifier's PRs, the
+flake-family watch (the panic seat).

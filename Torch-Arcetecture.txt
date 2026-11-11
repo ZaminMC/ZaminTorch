@@ -10081,14 +10081,12 @@ counter's patch-exact expression). LANES: the spawner package whole
 (33), the container families whole (furnace + chest + hopper + brewing
 + beacon).
 
-NEXT WORK (re-pinned after WAVES TET + TR-2, in order): the KigPaper
-census's next rows (the census below names the standing rows — Paper
-0022 and the tracking-range roll-out are BOTH LANDED now; the census's
-remaining engine-mappable rows: 0087 part 2, the player-family band's
-own 512/2 row over the remote-player relay — the one tracked family
-the roll-out left untouched, the join flow's remote spawn + the
-movement relay carrying their own chunk-distance consult that the box
-law should replace whole); the terrain-shape acceptance seats over the
+NEXT WORK (re-pinned after WAVES TET + TR-2 + TR-3, in order): the
+KigPaper census's next rows (the census below names the standing rows
+— Paper 0022, the tracking-range roll-out AND the player band's own
+512/2 row are ALL LANDED now: every tracked family in the reference's
+EntityMap table consults its own box; the census's remaining
+engine-mappable rows: 0087 part 2); the terrain-shape acceptance seats over the
 reference's own seeded outputs (the cross-engine shape comparison when
 the verifier's census provides the reference outputs); the vanilla-
 grade census's next family pick; the verifier's PRs when they open;
@@ -10098,6 +10096,32 @@ tree too, zero overlap with the wave surfaces, the census's retry-
 allowlisted family; the CI watch itself: #726's run over the RC/TR
 tree decides whether the storm is closed — the two diagnosed members
 below landed after it queued, so a red there does not veto them).
+
+WAVE TR-3 — THE PLAYER BAND'S OWN BOX (2026-11-12, commit 7b336174 —
+the reference's widest row, EntityMap.onEntityAdded lines 61-62:
+startTracking(entity, 512, 2) — the LAST tracked family the roll-out
+left untouched, LANDED): the remote-player relay consults the same
+clamped ±range square every family rides (the 512 through the
+registration clamp — 48 on the view-4 rig, whole only at view 33+).
+THE RETIRED SHAPE: the mover's broadcast alone carried a CHUNK-distance
+circle, and the JOIN'S MUTUAL EXCHANGE spawned every same-dimension
+player however far. THE ENGINE MAPPING at the three funnels: the SPAWN
+GATE inside trackPlayer (every funnel the one choke point), the
+MOVER-SIDE BROADCAST's box consult (playerWithinTrackingRange replacing
+the chunk circle), and the OBSERVER-SIDE WALK's new player loop
+(reevaluateTrackedVisibility — the crossed-out un-tracked, the
+crossed-in spawned through the full chain). SEATS:
+TrackingRangePlayerWireParityTest 3 NEW over the real adapter (the
+mover crossing — the 60-block walk destroyed on the observer's client,
+the SAME uuid re-spawning on the return, RED on the pre-fix chunk
+circle; the observer's walk spawning the far player; the join exchange
+never spawning the out-of-box player while the in-box anchor spawns
+whole) + TrackingRangesTest 1 NEW (the 512 row's clamp law). The seat
+rig's own finds: the 17-char username law again, and the
+buffered-join-spawn drain law (the join's mutual spawn consumed before
+any crossing assert). LANES: the WHOLE protocol suite green again
+(278/278 — every existing multiplayer test unaffected),
+TrackingRangesTest 8/8.
 
 WAVE TET — THE CHEST AND ENDER CHEST OPEN/CLOSE SOUNDS AT THE EVENTS
 (2026-11-12, commit 66effd43 — Paper 0022's tile-entity-ticking row,
