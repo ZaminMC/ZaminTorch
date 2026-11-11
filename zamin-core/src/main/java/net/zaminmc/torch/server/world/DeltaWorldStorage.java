@@ -5,11 +5,9 @@ import net.zaminmc.torch.World;
 import net.zaminmc.torch.block.BlockType;
 import net.zaminmc.torch.util.Identifier;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -44,10 +42,28 @@ public final class DeltaWorldStorage implements WorldStorage {
 
     private final Path file;
     private final java.util.function.Function<Identifier, BlockType> typeResolver;
+    /**
+     * The compression envelope's algorithm (WAVE RC — the KigPaper
+     * 0214/0215 pair): {@code NONE} by the flag's default, armed by
+     * {@code -Dtorch.region-compression-algo}. Binds at construction so
+     * every publication through this storage wraps the same way.
+     */
+    private final RegionCompression.Algorithm compression;
 
     public DeltaWorldStorage(Path file, java.util.function.Function<Identifier, BlockType> typeResolver) {
+        this(file, typeResolver, RegionCompression.fromFlag());
+    }
+
+    /**
+     * The full construction (the tests' own arm — the flag read at the
+     * two-arg shape's call sites, the explicit algorithm here).
+     */
+    public DeltaWorldStorage(Path file,
+                             java.util.function.Function<Identifier, BlockType> typeResolver,
+                             RegionCompression.Algorithm compression) {
         this.file = java.util.Objects.requireNonNull(file, "file");
         this.typeResolver = java.util.Objects.requireNonNull(typeResolver, "typeResolver");
+        this.compression = java.util.Objects.requireNonNull(compression, "compression");
     }
 
     @Override
@@ -68,12 +84,19 @@ public final class DeltaWorldStorage implements WorldStorage {
      * save is uncontended).
      */
     public void writeSerialized(byte[] data) {
+        // The compression envelope (WAVE RC): the wrap happens inside the
+        // publication walk — the patch's own placement (the write stream) —
+        // so every save path (the synchronous walk, the pipeline's I/O
+        // lane, the per-store named paths) funnels through the one choke
+        // point. NONE answers the raw bytes whole: the file stays
+        // byte-identical to the historical format.
+        byte[] fileBytes = RegionCompression.wrap(compression, data);
         try {
             Path temp = file.resolveSibling(file.getFileName() + ".tmp");
             Files.createDirectories(file.getParent());
             try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
                     Files.newOutputStream(temp)))) {
-                out.write(data);
+                out.write(fileBytes);
             }
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
@@ -87,8 +110,8 @@ public final class DeltaWorldStorage implements WorldStorage {
         if (!Files.exists(file)) {
             return Optional.empty();
         }
-        try (DataInputStream in = new DataInputStream(new BufferedInputStream(
-                Files.newInputStream(file)))) {
+        try (DataInputStream in = new DataInputStream(RegionCompression.unwrap(
+                Files.readAllBytes(file)))) {
             if (in.readByte() != MAGIC_0 || in.readByte() != MAGIC_1 || in.readByte() != MAGIC_2) {
                 throw new IOException("Not a ZWD file");
             }
