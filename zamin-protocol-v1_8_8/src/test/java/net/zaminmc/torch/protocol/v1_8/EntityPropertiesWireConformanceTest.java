@@ -44,7 +44,19 @@ class EntityPropertiesWireConformanceTest extends ProtocolTestBase {
 
     @Override
     protected long keepAliveIntervalMs() {
-        return 2_000; // the scripted clients answer only when the test drives it
+        // THE VR CONVENTION (the run-#725 CI flake's root — the track-time
+        // seat's IOException): the scripted clients answer keep-alives only
+        // when a test explicitly drives the exchange (the property-frame
+        // reader's answerIfKeepAlive), while the blocking readers
+        // (readNamedSpawn's readPacketOfType) DISCARD them unanswered — and
+        // the engine's application-level kick fires at 3x the interval, so
+        // the retired 2s cadence armed a 6s kick window that a 5s join-
+        // exchange read plus the property polls under CI load could cross
+        // mid-read. The 120s cadence (the VehicleNegativeCoordinateRide
+        // rig's own value) leaves the kick unarmed for the whole seat;
+        // no seat here pins the cadence itself (the keep-alive family's
+        // laws live in KeepAliveTimeoutWireTest).
+        return 120_000;
     }
 
     /** One decoded property row (the reference packet's Entry). */
@@ -174,8 +186,8 @@ class EntityPropertiesWireConformanceTest extends ProtocolTestBase {
             // The mutual tracking exchange (playerEnteredPlay): each
             // client spawns the other, and the track-time 0x20 rides the
             // same exchange — the reference's updatePlayer arm.
-            int aliceSeesBravo = alice.readNamedSpawn(5_000)[0];
-            int bravoSeesAlice = bob.readNamedSpawn(5_000)[0];
+            int aliceSeesBravo = alice.readNamedSpawn(20_000)[0];
+            int bravoSeesAlice = bob.readNamedSpawn(20_000)[0];
 
             byte[] bravoFrame = readPropertiesFrame(bob, bravoSeesAlice, 500);
             byte[] aliceFrame = readPropertiesFrame(alice, aliceSeesBravo, 500);
@@ -237,7 +249,7 @@ class EntityPropertiesWireConformanceTest extends ProtocolTestBase {
             dave.readLoginSuccess();
             dave.readUntilPositionAndLook();
             awaitPlaying("Delta");
-            int daveSeesCarol = dave.readNamedSpawn(5_000)[0];
+            int daveSeesCarol = dave.readNamedSpawn(20_000)[0];
 
             byte[] frame = readPropertiesFrame(dave, daveSeesCarol, 500);
             assertNotNull(frame, "the equipped body's track-time 0x20 reached the late joiner");
