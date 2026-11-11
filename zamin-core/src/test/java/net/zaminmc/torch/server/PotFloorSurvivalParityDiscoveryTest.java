@@ -326,6 +326,18 @@ class PotFloorSurvivalParityDiscoveryTest {
                     windowId -> { });
             await(() -> FlowerPotBlocks.isPot(server.world().getBlock(above).identifier()),
                     "the pot lands on the stone bed (both trees — the agreeing row)");
+            // THE SPEND'S OWN AWAIT (the run-#723 CI flake's root): the
+            // placement task's commit and its consumeHeld are two statements
+            // of ONE tick task — atomic on the tick lane (§431), but a
+            // cross-thread poll can observe the pot BETWEEN them (the
+            // block's visibility publishes mid-task, the spend lands at the
+            // task's own tail). The retired immediate assert raced that
+            // window (~1-in-3 locally, red in CI run #723, green in #725 —
+            // the disjoint-set flake signature); the await closes it at the
+            // observation contract: the spend lands within the same task,
+            // eventually visible, never instantly.
+            await(() -> placer.inventory().held().isEmpty(),
+                    "the flower_pot item spent (both trees)");
             assertEquals(0, placer.inventory().held().count(),
                     "the flower_pot item spent (both trees)");
         } finally {
