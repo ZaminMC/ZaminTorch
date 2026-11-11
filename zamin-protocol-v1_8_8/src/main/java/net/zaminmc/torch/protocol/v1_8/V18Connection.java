@@ -2630,6 +2630,11 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (chunkTracker != null) {
             chunkTracker.updateCenter(newChunk);
         }
+        // WAVE TR — the player-side visibility walk (EntityMap.tick's
+        // second loop: a player moving more than 4 blocks re-consults
+        // every tracked body's box — the out-of-box destroys, the
+        // in-box re-spawns). The walk's own anchor gates the cadence.
+        reevaluateMobVisibility(position);
         adapter.broadcastMovement(player);
     }
 
@@ -5359,6 +5364,83 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     private final java.util.concurrent.ConcurrentHashMap<Integer, long[]> trackedMoves =
             new java.util.concurrent.ConcurrentHashMap<>();
 
+    // ------------------------------------------------------------------ WAVE TR — the tracking ranges
+
+    /**
+     * The player-side visibility walk's anchor (WAVE TR): the position the
+     * last full re-evaluation ran from — EntityMap.tick's own cadence, the
+     * player's tracked entry moving more than 4 blocks
+     * ({@code squaredDistanceTo > 16.0}, TrackedEntity.tick line 121) before
+     * the observers' boxes re-consult. Event-loop confined (the C2S
+     * movement handler's own lane).
+     */
+    private double lastVisibilityX = Double.NaN;
+    private double lastVisibilityZ = Double.NaN;
+
+    /**
+     * WAVE TR — the range consult (TrackingRanges.effectiveRange over this
+     * observer's own position): whether the body's ±range box still holds
+     * the observer. The Paper 0216 per-entity override rides the same
+     * consult (consulted first, clamped by the view whole). Any thread.
+     */
+    private boolean mobWithinTrackingRange(net.zaminmc.torch.server.entity.MobEntity mob) {
+        PlayerSession current = session;
+        if (current == null) {
+            return false;
+        }
+        int range = net.zaminmc.torch.server.entity.TrackingRanges.effectiveRange(
+                mob.type(), mob.customTrackingRange(),
+                engine.engineConfig().viewDistance());
+        return net.zaminmc.torch.server.entity.TrackingRanges.inRange(
+                range, current.position().x(), current.position().z(),
+                mob.position().x(), mob.position().z());
+    }
+
+    /**
+     * WAVE TR — THE PLAYER-SIDE VISIBILITY WALK (EntityMap.tick's second
+     * loop, lines 196-204: a player whose own tracked entry moved more than
+     * 4 blocks is re-evaluated against EVERY tracked body — the newly
+     * out-of-box bodies destroyed, the newly in-box bodies spawned through
+     * the full chain). Runs on the event loop from the C2S movement
+     * handler; the mob snapshot is the copy-on-write view (safe off the
+     * tick lane).
+     */
+    private void reevaluateMobVisibility(Position now) {
+        if (state != WireState.PLAY || chunkTracker == null || session == null) {
+            return;
+        }
+        if (!Double.isNaN(lastVisibilityX)) {
+            double dx = now.x() - lastVisibilityX;
+            double dz = now.z() - lastVisibilityZ;
+            if (dx * dx + dz * dz <= 16.0) {
+                return; // the reference's own cadence: >4 blocks, or nothing
+            }
+        }
+        lastVisibilityX = now.x();
+        lastVisibilityZ = now.z();
+        int view = engine.engineConfig().viewDistance();
+        for (net.zaminmc.torch.server.entity.MobEntity mob : engine.mobs().all()) {
+            // The dead body's removal fan carries its own destroy to every
+            // same-dimension observer (the TF-12 convention); the walk
+            // never races it.
+            if (mob.dimension() != dimensionOfSession() || mob.dead()) {
+                continue;
+            }
+            boolean spawnedHere = mobSyncState.containsKey(mob.entityId());
+            int range = net.zaminmc.torch.server.entity.TrackingRanges.effectiveRange(
+                    mob.type(), mob.customTrackingRange(), view);
+            boolean inBox = net.zaminmc.torch.server.entity.TrackingRanges.inRange(
+                    range, session.position().x(), session.position().z(),
+                    mob.position().x(), mob.position().z());
+            boolean inView = inBox && chunkTracker.hasChunk(chunkKeyOf(mob.position()));
+            if (inView && !spawnedHere) {
+                sendMobSpawn(mob); // the full add chain (updatePlayer's add arm)
+            } else if (!inView && spawnedHere) {
+                sendMobRemoved(mob.entityId()); // the remove arm
+            }
+        }
+    }
+
     /**
      * Spawn Mob (0x0F, community-verified layout: varint id, u8 type, i32 xyz
      * in 1/32 fixed point, i8 yaw, i8 pitch, i8 headPitch, vec3 i16 velocity
@@ -5381,6 +5463,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         if (!chunkTracker.hasChunk(chunkKeyOf(mob.position()))) {
             return; // observer cannot see that chunk yet
+        }
+        // WAVE TR — THE TRACKING-RANGE GATE (TrackedEntity.broadcastTo's
+        // box law over the registration's clamped range): a body beyond
+        // its own ±range box NEVER reaches this observer — no spawn, no
+        // move, no metadata. The retired wire spawned every same-dimension
+        // body however far (a mob 10,000 blocks away spawned on every
+        // client in the dimension).
+        if (!mobWithinTrackingRange(mob)) {
+            return;
         }
         ByteBuf out = Unpooled.buffer(40);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_MOB);
@@ -6598,6 +6689,25 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         }
         // Slice 25d: the body's own dimension gates the observer.
         if (dimensionOfSession() != mob.dimension()) {
+            return;
+        }
+        // WAVE TR — THE MOVE-TIME RANGE WALK (TrackedEntity.tick's own
+        // re-evaluation, the entity-side arm): a body that crossed OUT of
+        // this observer's box is destroyed here (the move family never
+        // flows past the range), a body that crossed IN — a mob walking
+        // toward a stationary player — re-spawns through the full chain
+        // (updatePlayer's add arm). The box check runs on every move send:
+        // the >4-block cadence the reference rides is its batching, never
+        // its observable.
+        boolean spawnedHere = mobSyncState.containsKey(mob.entityId());
+        if (!mobWithinTrackingRange(mob)) {
+            if (spawnedHere) {
+                sendMobRemoved(mob.entityId());
+            }
+            return;
+        }
+        if (!spawnedHere) {
+            sendMobSpawn(mob); // the back-in-range re-spawn (the full chain)
             return;
         }
         long[] last = mobSyncState.get(mob.entityId());

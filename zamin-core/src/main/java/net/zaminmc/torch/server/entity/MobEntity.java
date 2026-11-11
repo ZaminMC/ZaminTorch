@@ -1495,6 +1495,15 @@ public final class MobEntity implements LivingEntity {
     private boolean noAi;
     private boolean invulnerable;
 
+    /**
+     * Paper 0216's per-entity tracking-range override (WAVE TR): 0 =
+     * unset (the type's own table row answers); a positive value answers
+     * FIRST at every range consult (the effective-range law rides the
+     * view-distance clamp whole — the engine's stateless-consult note in
+     * {@link TrackingRanges#effectiveRange}).
+     */
+    private int customTrackingRange;
+
     // Wave SM — THE VEHICLE SEAT (the reference's {@code this.vehicle}
     // row, Entity.java): the id of the cart or boat whose seat the body
     // holds, −1 when it walks free. The manager stamps it at the tick
@@ -1611,6 +1620,25 @@ public final class MobEntity implements LivingEntity {
     /** Sets the name's always-render flag (CustomNameVisible). */
     public void setCustomNameVisible(boolean visible) {
         this.customNameVisible = visible;
+    }
+
+    /**
+     * @return Paper 0216's per-entity tracking-range override, 0 when
+     * unset (the type's own table row answers).
+     */
+    public int customTrackingRange() {
+        return customTrackingRange;
+    }
+
+    /**
+     * Sets Paper 0216's per-entity tracking-range override (0 or negative
+     * clears it — the table's row answers again). The engine's consult is
+     * stateless: the next spawn gate or visibility walk reads the new
+     * value whole (the patch's live-update arm holds no entry to write —
+     * the engine's named deviation note in TrackingRanges).
+     */
+    public void setCustomTrackingRange(int range) {
+        this.customTrackingRange = Math.max(0, range);
     }
 
     /** @return whether the AI walk is pinned (NoAI — the body stands still). */
