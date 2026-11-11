@@ -20168,6 +20168,152 @@ public final class EngineServer implements Server, EngineBridge {
     }
 
     /**
+     * WAVE TET (Paper 0022) — the reference's {@code isChestOfSameType}
+     * (ChestBlockEntity lines 215-222 over findNeighborChest lines
+     * 201-213): the cell holds a chest of the SAME type as the candidate
+     * (the ChestBlock family's own {@code type} band — the plain chest
+     * 0, the trapped chest 1; the facing states never enter the consult).
+     * This is the sound-owner law's own consult, never the pairing walk.
+     */
+    private boolean isChestOfSameTypeAt(EngineWorld world, BlockPosition pos, boolean trapped) {
+        BlockType block = world.getBlock(pos);
+        return trapped
+                ? (block.identifier().equals(
+                        net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())
+                        || ChestFacingBlocks.isTrappedFamily(block))
+                : (block.identifier().equals(
+                        net.zaminmc.torch.server.block.BuiltinBlocks.CHEST.identifier())
+                        || ChestFacingBlocks.isPlainFamily(block));
+    }
+
+    /**
+     * WAVE TET (Paper 0022 — the KigPaper census's tile-entity-ticking
+     * row): the chest's OPEN/CLOSE SOUNDS at the events themselves. The
+     * reference plays {@code random.chestopen}/{@code random.chestclosed}
+     * from the tile entity's per-tick animation loop (ChestBlockEntity
+     * .tick lines 245-291 — the open sound when
+     * {@code viewerCount > 0 && animationProgress == 0.0F}, the close
+     * when the lid crosses 0.5 downward); Paper 0022 removes the tick
+     * loop whole and moves both sounds to the open/close events (the
+     * patch's own placement — the open arm at the {@code ++numPlayersUsing}
+     * site, the close arm at the {@code --numPlayersUsing} site, the
+     * sound condition {@code numPlayersUsing > 0 && lidAngle == 0.0F}).
+     * The engine's chest never carried a tick (the destination Paper
+     * optimized TO — no per-tick cost), but it also never carried the
+     * SOUNDS: this is the missing observable, landed at Paper's own
+     * event sites.
+     *
+     * <p>THE SOUND-OWNER LAW (the reference's own neighbor consult, tick
+     * lines 247 + 274): the sound plays only from a chest whose NORTH
+     * and WEST neighbors hold no same-type chest ({@code northNeighbor
+     * == null && westNeighbor == null}) — in a merged pair exactly one
+     * half qualifies (the twin sits in the other's north or west field),
+     * and in a row of three every chest is suppressed but the row's own
+     * north-most (whose count never moves when the south end opens —
+     * THE VANILLA QUIRK: opening the south chest of a 3-row plays NO
+     * sound, every chest's own north/west consult refusing it). The
+     * sound position carries the double-chest offsets (lines 248-257:
+     * +0.5 x for a same-type EAST neighbor, +0.5 z for a same-type
+     * SOUTH neighbor — the pair's center, not the half's own center).
+     * Volume 0.5F, the pitch {@code random.nextFloat() * 0.1F + 0.9F}.
+     * Tick-thread context.</p>
+     */
+    private void playChestSoundOnTick(int dimension, BlockPosition chest, boolean open) {
+        EngineWorld world = worldFor(dimension);
+        // The close arm's still-a-chest gate (ChestBlockEntity.onClose line
+        // 320: {@code this.getBlock() instanceof ChestBlock} — the broken
+        // chest's stale window never sounds; the plain and the trapped
+        // family are both the ChestBlock family).
+        BlockType block = world.getBlock(chest);
+        boolean trapped = block.identifier().equals(
+                net.zaminmc.torch.server.block.BuiltinBlocks.TRAPPED_CHEST.identifier())
+                || ChestFacingBlocks.isTrappedFamily(block);
+        boolean plain = block.identifier().equals(
+                net.zaminmc.torch.server.block.BuiltinBlocks.CHEST.identifier())
+                || ChestFacingBlocks.isPlainFamily(block);
+        if (!trapped && !plain) {
+            return; // the cell stopped being a chest: no sound, no offsets
+        }
+        // The sound-owner consult (lines 247/274): a same-type chest to
+        // the NORTH or the WEST suppresses this chest's sound whole.
+        if (isChestOfSameTypeAt(world, chest.offset(0, 0, -1), trapped)
+                || isChestOfSameTypeAt(world, chest.offset(-1, 0, 0), trapped)) {
+            return;
+        }
+        // The double-chest offsets (lines 248-257): the sound anchors at
+        // the pair's center when the twin sits EAST or SOUTH.
+        double x = chest.x() + 0.5;
+        double z = chest.z() + 0.5;
+        if (isChestOfSameTypeAt(world, chest.offset(1, 0, 0), trapped)) {
+            x += 0.5;
+        }
+        if (isChestOfSameTypeAt(world, chest.offset(0, 0, 1), trapped)) {
+            z += 0.5;
+        }
+        fxManager.sound(new Position(x, chest.y() + 0.5, z),
+                open ? "random.chestopen" : "random.chestclosed",
+                0.5F, gameplayRandom.nextFloat() * 0.1F + 0.9F, dimension);
+    }
+
+    /**
+     * WAVE TET — the pair's chest-viewer count (the reference's own
+     * viewerCount read, the derived form the engine carries): every
+     * PLAYING player whose open window is a chest at the cell OR at
+     * either half of its merged pair (the DoubleInventory window counts
+     * on both halves — the reference's DoubleInventory.onOpen lines
+     * 110-113 incrementing each half's own count). Tick-thread context.
+     */
+    private int chestViewersCountOnTick(BlockPosition first, BlockPosition second) {
+        int viewers = 0;
+        for (PlayerSession player : players.all()) {
+            if (player.state() != PlayerState.PLAYING
+                    || player.openContainerKind() != PlayerSession.ContainerKind.CHEST) {
+                continue;
+            }
+            var open = player.openContainerPosition();
+            var pairFirst = player.openContainerPairFirst();
+            var pairSecond = player.openContainerPairSecond();
+            if (matchesCell(open, first, second)
+                    || matchesCell(pairFirst, first, second)
+                    || matchesCell(pairSecond, first, second)) {
+                viewers++;
+            }
+        }
+        return viewers;
+    }
+
+    /** One cell of the viewer-count consult: the position matches either half. */
+    private static boolean matchesCell(net.zaminmc.torch.block.BlockPosition candidate,
+                                       BlockPosition first, BlockPosition second) {
+        if (candidate == null) {
+            return false;
+        }
+        return candidate.equals(first) || (second != null && candidate.equals(second));
+    }
+
+    /**
+     * WAVE TET — the ender chest's per-block viewer count (the
+     * reference's own EnderChestBlockEntity.viewerCount — every player
+     * whose open window is the ender chest AT this cell; the private
+     * grids never share, but the LID and the SOUND are the block's own).
+     * Tick-thread context.
+     */
+    private int enderChestViewersCountOnTick(BlockPosition position) {
+        int viewers = 0;
+        for (PlayerSession player : players.all()) {
+            if (player.state() != PlayerState.PLAYING
+                    || player.openContainerKind() != PlayerSession.ContainerKind.ENDER_CHEST) {
+                continue;
+            }
+            var open = player.openContainerPosition();
+            if (open != null && open.equals(position)) {
+                viewers++;
+            }
+        }
+        return viewers;
+    }
+
+    /**
      * Opens the chest container at the clicked block: assigns the wire window
      * id, lazily creates the block-entity state, closes any carried window
      * state first, and reports the id for the adapter's Open Window + slot
@@ -20211,6 +20357,14 @@ public final class EngineServer implements Server, EngineBridge {
         if (containerLockedAgainst(session, lockKey, customName, "Chest")) {
             return; // the reference's lock-out: no window
         }
+        // WAVE TET — the pre-open viewer count (the 0 -> 1 transition's own
+        // probe, read BEFORE this window registers): the open sound fires
+        // only at the FIRST viewer (the reference's
+        // {@code viewerCount > 0 && animationProgress == 0.0F} band — a
+        // second opener over an open lid adds no second sound; Paper 0022's
+        // event placement keeps the law whole).
+        int viewersBeforeOpen = chestViewersCountOnTick(
+                view.firstPos(), second != null ? view.secondPos() : null);
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
@@ -20225,6 +20379,14 @@ public final class EngineServer implements Server, EngineBridge {
             session.pinChestPair(view.firstPos(), view.secondPos());
         }
         onTableOpened.accept(windowId);
+        // WAVE TET — the open sound at the event (Paper 0022's own
+        // placement): the sound-owner half answers (the north/west
+        // consult), the pair's center offsets ride the position. A
+        // suppressed opener (the 3-row's south chest, the twin's own
+        // open when the owner half already answers) plays nothing.
+        if (viewersBeforeOpen == 0) {
+            playChestSoundOnTick(world.dimension(), view.firstPos(), true);
+        }
         // The lid swings for every other observer (the historical Block
         // Action 1; the opener's client animates its own view) — the merged
         // pair's DoubleInventory.onOpen calls BOTH halves (lines 110-113),
@@ -20304,11 +20466,26 @@ public final class EngineServer implements Server, EngineBridge {
         session.stats().increment(
                 net.zaminmc.torch.server.stat.EngineStats.ENDER_CHESTS_OPENED, 1);
 
+        // WAVE TET — the pre-open viewer count (the 0 -> 1 probe, read
+        // BEFORE this window registers — the ender chest's own
+        // {@code viewerCount > 0 && animationProgress == 0.0F} band,
+        // EnderChestBlockEntity.tick lines 24-28; Paper 0022's event
+        // placement, the sound AT the open).
+        int enderViewersBeforeOpen = enderChestViewersCountOnTick(position);
         int windowId = nextContainerWindowId;
         nextContainerWindowId = nextContainerWindowId >= LAST_CONTAINER_WINDOW_ID
                 ? FIRST_CONTAINER_WINDOW_ID : nextContainerWindowId + 1;
         session.openContainerWindow(windowId, PlayerSession.ContainerKind.ENDER_CHEST, position);
         onTableOpened.accept(windowId);
+        // WAVE TET — the ender chest's open sound (EnderChestBlockEntity
+        // .tick lines 24-28, Paper 0022's own event placement): the lone
+        // chest's own center, never the neighbor consult (the family has
+        // no pairs). Volume 0.5F, the pitch random*0.1+0.9.
+        if (enderViewersBeforeOpen == 0) {
+            fxManager.sound(new Position(position.x() + 0.5, position.y() + 0.5,
+                    position.z() + 0.5), "random.chestopen",
+                    0.5F, gameplayRandom.nextFloat() * 0.1F + 0.9F, world.dimension());
+        }
         // The lid swings for every other observer (the BE's own onOpen
         // broadcast — the Block Action 1 over legacy 130).
         publishChestLid(position, session, true);
@@ -20467,11 +20644,21 @@ public final class EngineServer implements Server, EngineBridge {
                     ? session.openContainerPairFirst() : null;
             var closedPairSecond = closingChestAt != null
                     ? session.openContainerPairSecond() : null;
+            // WAVE TET — the ender chest's own swap-close capture (the
+            // reference's menu-close law: opening the next window closes
+            // the carried one whole — EnderChestBlockEntity.onClose lines
+            // 76-79 broadcast the lid's close for the other observers;
+            // the retired swap-close arm skipped the family's lid whole).
+            BlockPosition closingEnderChestAt =
+                    session.openContainerKind() == PlayerSession.ContainerKind.ENDER_CHEST
+                            ? session.openContainerPosition() : null;
             // The open's own dimension stamp (Wave RW-1): the close wake's
             // world is the world the CHEST stands in — the reference's
             // ChestBlockEntity.onClose consults its own world, never the
             // overworld field.
             int closingChestDimension = closingChestAt != null
+                    ? session.openContainerDimension() : 0;
+            int closingEnderDimension = closingEnderChestAt != null
                     ? session.openContainerDimension() : 0;
             session.closeContainerWindow();
             if (closingChestAt != null) {
@@ -20483,6 +20670,28 @@ public final class EngineServer implements Server, EngineBridge {
                     if (!closedPairSecond.equals(closingChestAt)) {
                         trappedChestCloseWakeOnTick(closingChestDimension, closedPairSecond);
                     }
+                }
+                // WAVE TET — the close sound at the LAST closer's departure
+                // (the reference's lid crossing 0.5 downward — only the
+                // 1 -> 0 transition sounds; an intermediate closer keeps
+                // the lid open and the sound silent; Paper 0022's own
+                // event placement, the count read AFTER the state clears).
+                if (chestViewersCountOnTick(
+                        closedPairFirst != null ? closedPairFirst : closingChestAt,
+                        closedPairSecond) == 0) {
+                    playChestSoundOnTick(closingChestDimension,
+                            closedPairFirst != null ? closedPairFirst : closingChestAt, false);
+                }
+            }
+            if (closingEnderChestAt != null) {
+                // WAVE TET — the ender chest's swap-close (the lid the
+                // retired arm never closed + the last-closer sound).
+                publishChestLid(closingEnderChestAt, session, false);
+                if (enderChestViewersCountOnTick(closingEnderChestAt) == 0) {
+                    fxManager.sound(new Position(closingEnderChestAt.x() + 0.5,
+                            closingEnderChestAt.y() + 0.5, closingEnderChestAt.z() + 0.5),
+                            "random.chestclosed",
+                            0.5F, gameplayRandom.nextFloat() * 0.1F + 0.9F, closingEnderDimension);
                 }
             }
         }
@@ -20535,6 +20744,14 @@ public final class EngineServer implements Server, EngineBridge {
                         ? session.openContainerPairFirst() : null;
                 var closedPairSecond = closingChestAt != null
                         ? session.openContainerPairSecond() : null;
+                // WAVE TET — the ender chest's close capture (the sound's
+                // own consult reads the count AFTER the state clears; the
+                // position and the dimension must ride the capture).
+                BlockPosition closingEnderChestAt =
+                        session.openContainerKind() == PlayerSession.ContainerKind.ENDER_CHEST
+                                ? session.openContainerPosition() : null;
+                int closingEnderDimension = closingEnderChestAt != null
+                        ? session.openContainerDimension() : 0;
                 // The open's own dimension stamp (Wave RW-1 — the beacon
                 // close's Slice C convention): the trapped wake rides the
                 // CHEST'S OWN world's redstone.
@@ -20591,6 +20808,28 @@ public final class EngineServer implements Server, EngineBridge {
                         if (!closedPairSecond.equals(closingChestAt)) {
                             trappedChestCloseWakeOnTick(closingChestDimension, closedPairSecond);
                         }
+                    }
+                    // WAVE TET — the close sound at the LAST closer (the
+                    // lid's 0.5-crossing band, Paper 0022's event
+                    // placement): the count read AFTER the state clears —
+                    // an intermediate closer leaves the lid open and the
+                    // sound silent.
+                    if (chestViewersCountOnTick(
+                            closedPairFirst != null ? closedPairFirst : closingChestAt,
+                            closedPairSecond) == 0) {
+                        playChestSoundOnTick(closingChestDimension,
+                                closedPairFirst != null ? closedPairFirst : closingChestAt, false);
+                    }
+                }
+                if (closingEnderChestAt != null) {
+                    // WAVE TET — the ender chest's close sound (the lone
+                    // chest's own center, the last-closer band alone).
+                    if (enderChestViewersCountOnTick(closingEnderChestAt) == 0) {
+                        fxManager.sound(new Position(closingEnderChestAt.x() + 0.5,
+                                closingEnderChestAt.y() + 0.5, closingEnderChestAt.z() + 0.5),
+                                "random.chestclosed",
+                                0.5F, gameplayRandom.nextFloat() * 0.1F + 0.9F,
+                                closingEnderDimension);
                     }
                 }
             }
@@ -21039,6 +21278,15 @@ public final class EngineServer implements Server, EngineBridge {
     @Override
     public net.zaminmc.torch.fishing.Fishing fishing() {
         return fishingView;
+    }
+
+    /**
+     * @return the raw fishing system (the engine-side bobber census with
+     * the bodies' own dimensions — WAVE TR-2's visibility walk consult;
+     * the api view above answers the §27.3 snapshot family instead).
+     */
+    public net.zaminmc.torch.server.fishing.FishingSystem fishingSystem() {
+        return fishing;
     }
 
     /** @return the vehicle system (diagnostics and tests). */
