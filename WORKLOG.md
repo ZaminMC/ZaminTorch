@@ -4081,3 +4081,84 @@ caught. The flake watch: the panic, enderman-hunt, wolf-collar seats,
 RiderSpareFall, DonkeyChest + JOINED by this row — the next session's
 first pick is the root-cause (the drop arm's cooldown race or the
 item-list visibility), NOT a regression of this session's waves.
+---
+Task ID: 2026-11-11 session (sixteenth run)
+Agent: main (ZaminTorch session)
+Task: WAVE WR — the wire family-resolution law (the standing
+CreativeMenuWire flake's root, the fifteenth session's named first
+pick) + WAVE KO-E the tile-tick-rate config pair.
+
+Work Log:
+- Synced develop (5a875daf clean — the fifteenth session's EK-2/CR/KO
+  waves landed remotely; the local uncommitted EK-2 WIP was already
+  landed content, dropped clean). Re-read the architecture fresh: the
+  next-work named the standing CreativeMenuWire find as the first pick
+  (fails DETERMINISTICALLY at 969d1823 on the prior machine,
+  intermittent on CI — 'the drop arm's cooldown race or the item-list
+  visibility').
+- REPRODUCED the flake on this machine (the drop test failing 1/4 in
+  the class, 20.5s await burn). The diagnostic trail: the cooldown
+  NEVER moved (+20 never paid) — the drop arm never ran — the stack
+  resolved EMPTY. The dye/block resolution probe: identifierOf(3,0)
+  answered PODZOL.
+- THE ROOT (far past the flake bisect's guesses): the JDK's immutable
+  maps iterate SALT-randomized per JVM RUN — reverse()'s blind
+  last-writer-wins resolved EVERY shared legacy id to a RANDOM family
+  member per boot (three consecutive JVMs answered dirt, coarse_dirt,
+  podzol for legacy 3). The creative dirt pick resolving to podzol
+  found no item form and VANISHED — the owner's own report; the anvil
+  import read a different world than the wire wrote on every restart.
+- LANDED WAVE WR (c5bd9f1b, pushed): the DETERMINISTIC FAMILY BASE
+  (sorted reverse walk + the explicit FAMILY_BASE table for the 20
+  ambiguous families), THE META-0 FILL (the reference's
+  getStateFromMetadata(0) law + the META0_STATE exceptions), THE FLUID
+  FOLD (the 64-state fluid space resolves for the first time — the
+  falling lava column 10|8), THE CROP AGE BANDS (wheat/carrots/potatoes
+  stages encoded 59:0 for every stage — CROPS NEVER VISUALLY GREW on
+  the real client; the engine's legacyMetadata carried the nibbles all
+  along, the wire table predates the families), THE SKULL FACING BAND
+  (wall skulls encoded as the ceiling mount), THE DYE ITEM'S DAMAGE
+  DOMAIN (a creative lapis pick landed as a RANDOM one of dye/lapis/
+  bone_meal per boot), THE SANDSTONE BAND REPAIRED (chiseled carried 3
+  — the STONE-BRICKS band copied onto the family — and smooth was
+  missing; engine nibble + wire table + anvil row repaired together per
+  SandstoneBlock.Type DEFAULT(0)/CHISELED(1)/SMOOTH(2)).
+- SEATS: WireFamilyResolutionParityTest 9 NEW (the dirt family law, the
+  stone family, the wood registry forms, the sandstone band agreement,
+  the crop AGE bands, the skull facings, the dye domain, the meta-0
+  exceptions, THE NO-STRANGER SWEEP — the whole-registry round-trip
+  net that caught the fluid gap itself).
+- LANES: the standing CreativeMenuWireParityTest green 3/3 consecutive
+  runs, both integrity suites green (the 1347 pin held), the protocol
+  suite whole but one environmental frame-timeout (DataWatcher, green
+  in isolation), the core block + anvil + survival + crafting +
+  inventory packages whole.
+- LANDED WAVE KO-E (ee5ab190, pushed): the KigPaper census's
+  config-surface pair — Paper 0059's mob spawner tick rate
+  (torch.mob-spawner-tick-rate, Paper's own throttle shape with the
+  N-fold delay compensation, gated default 1) + Paper 0065's container
+  update tick rate (torch.container-update-tick-rate over the eight
+  per-tick view-fan walks, the patch's own counter expression).
+  SEATS: KigPaperTickRateConfigParityTest 3 NEW. LANES: the spawner
+  package (33) + the container families whole.
+- The architecture's records (the WR + KO-E wave records + the
+  next-work re-pin: the region-compression pair as the heaviest
+  unclaimed row).
+
+Stage Summary:
+- TWO waves this session: WR (c5bd9f1b) + KO-E (ee5ab190), both pushed
+  as Abasing.
+- THE STANDING FLAKE CLOSED AT ITS ROOT — and the root was a class:
+  every shared-family wire resolution was per-boot random (the SALT),
+  the creative-pick vanishing, the crop growth invisibility, the dye
+  item roulette, the sandstone skins, the skull facings, and the fluid
+  state decodes all one law.
+- The optimization lanes advance: the config-surface pair landed; the
+  region-compression pair (0214/0215) is the next heaviest row.
+
+AT CLOSE: develop = the records commit pushed clean; the pin's open
+rows: the region-compression pair (0214/0215), the terrain-shape
+acceptance seats (awaiting the verifier's reference outputs), the
+vanilla-grade census's next family pick, the verifier's PRs, the
+flake-family watch (the panic seat, the enderman-hunt seat, the
+wolf-collar seat, RiderSpareFall, DonkeyChest).

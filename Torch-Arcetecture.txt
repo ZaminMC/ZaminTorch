@@ -9994,11 +9994,98 @@ package tree WHOLE (278 green — the first fully-green world tree since
 the TN wave landed), the structure + block + map + light packages
 whole (397), the protocol WorldgenDeterminismRunTest green.
 
-NEXT WORK (re-pinned after WAVES EK-2 + CR + KO, in order): the KigPaper
+WAVES WR + KO-E — THE WIRE FAMILY-RESOLUTION LAW + THE TILE-TICK-RATE
+CONFIG PAIR (2026-11-11, commits c5bd9f1b + ee5ab190 — the fifteenth
+session's named first pick read to ground and far past it, plus the
+KigPaper census's config-surface pair):
+
+WAVE WR — THE WIRE FAMILY-RESOLUTION LAW (the standing
+CreativeMenuWireParityTest flake closed at its root, and the root was a
+whole CLASS): THE ROOT CAUSE — the JDK's immutable maps
+(ImmutableCollections.MapN) iterate in a SALT-randomized order that
+RE-SEEDS EVERY JVM RUN, and the wire table's reverse() walked that
+order with a blind last-writer-wins — so EVERY legacy id shared by a
+family resolved to a RANDOM FAMILY MEMBER PER BOOT: legacy 3 answered
+dirt on one boot, coarse_dirt on the next, podzol on a third
+(reproduced three-for-three in back-to-back JVM runs; the flake's
+machine-dependence was the SALT itself). A creative dirt pick that
+resolved to podzol found no item form and VANISHED whole — the owner's
+own 'take something from creative to inventory it disappears' report's
+root; the anvil import read a different world than the wire wrote on
+every restart. THE FIX (1:1 with the reference's own API split — the
+plain reverse answering Block.getBlockById/Item.getItemById, the
+damage-aware reverse answering getStateFromMeta): (1) THE DETERMINISTIC
+FAMILY BASE — reverse() walks the table in SORTED order (a canonical
+sequence the salt can never touch) with the explicit FAMILY_BASE table
+settling the 20 families whose base is not the alphabetically-first
+member (stone, dirt, the oak-prefixed registry forms over the bare
+dataset aliases, sand, sandstone, the tall grass, the red flower, the
+stone-slab pairs, the infested stone, the stone bricks, the wooden
+slabs, the stained clay, the prismarine item, the double plant, the
+red sandstone, the dye item); (2) THE META-0 FILL — reverseWithMetadata
+lands the deterministic base at every absent meta-0 key (the reference's
+own getStateFromMetadata(0) law, never displacing an explicit state
+row), with the META0_STATE exceptions where the meta-0 answer is a
+registered state rather than the bare item form (the prismarine's
+ROUGH(0)); (3) THE FLUID FOLD — the whole 64-state fluid space
+(water/lava x source/flowing x levels 0-15) folded through legacyId +
+levelOf, the same fold shape as the hopper's: the falling lava column
+(10|8) and the falling-with-above-depth band resolve for the first
+time; (4) THE CROP AGE BANDS — wheat/carrots/potatoes stage1..7 carried
+their nibbles in the engine's own legacyMetadata all along (the anvil
+import derived its rows from those) but the wire table answered 0 for
+every stage: the chunk encode wrote 59:0 for a stage-7 wheat, so CROPS
+NEVER VISUALLY GREW on the real client — the AGE rows land whole;
+(5) THE SKULL FACING BAND (SkullBlock 1:1: 1 the floor mount, 2-5 the
+wall facings, 0 the ceiling — a wall skull encoded as the ceiling mount
+before); (6) THE DYE ITEM'S DAMAGE DOMAIN (ItemDye: ink sac 0, lapis 4,
+bone meal 15 — a creative pick of lapis landed as a RANDOM one of the
+three per boot); (7) THE SANDSTONE BAND REPAIRED (SandstoneBlock.Type:
+DEFAULT(0), CHISELED(1), SMOOTH(2)): the retired chiseled row carried 3
+— the STONE-BRICKS band copied onto the family — and the smooth row was
+missing whole; the engine nibble (BuiltinBlocks), the wire table, and
+the anvil import row all repaired together (a real vanilla world
+carries the chiseled skin at 24:1, which the retired row left
+isolated). SEATS: WireFamilyResolutionParityTest 9 NEW (the dirt
+family — the flake's own law; the stone family; the wood registry
+forms; the sandstone band with engine + wire + anvil agreeing; the crop
+AGE bands; the skull facings; the dye damage domain; the meta-0 state
+exceptions; THE NO-STRANGER SWEEP — the whole-registry net: every
+registered block's wire state round-trips to a member of the SAME
+family). LANES: the standing CreativeMenuWireParityTest green 3/3
+consecutive runs (was failing deterministically on this machine),
+AnvilBlockIdsIntegrityTest + LegacyBlockIdsIntegrityTest green (the
+1347 pin held), the whole protocol suite green but one environmental
+frame-timeout flake (DataWatcherWirePinTest, green in isolation), the
+core block + anvil + survival + crafting + inventory packages whole.
+
+WAVE KO-E — THE TILE-TICK-RATE CONFIG PAIR (Paper 0059 + 0065, the
+census's config-surface rows, both gated default 1 = vanilla-exact,
+the never-a-default-change law): (1) THE MOB SPAWNER TICK RATE
+(torch.mob-spawner-tick-rate) — Paper's own shape over
+SpawnerManager.tick: the per-spawner tickDelay counter, the gate
+engaging ONLY the countdown phase (the due phase runs every tick
+exactly like the reference), the N-fold delay compensation, the reset
+band widened for the compensated jumps; at N the countdown fires every
+Nth tick with the same wall-clock cadence at 1/N the per-spawner
+consult cost. (2) THE CONTAINER UPDATE TICK RATE
+(torch.container-update-tick-rate) — the eight per-tick view-fan walks
+(the engine's activeContainer.b() equivalents: furnace/brewing/beacon/
+enchanting/anvil/chest/hopper/dispenser viewers) wrapped in the patch's
+own counter expression; at N the serial-based re-syncs catch up on the
+next walk (the throttle changes only the DIFF-CHECK cadence, never the
+delivered state). SEATS: KigPaperTickRateConfigParityTest 3 NEW (the
+default law + the degenerate clamps; the spawner throttle's frozen
+window + the fourth gate + the compensated 200-4 step; the container
+counter's patch-exact expression). LANES: the spawner package whole
+(33), the container families whole (furnace + chest + hopper + brewing
++ beacon).
+
+NEXT WORK (re-pinned after WAVES WR + KO-E, in order): the KigPaper
 optimization lanes' next batch (the census below names the standing
 rows — the region-compression pair 0214/0215 is the heaviest unclaimed
-engine-mappable row, the tile-tick-interval pair 0022/0065 the
-config-surface row); the terrain-shape acceptance seats over the
+engine-mappable row, a storage-format decision on the WorldDelta
+store's own serialization); the terrain-shape acceptance seats over the
 reference's own seeded outputs (the cross-engine shape comparison when
 the verifier's census provides the reference outputs); the vanilla-
 grade census's next family pick; the verifier's PRs when they open; the
