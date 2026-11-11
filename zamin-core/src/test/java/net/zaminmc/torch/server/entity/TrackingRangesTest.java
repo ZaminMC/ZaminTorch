@@ -184,4 +184,22 @@ class TrackingRangesTest {
         assertEquals(256, TrackingRanges.effectiveRange(
                 TrackingRanges.TrackedKind.ENDER_CRYSTAL, 17), "view 17 = 256: the crystal answers whole");
     }
+
+    /**
+     * WAVE TR-3 — THE PLAYER BAND'S OWN ROW (EntityMap lines 61-62: the
+     * table's widest, {@code startTracking(entity, 512, 2)}): the 512
+     * rides the same registration clamp — 48 on the view-4 rig, 144 on
+     * view 10, and whole only at view 33+ (512 + 16 = the span).
+     */
+    @Test
+    void thePlayerBandRidesTheSameClamp() {
+        assertEquals(512, TrackingRanges.PLAYER_RANGE,
+                "the player's own row (EntityMap lines 61-62)");
+        assertEquals(48, TrackingRanges.effectivePlayerRange(4),
+                "the 512 clamps to the view-4 span");
+        assertEquals(144, TrackingRanges.effectivePlayerRange(10),
+                "the 512 clamps to the view-10 span");
+        assertEquals(512, TrackingRanges.effectivePlayerRange(33),
+                "the 512 answers whole on a wide-enough view (33 * 16 - 16 = 512)");
+    }
 }

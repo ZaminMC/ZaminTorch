@@ -166,6 +166,24 @@ public final class TrackingRanges {
     }
 
     /**
+     * WAVE TR-3 — THE PLAYER'S OWN ROW (EntityMap.onEntityAdded lines
+     * 61-62: {@code startTracking(entity, 512, 2)} — the table's widest
+     * row, the update interval 2 the fastest). The registration clamp
+     * rides it whole like every row: a player never reaches an observer
+     * beyond the view distance in BLOCKS (the 512 answers 48 on the
+     * view-4 rig, 144 on view 10, and answers whole only at view 33+).
+     */
+    public static final int PLAYER_RANGE = 512;
+
+    /**
+     * WAVE TR-3 — the player band's effective range: the 512 row through
+     * the same registration clamp every family rides.
+     */
+    public static int effectivePlayerRange(int chunkViewDistance) {
+        return Math.min(PLAYER_RANGE, viewDistanceBlocks(chunkViewDistance));
+    }
+
+    /**
      * The visibility test — TrackedEntity.broadcastTo's box law (lines
      * 379-387): the horizontal displacement within [-range, +range]
      * INCLUSIVE on both x and z, y never consulted. The boundary row is

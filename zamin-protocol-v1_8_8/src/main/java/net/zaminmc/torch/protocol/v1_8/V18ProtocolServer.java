@@ -2445,8 +2445,6 @@ public final class V18ProtocolServer implements ProtocolAdapter {
             }
             return;
         }
-        var moverChunk = mover.position().toBlockPosition().chunkPosition();
-        long viewSq = (long) engine.engineConfig().viewDistance() * engine.engineConfig().viewDistance();
         for (V18Connection connection : connections.keySet().toArray(new V18Connection[0])) {
             PlayerSession observer = connection.currentSession();
             if (observer == null || observer == mover) {
@@ -2461,8 +2459,16 @@ public final class V18ProtocolServer implements ProtocolAdapter {
                 connection.untrackPlayer(mover.uuid());
                 continue;
             }
-            var observerChunk = observer.position().toBlockPosition().chunkPosition();
-            if (moverChunk.distanceSquared(observerChunk) <= viewSq) {
+            // WAVE TR-3 — THE PLAYER BAND'S OWN BOX (the reference's 512
+            // row clamped to the view distance in BLOCKS, the horizontal
+            // ±range square — EntityMap lines 61-62 + startTracking's
+            // clamp + TrackedEntity.broadcastTo's box, the same law every
+            // family rides): the retired consult was a CHUNK-distance
+            // circle; the box is the reference's own shape, and the
+            // crossed-in observer now spawns through trackPlayer's own
+            // full chain (the spawn gate lives there — every funnel the
+            // one choke point).
+            if (connection.playerWithinTrackingRange(mover)) {
                 connection.trackPlayer(mover);
                 connection.sendRemoteTeleport(mover);
             } else {

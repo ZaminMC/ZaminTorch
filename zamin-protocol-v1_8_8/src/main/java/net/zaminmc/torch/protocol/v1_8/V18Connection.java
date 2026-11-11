@@ -3435,6 +3435,26 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (other.spectatorCamera() != null) {
             return;
         }
+        // WAVE TR-3 — THE PLAYER BAND'S OWN RANGE GATE (EntityMap lines
+        // 61-62: the 512 row, clamped to the view distance in BLOCKS like
+        // every row — the reference's TrackedEntity.broadcastTo box, a
+        // horizontal ±range square): a player beyond the box NEVER spawns
+        // for this observer — not at the mover's broadcast, not at any
+        // join's mutual exchange, not at the observer's own walk (every
+        // funnel passes this choke point). The retired consult was a
+        // CHUNK-distance circle at the mover's broadcast alone; the join
+        // exchange spawned every same-dimension player however far.
+        PlayerSession current = session;
+        if (current == null) {
+            return;
+        }
+        int range = net.zaminmc.torch.server.entity.TrackingRanges.effectivePlayerRange(
+                engine.engineConfig().viewDistance());
+        if (!net.zaminmc.torch.server.entity.TrackingRanges.inRange(
+                range, current.position().x(), current.position().z(),
+                other.position().x(), other.position().z())) {
+            return;
+        }
         if (!visibleRemotePlayers.add(other.uuid())) {
             return; // already tracked
         }
@@ -3696,6 +3716,25 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         ByteBufOps.writeVarInt(out, 1);
         ByteBufOps.writeVarInt(out, entityId);
         enqueueOut(out);
+    }
+
+    /**
+     * WAVE TR-3 — the player band's box consult for the mover-side
+     * broadcast (the reference's TrackedEntity.tick over the player
+     * entry — the mover's own stream re-evaluates every observer's box,
+     * the crossed-out observers un-tracking): the same clamped 512-row
+     * square the spawn gate consults. Any thread.
+     */
+    boolean playerWithinTrackingRange(PlayerSession other) {
+        PlayerSession current = session;
+        if (current == null) {
+            return false;
+        }
+        int range = net.zaminmc.torch.server.entity.TrackingRanges.effectivePlayerRange(
+                engine.engineConfig().viewDistance());
+        return net.zaminmc.torch.server.entity.TrackingRanges.inRange(
+                range, current.position().x(), current.position().z(),
+                other.position().x(), other.position().z());
     }
 
     /**
@@ -5720,6 +5759,27 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                             crystal.entityId(), crystal.x(), crystal.z(),
                             1, () -> sendCrystalSpawn(crystal));
                 }
+            }
+        }
+        // ------------------------------------------------------------------
+        // WAVE TR-3 — THE PLAYER BAND'S OWN WALK (EntityMap.tick's loop
+        // covers the tracked player entries like every entry): the other
+        // players' boxes re-consult on the observer's >4-block walk — the
+        // crossed-out un-tracked (the destroy), the crossed-in spawned
+        // through trackPlayer (its own dimension/spectator/box gates
+        // deciding the rest). The mover's own broadcast covers the same
+        // law from the mover's side; this is the observer's.
+        // ------------------------------------------------------------------
+        for (PlayerSession other : engine.playerRegistry().all()) {
+            if (other == session || other.state() != net.zaminmc.torch.entity.PlayerState.PLAYING) {
+                continue;
+            }
+            boolean tracked = visibleRemotePlayers.contains(other.uuid());
+            boolean inBox = playerWithinTrackingRange(other);
+            if (inBox && !tracked) {
+                trackPlayer(other); // the full add chain (its gates refine)
+            } else if (!inBox && tracked) {
+                untrackPlayer(other.uuid()); // the remove arm
             }
         }
     }
