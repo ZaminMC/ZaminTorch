@@ -1458,23 +1458,123 @@ final class LegacyBlockIds {
 
     /** The damage-aware reverse map is declared after {@link #METADATA}. */
 
+    /**
+     * WAVE WR — the plain reverse's explicit family bases: every legacy id
+     * whose members include a form the sorted-first walk would not answer
+     * (the alphabetically-first member is a variant, or the family carries
+     * both a bare dataset name and the engine's own block-registry form).
+     * Each row IS the reference's own {@code Block.getBlockById} answer —
+     * the family's base block, the variant riding the metadata nibble.
+     * Declared BEFORE the reverse map: reverse() folds it in at init (the
+     * ITEM_OVERRIDES discipline).
+     */
+    private static final Map<Integer, Identifier> FAMILY_BASE = Map.ofEntries(
+            // The stone family: stone 1:0, the granite/diorite/andesite the
+            // variants (StoneBlock.VARIANT).
+            Map.entry(1, Identifier.parse("minecraft:stone")),
+            // The dirt family: DirtBlock.VARIANT — coarse 1, podzol 2.
+            Map.entry(3, Identifier.parse("minecraft:dirt")),
+            // The wood families: the engine's block registry carries the
+            // oak-prefixed forms (BuiltinBlocks OAK_PLANKS/OAK_LOG/
+            // OAK_LEAVES), the bare dataset names (planks/log/leaves) ride
+            // as wire aliases — the registry form must win so the block
+            // consults resolve (BlockPlanks.VARIANT: spruce 1, birch 2,
+            // jungle 3, acacia 4, dark_oak 5).
+            Map.entry(5, Identifier.parse("minecraft:oak_planks")),
+            Map.entry(6, Identifier.parse("minecraft:oak_sapling")),
+            Map.entry(12, Identifier.parse("minecraft:sand")),
+            Map.entry(17, Identifier.parse("minecraft:oak_log")),
+            Map.entry(18, Identifier.parse("minecraft:oak_leaves")),
+            // The sandstone family: DEFAULT(0), the chiseled/smooth the
+            // variants (SandstoneBlock.Type).
+            Map.entry(24, Identifier.parse("minecraft:sandstone")),
+            // The tall-grass family: TallPlantBlock.EnumType — the dead
+            // shrub 31:0 is the engine's own dead_bush block (32); the
+            // family's base here is the tall grass itself (meta 1), the
+            // closest engine form to the reference's base block.
+            Map.entry(31, Identifier.parse("minecraft:tall_grass")),
+            // The flower family: the reference's BlockFlower base name;
+            // the poppy is the meta-0 state (the damage-aware map's own
+            // explicit row), the item path rides the red_flower item.
+            Map.entry(38, Identifier.parse("minecraft:red_flower")),
+            // The stone-slab families: the stone slab is the 0 variant,
+            // the cobblestone/sandstone/stone-brick the others; the
+            // doubles the same law (DoubleStoneSlabBlock.VARIANT).
+            Map.entry(43, Identifier.parse("minecraft:double_stone_slab")),
+            Map.entry(44, Identifier.parse("minecraft:stone_slab")),
+            // The infested family: the stone form is the base
+            // (InfestedBlock 97:0).
+            Map.entry(97, Identifier.parse("minecraft:infested_stone")),
+            // The stone-brick family: StoneBrickBlock.VARIANT.
+            Map.entry(98, Identifier.parse("minecraft:stone_bricks")),
+            // The wooden-slab families: the oak pair the 0 variant
+            // (BlockWoodSlab — the engine's registry carries oak_slab).
+            Map.entry(125, Identifier.parse("minecraft:double_wooden_slab")),
+            Map.entry(126, Identifier.parse("minecraft:oak_slab")),
+            // The stained clay family: the 1.8 block name; the color
+            // members are dye-family variants (excluded from the plain
+            // reverse whole).
+            Map.entry(159, Identifier.parse("minecraft:stained_hardened_clay")),
+            // The prismarine family: the bare ITEM form is the base (the
+            // engine registers only the rough/bricks/dark STATES as
+            // blocks); the meta-0 state consult answers prismarine_rough
+            // through the META0_STATE table below.
+            Map.entry(168, Identifier.parse("minecraft:prismarine")),
+            // The double-plant family: the reference's one item whose
+            // damage carries the variant (DoublePlantBlock.Variant).
+            Map.entry(175, Identifier.parse("minecraft:double_plant")),
+            // The red-sandstone family: RedSandstoneBlock.Type — the
+            // chiseled/smooth the variants.
+            Map.entry(179, Identifier.parse("minecraft:red_sandstone")),
+            // The dye item family: the ink sac "dye" is the damage-0 base
+            // (ItemDye), the lapis 4 and the bone meal 15 the members the
+            // damage-aware map resolves.
+            Map.entry(351, Identifier.parse("minecraft:dye")));
+
     private static final Map<Integer, Identifier> BY_LEGACY_ID = reverse();
 
     private static Map<Integer, Identifier> reverse() {
+        // WAVE WR — THE DETERMINISTIC FAMILY BASE. The immutable source map
+        // iterates in the JDK's own SALT-randomized order
+        // (ImmutableCollections re-seeds its probe salt per JVM run), so the
+        // retired blind last-writer-wins loop resolved EVERY shared legacy
+        // id to a RANDOM family member per boot: legacy 3 answered dirt on
+        // one boot, coarse_dirt on the next, podzol on a third — and a
+        // creative dirt pick that resolved to podzol found no item form and
+        // VANISHED whole (the owner's own report; the standing
+        // CreativeMenuWire flake's root). The reverse now walks the table
+        // in SORTED order (a canonical sequence the salt can never touch)
+        // with the FAMILY_BASE table settling the families whose base is
+        // not the alphabetically-first member — the same answer the
+        // reference's own Block.getBlockById/Item.getItemById give: the
+        // family's base form, never a variant.
         Map<Integer, Identifier> reversed = new HashMap<>();
-        BY_IDENTIFIER.forEach((identifier, legacyId) -> {
-            // The dye families' flattened members share their legacy id
-            // with the family's single damage-domain ITEM (Slice 31): the
-            // no-meta reverse must keep the ITEM canonical (the creative
-            // slot's plain-id fallback resolves it; the members are only
-            // ever reachable through the damage-aware map below).
-            if (isDyeFamilyVariant(identifier) || isVineStateVariant(identifier)) {
-                return;
-            }
-            reversed.put(legacyId, identifier);
-        });
+        BY_IDENTIFIER.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> {
+                    // The dye families' flattened members share their legacy
+                    // id with the family's single damage-domain ITEM (Slice
+                    // 31): the no-meta reverse must keep the ITEM canonical
+                    // (the creative slot's plain-id fallback resolves it;
+                    // the members are only ever reachable through the
+                    // damage-aware map below).
+                    if (isDyeFamilyVariant(entry.getKey()) || isVineStateVariant(entry.getKey())) {
+                        return;
+                    }
+                    Identifier base = FAMILY_BASE.get(entry.getValue());
+                    if (base != null) {
+                        // The explicit base wins over every member, whatever
+                        // the walk order — the reference's own answer.
+                        reversed.put(entry.getValue(), base);
+                        return;
+                    }
+                    reversed.putIfAbsent(entry.getValue(), entry.getKey());
+                });
         // The item-form overrides (sign item 323) resolve on the creative
         // and slot paths too; item ids never collide with block ids here.
+        // Each override row carries a DISTINCT id, so this fold is
+        // deterministic by construction (the base walk above settled the
+        // shared block ids before any override lands).
         ITEM_OVERRIDES.forEach((identifier, legacyId) -> reversed.put(legacyId, identifier));
         return Map.copyOf(reversed);
     }
@@ -1719,15 +1819,76 @@ final class LegacyBlockIds {
             // (every engine farmland rendered dry on the real client).
             Map.entry(Identifier.parse("minecraft:farmland_wet"), 7),
             // The temple set (Slice 12f): the sandstone variant band + the
-            // clay variant band + the vine's attached state.
-            Map.entry(Identifier.parse("minecraft:chiseled_sandstone"), 3),
+            // clay variant band + the vine's attached state. WAVE WR'S OWN
+            // REPAIR: the retired chiseled row carried 3 — the STONE-BRICKS
+            // band copied onto the sandstone family; the reference's own
+            // SandstoneBlock.Type is DEFAULT(0), CHISELED(1), SMOOTH(2), and
+            // the smooth row was missing whole (the wire encoded the smooth
+            // skin as 24:0 — the default skin — and the chiseled band as
+            // 24:3, a nibble the reference never writes; the anvil table
+            // and the engine's own legacyMetadata carried the same 3).
+            Map.entry(Identifier.parse("minecraft:chiseled_sandstone"), 1),
+            Map.entry(Identifier.parse("minecraft:smooth_sandstone"), 2),
             // The dirt variants' nibbles (VIII14's surface slice —
             // DirtBlock.VARIANT: coarse 1, podzol 2).
             Map.entry(Identifier.parse("minecraft:coarse_dirt"), 1),
             Map.entry(Identifier.parse("minecraft:podzol"), 2),
             Map.entry(Identifier.parse("minecraft:stained_clay_orange"), 1),
             Map.entry(Identifier.parse("minecraft:stained_clay_yellow"), 4),
-            Map.entry(Identifier.parse("minecraft:vine"), 15))));
+            Map.entry(Identifier.parse("minecraft:vine"), 15),
+            // WAVE WR — THE CROP AGE BANDS (the wire's own gap the engine's
+            // model never leaked to this table: the farming slices
+            // registered wheat_stage1..7 / carrots_stage1..7 /
+            // potatoes_stage1..7 with their own EngineBlockType
+            // legacyMetadata nibbles — the ANVIL import table derived its
+            // rows from those — but this wire table predates the families
+            // and answered 0 for every stage: the chunk encode wrote 59:0
+            // for a stage-7 wheat, so crops NEVER visually grew on the real
+            // client, and the damage-aware reverse fell through to the
+            // plain reverse for every (59, k) consult. The reference's own
+            // CropBlock law: AGE 0..7 rides the metadata nibble whole
+            // (getMetadataFromState = state.get(AGE)).
+            Map.entry(Identifier.parse("minecraft:wheat_stage1"), 1),
+            Map.entry(Identifier.parse("minecraft:wheat_stage2"), 2),
+            Map.entry(Identifier.parse("minecraft:wheat_stage3"), 3),
+            Map.entry(Identifier.parse("minecraft:wheat_stage4"), 4),
+            Map.entry(Identifier.parse("minecraft:wheat_stage5"), 5),
+            Map.entry(Identifier.parse("minecraft:wheat_stage6"), 6),
+            Map.entry(Identifier.parse("minecraft:wheat_stage7"), 7),
+            Map.entry(Identifier.parse("minecraft:carrots_stage1"), 1),
+            Map.entry(Identifier.parse("minecraft:carrots_stage2"), 2),
+            Map.entry(Identifier.parse("minecraft:carrots_stage3"), 3),
+            Map.entry(Identifier.parse("minecraft:carrots_stage4"), 4),
+            Map.entry(Identifier.parse("minecraft:carrots_stage5"), 5),
+            Map.entry(Identifier.parse("minecraft:carrots_stage6"), 6),
+            Map.entry(Identifier.parse("minecraft:carrots_stage7"), 7),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage1"), 1),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage2"), 2),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage3"), 3),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage4"), 4),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage5"), 5),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage6"), 6),
+            Map.entry(Identifier.parse("minecraft:potatoes_stage7"), 7),
+            // WAVE WR — THE SKULL FACING BAND (SkullBlock 1:1, block 144:
+            // facing | nodrop << 3 — the NODROP bit server-only, never on a
+            // placed skull's wire row): 1 the floor mount, 2-5 the wall
+            // facings, 0 the ceiling — the engine's own SkullBlocks
+            // facingOf law and the anvil table's rows carried these while
+            // this table answered 0 for every state (a wall skull encoded
+            // as the ceiling mount on the wire).
+            Map.entry(Identifier.parse("minecraft:skull"), 1),
+            Map.entry(Identifier.parse("minecraft:skull_north"), 2),
+            Map.entry(Identifier.parse("minecraft:skull_south"), 3),
+            Map.entry(Identifier.parse("minecraft:skull_west"), 4),
+            Map.entry(Identifier.parse("minecraft:skull_east"), 5),
+            // WAVE WR — THE DYE ITEM'S OWN DAMAGE DOMAIN (the item 351's
+            // three members in the engine's model: the ink sac "dye" at
+            // damage 0, the lapis at 4, the bone meal at 15 — ItemDye's own
+            // damage law): the damage-aware reverse had no rows, so a
+            // creative pick of lapis (351:4) fell through to the plain
+            // reverse and landed as a RANDOM one of the three per boot.
+            Map.entry(Identifier.parse("minecraft:lapis"), 4),
+            Map.entry(Identifier.parse("minecraft:bone_meal"), 15))));
 
     /**
      * The dye-coloring families' nibble merge (Slice 31): every family
@@ -2298,7 +2459,21 @@ final class LegacyBlockIds {
         return 0;
     }
 
-    /** The damage-aware reverse: (legacy id << 4) | metadata -> identifier. */
+    /**
+     * WAVE WR — the meta-0 state exceptions: the families whose bare base
+     * is an ITEM-ONLY form (or a non-state alias) while the reference's
+     * meta-0 state is a distinct registered block. The anvil import table
+     * carries the same answers (its own derivation consults the registry
+     * first); this table keeps the two sides from drifting. Declared
+     * BEFORE the damage-aware reverse: reverseWithMetadata() folds it in
+     * at init (the ITEM_OVERRIDES discipline).
+     */
+    private static final Map<Integer, Identifier> META0_STATE = Map.ofEntries(
+            // The prismarine family: ROUGH(0) is the meta-0 state
+            // (PrismarineBlock 168:0); the bare minecraft:prismarine is
+            // the item form alone.
+            Map.entry(168, Identifier.parse("minecraft:prismarine_rough")));
+
     private static final Map<Integer, Identifier> BY_LEGACY_ID_AND_META = reverseWithMetadata();
 
     private static Map<Integer, Identifier> reverseWithMetadata() {
@@ -2400,6 +2575,46 @@ final class LegacyBlockIds {
                 reversed.put((legacy << 4) | metadataOf(identifier), identifier);
             }
         });
+        // WAVE WR — THE FLUID FAMILY'S OWN NIBBLE SPACE (the same fold
+        // shape as the hopper's): the encode side consulted
+        // FluidBlocks.levelOf for the flow level all along, but the
+        // reverse carried no rows — the damage-aware consult of a fluid
+        // state (10|8, the falling lava column) fell through to the
+        // plain reverse. The wire law (the Wave VI band's own): the
+        // source and the settled still levels ride 9/11, every flowing
+        // form — the shallow levels, the falling column 8, the
+        // falling-with-above-depth band 9-15 — rides 8/10, the flow
+        // level itself the nibble (the same levelOf the encode consults).
+        for (net.zaminmc.torch.server.block.FluidBlocks.Kind kind
+                : net.zaminmc.torch.server.block.FluidBlocks.Kind.values()) {
+            for (net.zaminmc.torch.server.block.FluidBlocks.Form form
+                    : net.zaminmc.torch.server.block.FluidBlocks.Form.values()) {
+                for (int level = 0;
+                        level <= net.zaminmc.torch.server.block.FluidBlocks.MAX_LEVEL;
+                        level++) {
+                    Identifier fluidState =
+                            net.zaminmc.torch.server.block.FluidBlocks.levelId(kind, form, level);
+                    int nibble = level & 0xF;
+                    legacyId(fluidState).ifPresent(legacy ->
+                            reversed.put((legacy << 4) | nibble, fluidState));
+                }
+            }
+        }
+        // WAVE WR — THE META-0 FILL: every family whose meta-0 key is still
+        // absent falls through to the PLAIN reverse on a damage-0 consult
+        // — the retired plain reverse's per-boot random answer. The
+        // reference's own getStateFromMetadata(0) is always the family's
+        // base state, so the fill lands the deterministic base at every
+        // absent meta-0 key (never displacing an explicit state row — the
+        // dispenser's (23,0) keeps dispenser_down, the hopper's (154,0)
+        // keeps hopper_down, the daylight detector's (151,0) keeps p0).
+        BY_LEGACY_ID.forEach((legacyId, base) ->
+                reversed.putIfAbsent(legacyId << 4, base));
+        // The state-modeled exceptions: families whose meta-0 answer is a
+        // registered STATE rather than the bare item/base form — the
+        // reference's own getStateFromMetadata(0).
+        META0_STATE.forEach((legacyId, state) ->
+                reversed.put(legacyId << 4, state));
         return Map.copyOf(reversed);
     }
 

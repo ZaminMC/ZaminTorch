@@ -250,7 +250,12 @@ public final class AnvilBlockIds {
             state(23, 13, "minecraft:dispenser_east_triggered"),
             state(24, 0, "minecraft:sandstone"),
             state(24, 2, "minecraft:smooth_sandstone"),
-            state(24, 3, "minecraft:chiseled_sandstone"),
+            // WAVE WR — the chiseled row's repair (the retired 24:3 was
+            // the STONE-BRICKS band copied onto the sandstone family; the
+            // reference's own SandstoneBlock.Type law is DEFAULT(0),
+            // CHISELED(1), SMOOTH(2) — a real vanilla world carries the
+            // chiseled skin at 24:1, which the retired row left isolated).
+            state(24, 1, "minecraft:chiseled_sandstone"),
             state(25, 0, "minecraft:noteblock"),
             state(26, 0, "minecraft:bed"),
             state(26, 1, "minecraft:bed_west"),

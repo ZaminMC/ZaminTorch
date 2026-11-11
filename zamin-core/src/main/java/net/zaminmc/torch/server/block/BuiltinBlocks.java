@@ -828,8 +828,11 @@ public final class BuiltinBlocks {
     // ~DyeColor.ORANGE & 15 = 1 and ~DyeColor.BLUE & 15 = 4), the mossy
     // cobblestone (48 — the jungle picker's 60% pair), and the vine (106,
     // the all-attached metadata 15).
+    // WAVE WR — the nibble repair (the retired 3 was the STONE-BRICKS
+    // band copied onto the sandstone family): the reference's own
+    // SandstoneBlock.Type law is DEFAULT(0), CHISELED(1), SMOOTH(2).
     public static final EngineBlockType CHISELED_SANDSTONE = new EngineBlockType(
-            Identifier.parse("minecraft:chiseled_sandstone"), "Sandstone", 3);
+            Identifier.parse("minecraft:chiseled_sandstone"), "Sandstone", 1);
     public static final EngineBlockType STAINED_CLAY_ORANGE = new EngineBlockType(
             Identifier.parse("minecraft:stained_clay_orange"), "Orange Stained Clay", 1);
     public static final EngineBlockType STAINED_CLAY_YELLOW = new EngineBlockType(
