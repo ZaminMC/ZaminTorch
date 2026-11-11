@@ -2634,7 +2634,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // second loop: a player moving more than 4 blocks re-consults
         // every tracked body's box — the out-of-box destroys, the
         // in-box re-spawns). The walk's own anchor gates the cadence.
-        reevaluateMobVisibility(position);
+        // WAVE TR-2: the walk covers EVERY tracked family now.
+        reevaluateTrackedVisibility(position);
         adapter.broadcastMovement(player);
     }
 
@@ -4905,6 +4906,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(chunkKeyOf(orb.position()))) {
             return; // observer cannot see that chunk yet
         }
+        // WAVE TR-2 — THE SPAWN GATE (the experience orb's own row,
+        // EntityMap lines 116-117: 160 through the registration clamp).
+        if (!withinTrackingRange(net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.XP_ORB,
+                orb.position().x(), orb.position().z())) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(24);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_XP_ORB);
         ByteBufOps.writeVarInt(out, orb.entityId());
@@ -4913,6 +4920,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeInt((int) Math.floor(orb.position().z() * 32.0));
         out.writeShort(Math.min(Short.MAX_VALUE, orb.amount()));
         enqueueOut(out);
+        // WAVE TR-2 — the registry seed.
+        trackedSpawns.put(orb.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.XP_ORB);
     }
 
     /**
@@ -4926,6 +4936,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // Wave TF-10 — the observer in another dimension never tracks this
         // body (its spawn never reached them).
         if (dimensionOfSession() != orb.dimension()) {
+            return;
+        }
+        // WAVE TR-2 — THE MOVE-TIME RANGE ARM (the orb's own box on every
+        // move send: crossed-out destroyed, crossed-in re-spawned).
+        if (trackingRangeMoveArm(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.XP_ORB,
+                orb.entityId(), orb.position().x(), orb.position().z(),
+                () -> sendOrbSpawn(orb))) {
             return;
         }
         net.zaminmc.torch.util.Position feet = new net.zaminmc.torch.util.Position(
@@ -5001,6 +5019,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(chunkKeyOf(entity.position()))) {
             return; // observer cannot see that chunk yet
         }
+        // WAVE TR-2 — THE SPAWN GATE (the item's own row, EntityMap lines
+        // 92-93: 64 through the registration clamp): a body beyond its own
+        // ±range box NEVER reaches this observer — at its own spawn, at
+        // any observer's join snapshot (both funnel this choke point),
+        // never again. The retired wire spawned every same-dimension body
+        // however far.
+        if (!withinTrackingRange(net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ITEM,
+                entity.position().x(), entity.position().z())) {
+            return;
+        }
         Integer legacy = LegacyBlockIds.legacyItemId(entity.stack().type().identifier()).orElse(null);
         if (legacy == null) {
             return;
@@ -5031,6 +5059,10 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         writeSlot(meta, entity.stack());
         meta.writeByte(Protocol18.METADATA_TERMINATOR);
         enqueueOut(meta);
+        // WAVE TR-2 — the registry seed (the spawn landed for this
+        // observer: the move arm's spawnedHere consult reads it).
+        trackedSpawns.put(entity.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ITEM);
     }
 
     /** Absolute-position sync for a moving item entity. Any thread. */
@@ -5040,11 +5072,28 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (dimensionOfSession() != entity.dimension()) {
             return;
         }
+        // WAVE TR-2 — THE MOVE-TIME RANGE ARM (the item's own box,
+        // re-evaluated on every move send): the crossed-out body destroyed
+        // here, the crossed-in body re-spawned through the full chain.
+        if (trackingRangeMoveArm(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ITEM,
+                entity.entityId(), entity.position().x(), entity.position().z(),
+                () -> sendItemSpawn(entity))) {
+            return;
+        }
         sendEntityTeleport(entity.entityId(), entity.position(), entity.onGround());
     }
 
     /** Absolute-position sync for a moving falling block. Any thread. */
     void sendFallingTeleport(net.zaminmc.torch.server.entity.FallingBlockEntity entity) {
+        // WAVE TR-2 — THE MOVE-TIME RANGE ARM (the falling block's own box
+        // on every move send: crossed-out destroyed, crossed-in re-spawned).
+        if (trackingRangeMoveArm(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.FALLING,
+                entity.entityId(), entity.position().x(), entity.position().z(),
+                () -> sendFallingSpawn(entity))) {
+            return;
+        }
         sendEntityTeleport(entity.entityId(), entity.position(), entity.onGround());
     }
 
@@ -5134,6 +5183,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // WAVE TR-2 — the registry row retires with the collect's destroy.
+        trackedSpawns.remove(itemEntityId);
         Integer collectorWireId = wireEntityIdOf(collector);
         if (collectorWireId == null) {
             return;
@@ -5162,6 +5213,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // WAVE TR-2 — the registry row retires with the collect's destroy.
+        trackedSpawns.remove(projectileEntityId);
         Integer collectorWireId = wireEntityIdOf(collector);
         if (collectorWireId == null) {
             return;
@@ -5190,6 +5243,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // WAVE TR-2 — the registry row retires with the collect's destroy.
+        trackedSpawns.remove(itemEntityId);
         ByteBuf out = Unpooled.buffer(8);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_COLLECT_ITEM);
         ByteBufOps.writeVarInt(out, itemEntityId);
@@ -5231,6 +5286,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
             return; // observer cannot see that chunk yet
         }
+        // WAVE TR-2 — THE SPAWN GATE (the primed TNT's own row, EntityMap
+        // lines 108-109: 160 through the registration clamp).
+        if (!withinTrackingRange(net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.TNT,
+                tnt.x(), tnt.z())) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(40);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
         ByteBufOps.writeVarInt(out, tnt.entityId());
@@ -5245,6 +5306,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort((int) Math.round(tnt.velocityY() * 8000.0));
         out.writeShort((int) Math.round(tnt.velocityZ() * 8000.0));
         enqueueOut(out);
+        // WAVE TR-2 — the registry seed.
+        trackedSpawns.put(tnt.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.TNT);
     }
 
     /**
@@ -5256,6 +5320,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * consult carries the whole layout. Any thread.
      */
     void sendTntMoved(net.zaminmc.torch.server.tnt.TntSystem.PrimedTnt tnt) {
+        // WAVE TR-2 — THE MOVE-TIME RANGE ARM (the TNT's own box on every
+        // move send: crossed-out destroyed, crossed-in re-spawned).
+        if (trackingRangeMoveArm(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.TNT,
+                tnt.entityId(), tnt.x(), tnt.z(),
+                () -> sendTntSpawn(tnt))) {
+            return;
+        }
         sendEntityTeleport(tnt.entityId(),
                 new net.zaminmc.torch.util.Position(tnt.x(), tnt.y(), tnt.z()), false);
     }
@@ -5268,6 +5340,7 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     /** Destroy Entities (0x13) with a single id. Any thread. */
     private void sendDestroyEntities(int entityId) {
         trackedMoves.remove(entityId); // the tracked-move row retires with the body
+        trackedSpawns.remove(entityId); // WAVE TR-2 — the spawn marker too
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
@@ -5303,6 +5376,12 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (legacy == null) {
             return;
         }
+        // WAVE TR-2 — THE SPAWN GATE (the falling block's own row, EntityMap
+        // lines 110-111: 160 through the registration clamp).
+        if (!withinTrackingRange(net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.FALLING,
+                entity.position().x(), entity.position().z())) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(48);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
         ByteBufOps.writeVarInt(out, entity.entityId());
@@ -5320,6 +5399,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort((int) Math.floor(entity.velocityY() * 8000.0));
         out.writeShort(0); // velocity z
         enqueueOut(out);
+        // WAVE TR-2 — the registry seed.
+        trackedSpawns.put(entity.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.FALLING);
     }
 
     private Integer wireEntityIdOf(PlayerSession player) {
@@ -5396,16 +5478,84 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
                 mob.position().x(), mob.position().z());
     }
 
+    // ------------------------------------------------------------------ WAVE TR-2 — the family roll-out
+
+    /**
+     * WAVE TR-2 — the spawned-body registry for every NON-mob tracked
+     * family (the mob band's {@link #mobSyncState} counterpart): the
+     * entityId-keyed marker of what THIS observer's client holds, seeded
+     * at each family's spawn sender (only when the packet actually
+     * landed — the early refuses never seed) and retired at every
+     * removal arm. The move-time range arm consults it for the
+     * crossed-out destroy and the crossed-in re-spawn exactly the way
+     * the mob band consults mobSyncState. The ids are engine-global
+     * (the per-family id bands partition one space), so ONE registry
+     * serves every family. Any thread (concurrent: the tick-lane
+     * listeners and the event-loop walk).
+     */
+    private final java.util.concurrent.ConcurrentHashMap<Integer,
+            net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind> trackedSpawns =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * WAVE TR-2 — the range consult for the other families (the roll-out
+     * over EntityMap's own rows): whether the body's ±range box still
+     * holds this observer. The kind's own table row rides the same
+     * registration clamp the mob band rides. Any thread.
+     */
+    private boolean withinTrackingRange(
+            net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind kind,
+            double entityX, double entityZ) {
+        PlayerSession current = session;
+        if (current == null) {
+            return false;
+        }
+        int range = net.zaminmc.torch.server.entity.TrackingRanges.effectiveRange(
+                kind, engine.engineConfig().viewDistance());
+        return net.zaminmc.torch.server.entity.TrackingRanges.inRange(
+                range, current.position().x(), current.position().z(), entityX, entityZ);
+    }
+
+    /**
+     * WAVE TR-2 — THE MOVE-TIME RANGE ARM for every family that moves on
+     * the wire (TrackedEntity.tick's own re-evaluation, the entity-side
+     * arm — the same three-law shape the mob band carries at
+     * {@link #sendMobMoved}): a body that crossed OUT of this observer's
+     * box is destroyed here, a body that crossed IN re-spawns through
+     * the full chain ({@code spawnResend} — the family's own spawn
+     * sender, its gates deciding the rest). @return true when the arm
+     * consumed the move (the caller must not send it). Any thread.
+     */
+    private boolean trackingRangeMoveArm(
+            net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind kind,
+            int entityId, double entityX, double entityZ, Runnable spawnResend) {
+        boolean spawnedHere = trackedSpawns.containsKey(entityId);
+        if (!withinTrackingRange(kind, entityX, entityZ)) {
+            if (spawnedHere) {
+                trackedSpawns.remove(entityId);
+                sendDestroyEntities(entityId);
+            }
+            return true; // the crossed-out body: no move flows past the range
+        }
+        if (!spawnedHere) {
+            spawnResend.run(); // the crossed-in re-spawn (the full chain)
+            return true;
+        }
+        return false; // inside the box, already spawned: the move flows
+    }
+
     /**
      * WAVE TR — THE PLAYER-SIDE VISIBILITY WALK (EntityMap.tick's second
      * loop, lines 196-204: a player whose own tracked entry moved more than
      * 4 blocks is re-evaluated against EVERY tracked body — the newly
      * out-of-box bodies destroyed, the newly in-box bodies spawned through
-     * the full chain). Runs on the event loop from the C2S movement
-     * handler; the mob snapshot is the copy-on-write view (safe off the
-     * tick lane).
+     * the full chain). WAVE TR-2 rolls the walk out over EVERY tracked
+     * family — the reference's one entities set covers all of them; the
+     * engine's shape walks each family's own live list (the copy-on-write
+     * snapshots, safe off the tick lane). Runs on the event loop from the
+     * C2S movement handler.
      */
-    private void reevaluateMobVisibility(Position now) {
+    private void reevaluateTrackedVisibility(Position now) {
         if (state != WireState.PLAY || chunkTracker == null || session == null) {
             return;
         }
@@ -5438,6 +5588,169 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             } else if (!inView && spawnedHere) {
                 sendMobRemoved(mob.entityId()); // the remove arm
             }
+        }
+        // ------------------------------------------------------------------
+        // WAVE TR-2 — the other families' walks (the roll-out): the same
+        // in-box + in-chunk consult per body, the families' own spawn
+        // senders answering the add arm (their gates decide everything
+        // else) and the shared destroy answering the remove arm.
+        // ------------------------------------------------------------------
+        var items = engine.itemEntities();
+        if (items != null) {
+            for (var item : items.all()) {
+                reevaluateFamilyBody(
+                        net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ITEM,
+                        item.entityId(), item.position().x(), item.position().z(),
+                        item.dimension(), () -> sendItemSpawn(item));
+            }
+        }
+        var tnt = engine.tnt();
+        if (tnt != null) {
+            for (var body : tnt.allPrimed()) {
+                reevaluateFamilyBody(
+                        net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.TNT,
+                        body.entityId(), body.x(), body.z(),
+                        body.dimension(), () -> sendTntSpawn(body));
+            }
+        }
+        var falling = engine.fallingEntities();
+        if (falling != null) {
+            for (var body : falling.all()) {
+                reevaluateFamilyBody(
+                        net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.FALLING,
+                        body.entityId(), body.position().x(), body.position().z(),
+                        body.dimension(), () -> sendFallingSpawn(body));
+            }
+        }
+        var orbs = engine.experienceOrbs();
+        if (orbs != null) {
+            for (var orb : orbs.all()) {
+                reevaluateFamilyBody(
+                        net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.XP_ORB,
+                        orb.entityId(), orb.position().x(), orb.position().z(),
+                        orb.dimension(), () -> sendOrbSpawn(orb));
+            }
+        }
+        var projectiles = engine.projectiles();
+        if (projectiles != null) {
+            for (var projectile : projectiles.all()) {
+                reevaluateFamilyBody(
+                        net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.PROJECTILE,
+                        projectile.entityId(), projectile.position().x(), projectile.position().z(),
+                        projectile.dimension(), () -> sendProjectileSpawned(projectile));
+            }
+        }
+        var vehicles = engine.vehicles();
+        if (vehicles != null) {
+            for (var vehicle : vehicles.all()) {
+                reevaluateFamilyBody(
+                        net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.VEHICLE,
+                        vehicle.entityId(), vehicle.position().x(), vehicle.position().z(),
+                        vehicle.dimension(), () -> sendVehicleSpawn(vehicle));
+            }
+        }
+        var stands = engine.armorStands();
+        if (stands != null) {
+            for (var stand : stands.allStands()) {
+                reevaluateFamilyBody(
+                        net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ARMOR_STAND,
+                        stand.entityId(), stand.x(), stand.z(),
+                        stand.dimension(), () -> sendStandSpawned(stand));
+            }
+        }
+        var decorations = engine.decorationsFor(dimensionOfSession());
+        if (decorations != null) {
+            for (var frame : decorations.allFrames()) {
+                reevaluateFamilyBody(
+                        net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.DECORATION,
+                        frame.entityId(), frame.pos().x() + 0.5, frame.pos().z() + 0.5,
+                        frame.dimension(), () -> sendFrameSpawned(frame));
+            }
+            for (var painting : decorations.allPaintings()) {
+                reevaluateFamilyBody(
+                        net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.DECORATION,
+                        painting.entityId(), painting.pos().x() + 0.5, painting.pos().z() + 0.5,
+                        painting.dimension(), () -> sendPaintingSpawned(painting));
+            }
+        }
+        var leads = engine.leads();
+        if (leads != null) {
+            for (var knot : leads.allKnots()) {
+                reevaluateFamilyBody(
+                        net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.DECORATION,
+                        knot.entityId(), knot.fence().x() + 0.5, knot.fence().z() + 0.5,
+                        knot.dimension(), () -> sendKnotSpawned(knot));
+            }
+        }
+        var rockets = engine.fireworks();
+        if (rockets != null) {
+            for (var rocket : rockets.all()) {
+                reevaluateFamilyBody(
+                        net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.FIREWORKS,
+                        rocket.entityId(), rocket.position().x(), rocket.position().z(),
+                        rocket.dimension(), () -> sendFireworksLaunched(rocket));
+            }
+        }
+        var eyes = engine.eyes();
+        if (eyes != null) {
+            for (var eye : eyes.all()) {
+                reevaluateFamilyBody(
+                        net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ENDER_EYE,
+                        eye.entityId(), eye.position().x(), eye.position().z(),
+                        eye.dimension(), () -> sendEyeLaunched(eye, false));
+            }
+        }
+        var fishing = engine.fishingSystem();
+        if (fishing != null) {
+            for (var bobber : fishing.all()) {
+                reevaluateFamilyBody(
+                        net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.BOBBER,
+                        bobber.entityId(), bobber.position().x(), bobber.position().z(),
+                        bobber.dimension(), () -> sendBobberSpawned(bobber));
+            }
+        }
+        // The ender crystals live only in the End (dimension 1); the walk
+        // consults them for the End-standing observer alone.
+        if (dimensionOfSession() == 1) {
+            var crystals = engine.enderCrystals();
+            if (crystals != null) {
+                for (var crystal : crystals.all()) {
+                    reevaluateFamilyBody(
+                            net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ENDER_CRYSTAL,
+                            crystal.entityId(), crystal.x(), crystal.z(),
+                            1, () -> sendCrystalSpawn(crystal));
+                }
+            }
+        }
+    }
+
+    /**
+     * WAVE TR-2 — one family body's box consult for the player-side walk
+     * (the mob loop's own shape over the shared registry): the dimension
+     * gate first, then the box + the chunk window — the in-view un-spawned
+     * body spawns through its family's full chain (the sender's own gates
+     * decide everything else), the out-of-view spawned body is destroyed.
+     * Event-loop confined (the walk's own lane).
+     */
+    private void reevaluateFamilyBody(
+            net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind kind,
+            int entityId, double x, double z, int dimension, Runnable spawnResend) {
+        if (dimension != dimensionOfSession()) {
+            return; // another world's body
+        }
+        boolean spawnedHere = trackedSpawns.containsKey(entityId);
+        int range = net.zaminmc.torch.server.entity.TrackingRanges.effectiveRange(
+                kind, engine.engineConfig().viewDistance());
+        boolean inBox = net.zaminmc.torch.server.entity.TrackingRanges.inRange(
+                range, session.position().x(), session.position().z(), x, z);
+        boolean inView = inBox && chunkTracker.hasChunk(
+                net.zaminmc.torch.block.ChunkPosition.ofBlock(
+                        (int) Math.floor(x), (int) Math.floor(z)).packed());
+        if (inView && !spawnedHere) {
+            spawnResend.run(); // the full add chain (updatePlayer's add arm)
+        } else if (!inView && spawnedHere) {
+            trackedSpawns.remove(entityId);
+            sendDestroyEntities(entityId); // the remove arm
         }
     }
 
@@ -6248,6 +6561,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
             return; // outside this observer's loaded window
         }
+        // WAVE TR-2 — THE SPAWN GATE (the firework rocket's own row, EntityMap
+        // lines 90-91: 64 through the registration clamp).
+        if (!withinTrackingRange(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.FIREWORKS,
+                rocket.position().x(), rocket.position().z())) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(40);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
         ByteBufOps.writeVarInt(out, rocket.entityId());
@@ -6277,6 +6597,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         velocity.writeShort((int) Math.round(rocket.velocityY() * 8000.0));
         velocity.writeShort((int) Math.round(rocket.velocityZ() * 8000.0));
         enqueueOut(velocity);
+        // WAVE TR-2 — the registry seed.
+        trackedSpawns.put(rocket.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.FIREWORKS);
     }
 
     /**
@@ -6288,6 +6611,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY
                 || chunkTracker == null) {
+            return;
+        }
+        // WAVE TR-2 — THE MOVE-TIME RANGE ARM (the rocket's own box at the
+        // velocity re-sync — the flight's per-10-tick server-side sync:
+        // crossed-out destroyed, crossed-in re-spawned through the full
+        // chain, the payload stack riding the spawn again).
+        if (trackingRangeMoveArm(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.FIREWORKS,
+                rocket.entityId(), rocket.position().x(), rocket.position().z(),
+                () -> sendFireworksLaunched(rocket))) {
             return;
         }
         ByteBuf out = Unpooled.buffer(16);
@@ -6360,6 +6693,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
             return; // outside this observer's loaded window
         }
+        // WAVE TR-2 — THE SPAWN GATE (the eye of ender's own row, EntityMap
+        // lines 82-83: 64 through the registration clamp).
+        if (!withinTrackingRange(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ENDER_EYE,
+                eye.position().x(), eye.position().z())) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(40);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
         ByteBufOps.writeVarInt(out, eye.entityId());
@@ -6388,6 +6728,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             sendWorldEvent(eye.position(),
                     Protocol18.WORLD_EVENT_FIRE_CHARGE_SMOKE, eye.dimension());
         }
+        // WAVE TR-2 — the registry seed.
+        trackedSpawns.put(eye.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ENDER_EYE);
     }
 
     /**
@@ -6397,6 +6740,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
     void sendEyeVelocity(net.zaminmc.torch.server.endereye.EnderEyeEntity eye) {
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
+            return;
+        }
+        // WAVE TR-2 — THE MOVE-TIME RANGE ARM (the eye's own box at the
+        // 4-tick velocity re-sync: crossed-out destroyed, crossed-in
+        // re-spawned through the full chain).
+        if (trackingRangeMoveArm(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ENDER_EYE,
+                eye.entityId(), eye.position().x(), eye.position().z(),
+                () -> sendEyeLaunched(eye, false))) {
             return;
         }
         ByteBuf out = Unpooled.buffer(16);
@@ -7174,6 +7526,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
             return; // outside this observer's loaded window
         }
+        // WAVE TR-2 — THE SPAWN GATE (the projectile family's own rows,
+        // EntityMap lines 72-89: one band 64 through the registration
+        // clamp — the arrow's 64/20 and the shard family's 64/10 share the
+        // range; the intervals differ, never the box).
+        if (!withinTrackingRange(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.PROJECTILE,
+                projectile.position().x(), projectile.position().z())) {
+            return;
+        }
         int objectType = switch (projectile.kind()) {
             case ARROW -> Protocol18.OBJECT_ARROW;
             case SNOWBALL -> Protocol18.OBJECT_SNOWBALL;
@@ -7234,6 +7595,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             meta.writeByte(Protocol18.METADATA_TERMINATOR);
             enqueueOut(meta);
         }
+        // WAVE TR-2 — the registry seed.
+        trackedSpawns.put(projectile.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.PROJECTILE);
     }
 
     /**
@@ -7249,6 +7613,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         // Wave TF-9 — the observer in another dimension never tracks this
         // body (its spawn never reached them; the teleport must not either).
         if (dimensionOfSession() != projectile.dimension()) {
+            return;
+        }
+        // WAVE TR-2 — THE MOVE-TIME RANGE ARM (the projectile's own box on
+        // every move send: crossed-out destroyed, crossed-in re-spawned).
+        if (trackingRangeMoveArm(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.PROJECTILE,
+                projectile.entityId(), projectile.position().x(), projectile.position().z(),
+                () -> sendProjectileSpawned(projectile))) {
             return;
         }
         ByteBuf out = Unpooled.buffer(40);
@@ -7343,6 +7715,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (dimensionOfSession() != projectile.dimension()) {
             return;
         }
+        // WAVE TR-2 — the registry row retires with the body (whatever
+        // refused the destroy, the marker never outlives the body).
+        trackedSpawns.remove(projectile.entityId());
         ByteBuf out = Unpooled.buffer(8);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
@@ -7374,6 +7749,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
             return; // observer cannot see that chunk yet
         }
+        // WAVE TR-2 — THE SPAWN GATE (the minecart/boat's own row, EntityMap
+        // lines 94-97: 80 through the registration clamp).
+        if (!withinTrackingRange(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.VEHICLE,
+                vehicle.position().x(), vehicle.position().z())) {
+            return;
+        }
         int objectType = vehicle.kind() == net.zaminmc.torch.server.entity.vehicle.VehicleEntity.Kind.BOAT
                 ? Protocol18.OBJECT_BOAT
                 : Protocol18.OBJECT_MINECART;
@@ -7400,6 +7782,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
             out.writeShort((int) (vz * 8000.0));
         }
         enqueueOut(out);
+        // WAVE TR-2 — the registry seed.
+        trackedSpawns.put(vehicle.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.VEHICLE);
     }
 
     /** The reference's ±3.9 velocity clamp (AddEntityS2CPacket's d3). */
@@ -7470,6 +7855,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(blockPos.chunkPosition().packed())) {
             return;
         }
+        // WAVE TR-2 — THE SPAWN GATE (the fishing bobber's own row, EntityMap
+        // lines 70-71: 64 through the registration clamp).
+        if (!withinTrackingRange(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.BOBBER,
+                bobber.position().x(), bobber.position().z())) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(40);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
         ByteBufOps.writeVarInt(out, bobber.entityId());
@@ -7485,6 +7877,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort((int) (clampWireVelocity(bobber.velocityY()) * 8000.0));
         out.writeShort((int) (clampWireVelocity(bobber.velocityZ()) * 8000.0));
         enqueueOut(out);
+        // WAVE TR-2 — the registry seed.
+        trackedSpawns.put(bobber.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.BOBBER);
     }
 
     /**
@@ -7492,6 +7887,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
      * shard family's own movement). Chunk-gated. Any thread.
      */
     void sendBobberMoved(net.zaminmc.torch.server.fishing.FishingSystem.Bobber bobber) {
+        // WAVE TR-2 — THE MOVE-TIME RANGE ARM (the bobber's own box on
+        // every move send: crossed-out destroyed, crossed-in re-spawned).
+        if (trackingRangeMoveArm(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.BOBBER,
+                bobber.entityId(), bobber.position().x(), bobber.position().z(),
+                () -> sendBobberSpawned(bobber))) {
+            return;
+        }
         sendEntityTeleport(bobber.entityId(), bobber.position(), true);
     }
 
@@ -7501,6 +7904,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // WAVE TR-2 — the registry row retires with the body.
+        trackedSpawns.remove(bobber.entityId());
         ByteBuf out = Unpooled.buffer(8);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
@@ -7602,6 +8007,16 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (dimensionOfSession() != vehicle.dimension()) {
             return;
         }
+        // WAVE TR-2 — THE MOVE-TIME RANGE ARM (the vehicle's own box on
+        // every move send: crossed-out destroyed, crossed-in re-spawned
+        // through the full chain — the rider's own anchor rides the spawn
+        // chain the join view shares).
+        if (trackingRangeMoveArm(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.VEHICLE,
+                vehicle.entityId(), vehicle.position().x(), vehicle.position().z(),
+                () -> sendVehicleSpawn(vehicle))) {
+            return;
+        }
         sendEntityTeleport(vehicle.entityId(), vehicle.position(), vehicle.onGround());
         if (rider == null) {
             return;
@@ -7634,6 +8049,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (dimensionOfSession() != vehicle.dimension()) {
             return;
         }
+        // WAVE TR-2 — the registry row retires with the body.
+        trackedSpawns.remove(vehicle.entityId());
         ByteBuf out = Unpooled.buffer(8);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
@@ -7721,6 +8138,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(knot.fence().chunkPosition().packed())) {
             return; // outside this observer's loaded window
         }
+        // WAVE TR-2 — THE SPAWN GATE (the decoration family's own row,
+        // EntityMap lines 112-113: 160 through the registration clamp —
+        // the knot, the frame and the painting share the row).
+        if (!withinTrackingRange(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.DECORATION,
+                knot.fence().x() + 0.5, knot.fence().z() + 0.5)) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(32);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
         ByteBufOps.writeVarInt(out, knot.entityId());
@@ -7735,10 +8160,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort(0); // velocity y
         out.writeShort(0); // velocity z
         enqueueOut(out);
+        // WAVE TR-2 — the registry seed.
+        trackedSpawns.put(knot.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.DECORATION);
     }
 
     /** Destroy Entities (0x13) for one removed leash knot. Any thread. */
     void sendKnotRemoved(int knotEntityId) {
+        // WAVE TR-2 — the registry row retires with the body.
+        trackedSpawns.remove(knotEntityId);
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
@@ -7769,6 +8199,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(frame.pos().chunkPosition().packed())) {
             return; // outside this observer's loaded window
         }
+        // WAVE TR-2 — THE SPAWN GATE (the decoration family's own row,
+        // EntityMap lines 112-113: 160 through the registration clamp).
+        if (!withinTrackingRange(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.DECORATION,
+                frame.pos().x() + 0.5, frame.pos().z() + 0.5)) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(32);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
         ByteBufOps.writeVarInt(out, frame.entityId());
@@ -7796,10 +8233,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         meta.writeByte(frame.rotation());
         meta.writeByte(Protocol18.METADATA_TERMINATOR);
         enqueueOut(meta);
+        // WAVE TR-2 — the registry seed.
+        trackedSpawns.put(frame.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.DECORATION);
     }
 
     /** Destroy Entities (0x13) for one removed item frame. Any thread. */
     void sendFrameRemoved(int frameEntityId) {
+        // WAVE TR-2 — the registry row retires with the body.
+        trackedSpawns.remove(frameEntityId);
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
@@ -7865,6 +8307,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(painting.pos().chunkPosition().packed())) {
             return; // outside this observer's loaded window
         }
+        // WAVE TR-2 — THE SPAWN GATE (the decoration family's own row,
+        // EntityMap lines 112-113: 160 through the registration clamp).
+        if (!withinTrackingRange(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.DECORATION,
+                painting.pos().x() + 0.5, painting.pos().z() + 0.5)) {
+            return;
+        }
         long packed = ((long) (painting.pos().x() & 0x3FFFFFF) << 38)
                 | ((long) (painting.pos().y() & 0xFFF) << 26)
                 | (painting.pos().z() & 0x3FFFFFF);
@@ -7875,10 +8324,15 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeLong(packed);
         out.writeByte(painting.facing());
         enqueueOut(out);
+        // WAVE TR-2 — the registry seed.
+        trackedSpawns.put(painting.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.DECORATION);
     }
 
     /** Destroy Entities (0x13) for one removed painting. Any thread. */
     void sendPaintingRemoved(int paintingEntityId) {
+        // WAVE TR-2 — the registry row retires with the body.
+        trackedSpawns.remove(paintingEntityId);
         Channel channel = adapter.channelOf(this);
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
@@ -7918,6 +8372,13 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(cell.chunkPosition().packed())) {
             return; // outside this observer's loaded window
         }
+        // WAVE TR-2 — THE SPAWN GATE (the armor stand's own row, EntityMap
+        // lines 114-115: 160 through the registration clamp).
+        if (!withinTrackingRange(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ARMOR_STAND,
+                stand.x(), stand.z())) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(32);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
         ByteBufOps.writeVarInt(out, stand.entityId());
@@ -7937,6 +8398,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         for (int slot = 0; slot < 5; slot++) {
             writeEquipment(channel, stand.entityId(), slot, stand.equipment(slot));
         }
+        // WAVE TR-2 — the registry seed.
+        trackedSpawns.put(stand.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ARMOR_STAND);
     }
 
     /**
@@ -7978,6 +8442,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // WAVE TR-2 — the registry row retires with the body.
+        trackedSpawns.remove(standEntityId);
         ByteBuf out = Unpooled.buffer(12);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);
@@ -8007,6 +8473,14 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (!chunkTracker.hasChunk(cell.chunkPosition().packed())) {
             return; // outside this observer's loaded window
         }
+        // WAVE TR-2 — THE SPAWN GATE (the ender crystal's own row, EntityMap
+        // lines 118-119: 256 — the table's lone 256 row — through the
+        // registration clamp).
+        if (!withinTrackingRange(
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ENDER_CRYSTAL,
+                crystal.x(), crystal.z())) {
+            return;
+        }
         ByteBuf out = Unpooled.buffer(32);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_SPAWN_ENTITY);
         ByteBufOps.writeVarInt(out, crystal.entityId());
@@ -8022,6 +8496,9 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         out.writeShort(0); // velocity z
         enqueueOut(out);
         sendCrystalMetadata(channel, crystal);
+        // WAVE TR-2 — the registry seed.
+        trackedSpawns.put(crystal.entityId(),
+                net.zaminmc.torch.server.entity.TrackingRanges.TrackedKind.ENDER_CRYSTAL);
     }
 
     /**
@@ -8045,6 +8522,8 @@ public final class V18Connection extends SimpleChannelInboundHandler<ByteBuf>
         if (channel == null || !channel.isActive() || state != WireState.PLAY) {
             return;
         }
+        // WAVE TR-2 — the registry row retires with the body.
+        trackedSpawns.remove(crystalEntityId);
         ByteBuf out = Unpooled.buffer(12);
         ByteBufOps.writeVarInt(out, Protocol18.S2C_DESTROY_ENTITIES);
         ByteBufOps.writeVarInt(out, 1);

@@ -113,4 +113,75 @@ class TrackingRangesTest {
         assertFalse(TrackingRanges.inRange(16, 0, 0, 16.5, 0),
                 "a half-block past a custom shrink is outside");
     }
+
+    // ------------------------------------------------------------------
+    // WAVE TR-2 — the family roll-out's own table seats
+    // ------------------------------------------------------------------
+
+    /**
+     * WAVE TR-2 — THE OTHER FAMILIES' TABLE (EntityMap.onEntityAdded's
+     * non-mob rows, unit-pinned 1:1): the item 64, the projectile family
+     * 64 (one band — the arrow's 64/20 and the shards' 64/10 share the
+     * range), the bobber 64, the ender eye 64, the fireworks 64, the
+     * minecart/boat 80, the primed TNT 160, the falling block 160, the
+     * decoration family 160 (the frame, the painting, the leash knot),
+     * the armor stand 160, the experience orb 160, the ender crystal 256
+     * (the table's lone 256 row).
+     */
+    @Test
+    void theFamilyTableMatchesTheReference() {
+        assertEquals(64, TrackingRanges.TrackedKind.ITEM.trackingRange(),
+                "ItemEntity's row (lines 92-93)");
+        assertEquals(64, TrackingRanges.TrackedKind.PROJECTILE.trackingRange(),
+                "the projectile family's one band (lines 72-89)");
+        assertEquals(64, TrackingRanges.TrackedKind.BOBBER.trackingRange(),
+                "the fishing bobber's row (lines 70-71)");
+        assertEquals(64, TrackingRanges.TrackedKind.ENDER_EYE.trackingRange(),
+                "the eye of ender's row (lines 82-83)");
+        assertEquals(64, TrackingRanges.TrackedKind.FIREWORKS.trackingRange(),
+                "the firework rocket's row (lines 90-91)");
+        assertEquals(80, TrackingRanges.TrackedKind.VEHICLE.trackingRange(),
+                "the minecart/boat row (lines 94-97)");
+        assertEquals(160, TrackingRanges.TrackedKind.TNT.trackingRange(),
+                "the primed TNT's row (lines 108-109)");
+        assertEquals(160, TrackingRanges.TrackedKind.FALLING.trackingRange(),
+                "the falling block's row (lines 110-111)");
+        assertEquals(160, TrackingRanges.TrackedKind.DECORATION.trackingRange(),
+                "the decoration family's row (lines 112-113)");
+        assertEquals(160, TrackingRanges.TrackedKind.ARMOR_STAND.trackingRange(),
+                "the armor stand's row (lines 114-115)");
+        assertEquals(160, TrackingRanges.TrackedKind.XP_ORB.trackingRange(),
+                "the experience orb's row (lines 116-117)");
+        assertEquals(256, TrackingRanges.TrackedKind.ENDER_CRYSTAL.trackingRange(),
+                "the ender crystal's lone 256 row (lines 118-119)");
+    }
+
+    /**
+     * WAVE TR-2 — THE FAMILIES' REGISTRATION CLAMP (the same
+     * EntityMap.startTracking law the mob band rides, lines 128-130):
+     * every family's row clamps to the view distance in BLOCKS — the
+     * item's 64, the vehicle's 80, the TNT's 160 and the crystal's 256
+     * ALL answer 48 on the view-4 rig; a wide view answers the rows
+     * whole (view 10 = 144: the crystal's 256 clamps, the vehicle's 80
+     * answers 80; view 17 = 256: the crystal answers whole).
+     */
+    @Test
+    void everyFamilyRidesTheSameRegistrationClamp() {
+        assertEquals(48, TrackingRanges.effectiveRange(
+                TrackingRanges.TrackedKind.ITEM, 4), "the item's 64 -> 48");
+        assertEquals(48, TrackingRanges.effectiveRange(
+                TrackingRanges.TrackedKind.VEHICLE, 4), "the vehicle's 80 -> 48");
+        assertEquals(48, TrackingRanges.effectiveRange(
+                TrackingRanges.TrackedKind.TNT, 4), "the TNT's 160 -> 48");
+        assertEquals(48, TrackingRanges.effectiveRange(
+                TrackingRanges.TrackedKind.ENDER_CRYSTAL, 4), "the crystal's 256 -> 48");
+        assertEquals(64, TrackingRanges.effectiveRange(
+                TrackingRanges.TrackedKind.ITEM, 10), "view 10 = 144: the item's 64 answers whole");
+        assertEquals(80, TrackingRanges.effectiveRange(
+                TrackingRanges.TrackedKind.VEHICLE, 10), "the vehicle's 80 answers whole under 144");
+        assertEquals(144, TrackingRanges.effectiveRange(
+                TrackingRanges.TrackedKind.TNT, 10), "the TNT's 160 clamps to 144");
+        assertEquals(256, TrackingRanges.effectiveRange(
+                TrackingRanges.TrackedKind.ENDER_CRYSTAL, 17), "view 17 = 256: the crystal answers whole");
+    }
 }
