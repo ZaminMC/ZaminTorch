@@ -47,7 +47,7 @@ import com.github.luben.zstd.ZstdOutputStreamNoFinalizer;
  * unchanged. The write path compresses inside the publication walk (the
  * patch's own placement — the write stream), the single
  * {@code DeltaWorldStorage.writeSerialized} choke point, so no save path
-    * can bypass the envelope.</p>
+ * can bypass the envelope.</p>
  *
  * <p>THE DEFAULT LAW (the never-a-default-change law, the KO family's own):
  * {@code NONE} — the engine's ZWD files stay byte-identical to the
@@ -56,6 +56,15 @@ import com.github.luben.zstd.ZstdOutputStreamNoFinalizer;
  * (case-insensitive, the patch's own {@code toUpperCase(Locale.ROOT)} read).
  * An unknown name fails loudly at storage construction — the patch's own
  * {@code valueOf} shape — never silently falling back to a default.</p>
+ *
+ * <p>THE DOMAIN INVARIANT: {@code wrap}/{@code unwrap} are defined over
+ * ZWD payloads — bytes whose first byte is the format's own magic
+ * {@code 'Z'} (0x5A), which the ordinals 0-4 can never collide with. The
+ * pair is therefore a total involution over its domain: a raw ZWD file is
+ * unwrapped as the historical format whole, an enveloped one decodes
+ * through its own codec. (An arbitrary non-ZWD byte string whose first
+ * byte happens to fall in the ordinal band is outside the domain — the
+ * storage never feeds one.)</p>
  */
 public final class RegionCompression {
 
