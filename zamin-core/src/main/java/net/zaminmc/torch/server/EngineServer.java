@@ -4522,14 +4522,30 @@ public final class EngineServer implements Server, EngineBridge {
                         netherBeacons.tick(netherWorld.totalTicks());
                         endBeacons.tick(endWorld.totalTicks());
                     });
-                    profiled("furnaceViewers", this::tickFurnaceViewers);
-                    profiled("brewingViewers", this::tickBrewingViewers);
-                    profiled("beaconViewers", this::tickBeaconViewers);
-                    profiled("enchantingViewers", this::tickEnchantingViewers);
-                    profiled("anvilViewers", this::tickAnvilViewers);
-                    profiled("chestViewers", this::tickChestViewers);
-                    profiled("hopperViewers", this::tickHopperViewers);
-                    profiled("dispenserViewers", this::tickDispenserViewers);
+                    // WAVE KO-E — PAPER 0065'S CONFIGURABLE CONTAINER UPDATE
+                    // TICK RATE (the config-surface row, gated default 1 =
+                    // vanilla-exact): the reference's per-player
+                    // activeContainer.b() walk — the engine's eight
+                    // per-tick view fans below — runs every Nth tick when
+                    // the operator arms -Dtorch.container-update-tick-rate=N
+                    // (N > 1), Paper's own shape (`if (--containerUpdateDelay
+                    // <= 0) { walk(); delay = rate; }`): the serial-based
+                    // re-syncs catch up on the next walk, so the throttle
+                    // changes only the DIFF-CHECK cadence, never the
+                    // delivered state (the accepted approximation; at the
+                    // default 1 the walks run every tick, byte-for-byte
+                    // the vanilla law).
+                    if (--containerUpdateDelay <= 0) {
+                        profiled("furnaceViewers", this::tickFurnaceViewers);
+                        profiled("brewingViewers", this::tickBrewingViewers);
+                        profiled("beaconViewers", this::tickBeaconViewers);
+                        profiled("enchantingViewers", this::tickEnchantingViewers);
+                        profiled("anvilViewers", this::tickAnvilViewers);
+                        profiled("chestViewers", this::tickChestViewers);
+                        profiled("hopperViewers", this::tickHopperViewers);
+                        profiled("dispenserViewers", this::tickDispenserViewers);
+                        containerUpdateDelay = containerUpdateTickRate();
+                    }
                     profiled("playerBodies", this::tickPlayerBodies);
                     // The multiplayer sleep walk (ServerWorld.tick's opening
                     // canSkipNight consult + the per-sleeper integrity pair):
@@ -29636,6 +29652,21 @@ public final class EngineServer implements Server, EngineBridge {
      * vanilla-exact, the operator arms the proven win with
      * {@code -Dtorch.optimize-explosions=true}).
      */
+    /**
+     * WAVE KO-E — Paper 0065's configurable container update tick rate (the
+     * config-surface row, gated default 1 = vanilla-exact): the operator
+     * arms the per-tick view-fan throttle with
+     * {@code -Dtorch.container-update-tick-rate=N} (N > 1). Values below 1
+     * clamp to the vanilla 1. Read at the call site like the other
+     * torch.* flags (the test surface's own discipline).
+     */
+    public static int containerUpdateTickRate() {
+        return Math.max(1, Integer.getInteger("torch.container-update-tick-rate", 1));
+    }
+
+    /** The container-update throttle's countdown (tick-thread only). */
+    private int containerUpdateDelay;
+
     private final java.util.HashMap<ExplosionDensityKey, Double> explosionDensityCache =
             new java.util.HashMap<>();
 

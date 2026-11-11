@@ -53,6 +53,20 @@ import java.util.Random;
 public final class SpawnerManager {
 
     /**
+     * WAVE KO-E — Paper 0059's configurable mob spawner tick rate (the
+     * config-surface row, gated default 1 = vanilla-exact): the operator
+     * arms the countdown throttle with
+     * {@code -Dtorch.mob-spawner-tick-rate=N} (N > 1) — the countdown
+     * fires every Nth tick with the delay walked N at a time (the same
+     * wall-clock cadence, 1/N the per-spawner consult cost). Values
+     * below 1 clamp to the vanilla 1. Read at the call site like the
+     * other torch.* flags (the test surface's own discipline).
+     */
+    public static int mobSpawnerTickRate() {
+        return Math.max(1, Integer.getInteger("torch.mob-spawner-tick-rate", 1));
+    }
+
+    /**
      * The immutable wire view of one spawner (the tile packet's payload):
      * the position, the kind, and the live delay at the last mutation —
      * the Update Block Entity (0x35) payload the chunk-send path reads
@@ -80,6 +94,11 @@ public final class SpawnerManager {
         private int maxNearbyEntities = 6;
         private int requiredPlayerRange = 16;
         private int spawnRange = 4;
+        // WAVE KO-E — Paper 0059's configurable mob spawner tick rate
+        // (gated, default 1 = vanilla-exact): the countdown phase's
+        // throttle counter, refilled from the configured rate each time
+        // the walk runs. Only consulted when the rate exceeds 1.
+        private int tickDelay;
 
         public MobType type() {
             return type;
@@ -105,6 +124,17 @@ public final class SpawnerManager {
 
         public void setDelay(int delay) {
             this.delay = delay;
+        }
+
+        // WAVE KO-E — the throttle counter's accessors (tick-thread only,
+        // the spawner's own state domain; public for the config seat's
+        // own consult).
+        public int tickDelay() {
+            return tickDelay;
+        }
+
+        public void setTickDelay(int tickDelay) {
+            this.tickDelay = tickDelay;
         }
 
         /** The cadence rows (MobSpawner.readNbt lines 197-213 — the NBT row
@@ -327,20 +357,45 @@ public final class SpawnerManager {
      * (Slice 18e's fix).
      */
     public void tick() {
+        // WAVE KO-E — PAPER 0059'S CONFIGURABLE MOB SPAWNER TICK RATE
+        // (the config-surface row, gated default 1 = vanilla-exact, the
+        // engine's never-a-default-change law): the COUNTDOWN phase's
+        // throttle — Paper's own shape, `if (spawnDelay > 0 &&
+        // --tickDelay > 0) return; tickDelay = rate;` — with the N-fold
+        // delay compensation (`spawnDelay -= tickDelay`) and the reset
+        // band widened to `< -rate` (the compensated walk can jump past
+        // the reference's exact -1). At the default rate 1 the gate
+        // never engages and the walk below runs byte-for-byte the
+        // reference's own arms — the operator arms the throttle with
+        // -Dtorch.mob-spawner-tick-rate=N (N > 1), Paper's accepted
+        // approximation: the countdown fires every Nth tick with the
+        // delay walked N at a time (the same wall-clock cadence, 1/N the
+        // per-spawner consult cost).
+        final int spawnerRate = mobSpawnerTickRate();
         for (var entry : spawners.entrySet()) {
             BlockPosition pos = entry.getKey();
             MobSpawnerBlockEntity spawner = entry.getValue();
             if (spawner.type() == null) {
                 continue;
             }
+            if (spawnerRate > 1) {
+                // Paper's throttle: only the COUNTDOWN phase (delay > 0)
+                // pays the skip; the due phase runs every tick.
+                if (spawner.delay() > 0 && spawner.tickDelay() > 0) {
+                    spawner.setTickDelay(spawner.tickDelay() - 1);
+                    continue;
+                }
+                spawner.setTickDelay(spawnerRate);
+            }
             if (!isNearPlayer(pos, spawner.requiredPlayerRange())) {
                 continue;
             }
-            if (spawner.delay() == -1) {
+            if (spawner.delay() == -1
+                    || (spawnerRate > 1 && spawner.delay() < -spawnerRate)) {
                 delay(spawner, pos);
             }
             if (spawner.delay() > 0) {
-                spawner.setDelay(spawner.delay() - 1);
+                spawner.setDelay(spawner.delay() - spawnerRate);
                 continue;
             }
             boolean anySpawned = false;
