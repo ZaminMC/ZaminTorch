@@ -4162,3 +4162,101 @@ acceptance seats (awaiting the verifier's reference outputs), the
 vanilla-grade census's next family pick, the verifier's PRs, the
 flake-family watch (the panic seat, the enderman-hunt seat, the
 wolf-collar seat, RiderSpareFall, DonkeyChest).
+---
+Task ID: 2026-11-11 session (seventeenth run)
+Agent: main (ZaminTorch session)
+Task: WAVE RC — the region-compression pair (the census's heaviest
+unclaimed engine-mappable row) + WAVE TR — the per-entity tracking
+ranges (the census's 0216 row over the reference's own law).
+
+Work Log:
+- Synced develop (802993f5 clean — the sixteenth session's WR + KO-E
+  waves landed remotely). Re-read the architecture fresh (12962
+  lines): the next-work pin named the region-compression pair 0214/0215
+  as the heaviest unclaimed row; the census's remaining list named 0216
+  beside it. Verified the nine owner-reported bugs' standing (all
+  closed across M1/C1/C2/I1/VR/OV + WR — the sixteenth session's WR
+  record carries the creative-inventory closure).
+- Read Paper 0214 + 0215 whole from the supplied KigPaper-ver-1.8.8
+  (the alternative region compression pair: the
+  RegionFile.CompressionAlgorithm enum NONE/GZIP/ZLIB/LZ4/ZSTD whose
+  ordinal is the per-chunk compression-type byte, the
+  region-compression-algo config row defaulting ZLIB, lz4-java 1.8.0 +
+  zstd-jni 1.5.0-4 as the pinned codecs).
+- IMPLEMENTED WAVE RC (869d96c5 + e4047e38): the envelope over the
+  WorldDelta store — ONE compression-type byte at the file head (the
+  ZWD store is a single snapshot file, not a per-chunk region), the
+  'Z' (0x5A) magic's first byte never colliding with the ordinals 0-4
+  so EVERY historical save loads unchanged and the reader discriminates
+  raw from enveloped on the first byte alone. The codecs at the
+  patches' pinned versions (the fat jar verified carrying both codecs'
+  classes + natives, a live wrap/round-trip smoke from the merged jar:
+  GZIP/ZLIB/LZ4/ZSTD all EXACT). The default NONE = the never-a-default-
+  change law (byte-identical ZWD files); the flag
+  torch.region-compression-algo, case-insensitive, loud on garbage. The
+  wrap inside DeltaWorldStorage.writeSerialized (the patch's own
+  placement — the write stream) so every save path funnels the one
+  choke point; the load dispatches on the FILE's byte, never the flag.
+  The DOMAIN INVARIANT recorded (the smoke run's find): wrap/unwrap is
+  a total involution over ZWD payloads whose magic guarantees the
+  discrimination. SEATS: RegionCompressionParityTest 6 (the default
+  law, the envelope round-trip every algorithm, the reader dispatch
+  both directions, the corruption law, the pipeline equivalence over
+  the envelope, the byte-level round-trip) — 3 RED on the no-op'd
+  write side, 6 GREEN. LANES: the world package whole (284),
+  PersistenceAcceptance + NetherDimension + PlayerSaveSplit green.
+- IMPLEMENTED WAVE TR (56ecaf0f): the census's 0216 row required the
+  engine to first CARRY the reference's own tracking-range law — the
+  engine's wire fanned every mob event to every same-dimension
+  observer with NO range consult (a mob 10,000 blocks away spawned on
+  every client; nothing ever destroyed a still-living body for a
+  moving-away observer). Read EntityMap + TrackedEntity whole from the
+  1.8.8 reference: the per-type table (squid 64, wither/bat 80, dragon
+  160, other mobs 80), the registration clamp (the range never exceeds
+  the view distance in BLOCKS — chunkView*16-16, view 4 answers 48),
+  broadcastTo's ±range box (horizontal alone, inclusive boundary, a
+  square). Landed at three gates: the spawn gate (sendMobSpawn, after
+  the chunk gate — the join snapshot funnels the same choke point),
+  the move-time arm (sendMobMoved — crossed-out destroyed, crossed-in
+  re-spawned through the full chain), the player-side walk
+  (reevaluateMobVisibility from the C2S movement handler, the >4-block
+  displacement law at the walk's own anchor). Paper 0216's override:
+  MobEntity.customTrackingRange consulted FIRST, riding the view clamp
+  whole (the engine's stateless consult = always an initial tracking;
+  the patch's un-clamped live-update arm has no counterpart — the named
+  deviation note). SEATS: TrackingRangesTest 5 + TrackingRangeWire
+  ParityTest 4 over the real adapter (the far body never spawns until
+  it crosses in; the walked-away body destroyed but alive server-side;
+  the back-in-box re-spawn, the SAME id; the live override shrinking
+  the box, clearing it re-spawning) — all 4 wire seats RED on the
+  no-op'd gates, 9 GREEN. The seat rig's own find pinned: the 16-char
+  username law (readString's limit at the login gate — the seat names
+  shortened). LANES: the core entity package whole (838 — the one red
+  the documented panic-seat load flake, green isolated x12, the
+  census's retry-allowlisted family), the mob-wire neighbors whole
+  (20: VehicleNegativeCoordinateRide, HurtDeathSound, MultiplayerSleep,
+  JoinFlow, CreativeMenuWire — the WR closure re-verified green over
+  the touched movement path — Metadata).
+- The architecture's records (the RC + TR wave records, the census's
+  remaining-rows list re-pinned — 0214/0215 + 0216 + 0059/0065 marked
+  landed, the next-work re-pin naming Paper 0022's tile-entity ticking
+  and the tracking-range roll-out over the other wire families as the
+  standing rows).
+
+Stage Summary:
+- TWO waves this session: RC (869d96c5 + e4047e38) + TR (56ecaf0f),
+  all pushed as Abasing.
+- The census's two heaviest engine-mappable rows RETIRED: the storage
+  format gains its compression envelope (opt-in, byte-identical
+  default), the wire gains the reference's own per-entity tracking
+  ranges (the mob family first — the roll-out over the other families
+  is the named follow-up row).
+
+AT CLOSE: develop = the records commit pushed clean; the pin's open
+rows: Paper 0022 (tile-entity ticking), the tracking-range roll-out
+over the other wire families (items/projectiles/TNT/falling blocks/
+XP orbs/armor stands/ender crystals/minecarts-boats), 0087 part 2,
+the terrain-shape acceptance seats (awaiting the verifier's reference
+outputs), the vanilla-grade census's next family pick, the verifier's
+PRs, the flake-family watch (the panic seat re-confirmed documented
+today, the enderman-hunt seat, the wolf-collar seat, RiderSpareFall).

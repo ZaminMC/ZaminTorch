@@ -10081,16 +10081,123 @@ counter's patch-exact expression). LANES: the spawner package whole
 (33), the container families whole (furnace + chest + hopper + brewing
 + beacon).
 
-NEXT WORK (re-pinned after WAVES WR + KO-E, in order): the KigPaper
+NEXT WORK (re-pinned after WAVES RC + TR, in order): the KigPaper
 optimization lanes' next batch (the census below names the standing
-rows — the region-compression pair 0214/0215 is the heaviest unclaimed
-engine-mappable row, a storage-format decision on the WorldDelta
-store's own serialization); the terrain-shape acceptance seats over the
-reference's own seeded outputs (the cross-engine shape comparison when
-the verifier's census provides the reference outputs); the vanilla-
-grade census's next family pick; the verifier's PRs when they open; the
-flake-family watch (the panic seat, the enderman-hunt seat, the
-wolf-collar seat, RiderSpareFall).
+rows — Paper 0022's tile-entity ticking optimization is the heaviest
+unclaimed engine-mappable row; the tracking-range family's OWN follow-
+up: the mob family's box law landed over its spawn/move/join gates —
+the OTHER wire families (items, projectiles, TNT, falling blocks, XP
+orbs, armor stands, ender crystals, minecarts/boats) still fan to every
+same-dimension observer with no range consult, the same three-gate
+shape over their own spawn sites is the roll-out); the terrain-shape
+acceptance seats over the reference's own seeded outputs (the
+cross-engine shape comparison when the verifier's census provides the
+reference outputs); the vanilla-grade census's next family pick; the
+verifier's PRs when they open; the flake-family watch (the panic seat
+— re-confirmed 2026-11-11 the documented load flake, green isolated
+x12 under the RC/TR tree, the enderman-hunt seat, the wolf-collar
+seat, RiderSpareFall).
+
+WAVES RC + TR — THE REGION-COMPRESSION PAIR + THE PER-ENTITY TRACKING
+RANGES LANDED (2026-11-11, commits 869d96c5 + e4047e38 + 56ecaf0f —
+the census's two heaviest engine-mappable rows, both read whole from
+the supplied KigPaper-ver-1.8.8 and the 1.8.8 reference):
+
+WAVE RC — THE REGION-COMPRESSION PAIR (Paper 0214 'Use alternative
+region compression' + 0215 'Add zstd region compression', ported
+engine-native over the WorldDelta store's own serialization): the
+region format writes a per-chunk compression-type byte whose ordinal
+selects the codec; the ZWD store is a single snapshot file, so the
+envelope carries ONE compression-type byte at the file head, and the
+byte space is unambiguous by construction (the historical raw ZWD
+magic's first byte is 'Z' = 0x5A, never colliding with the ordinals
+0-4 — every historical save loads unchanged, the reader discriminates
+raw from enveloped on the first byte alone). THE CODECS are the
+patches' own at the patches' pinned versions (org.lz4:lz4-java:1.8.0 —
+the patch's own choice for its pure-Java fallback through
+LZ4Factory.fastestJavaInstance(), the 65536 block size;
+com.github.luben:zstd-jni:1.5.0-4 — the ZstdOutputStreamNoFinalizer/
+ZstdInputStreamNoFinalizer pair; GZIP the region format's own legacy
+byte, ZLIB the JDK DeflaterOutputStream — the patch default's codec).
+THE DEFAULT LAW (never a default change): NONE — the ZWD files stay
+byte-identical to the historical format, the envelope is the
+operator's opt-in through -Dtorch.region-compression-algo=<NONE|GZIP|
+ZLIB|LZ4|ZSTD> (case-insensitive, 0215's toUpperCase(Locale.ROOT)
+read; an unknown name fails loudly at storage construction — the
+patch's own valueOf shape). THE PLACEMENT: the wrap inside
+DeltaWorldStorage.writeSerialized — the patch's own placement (the
+write stream) — so every save path (the synchronous walk, the
+pipeline's I/O lane, the per-store named paths) funnels through the
+one choke point; the load dispatches on the FILE's own byte, never
+the operator's flag (the region reader's law: every file reads back
+whatever any configuration wrote — a ZSTD file loads under a NONE
+flag, a raw historical file loads under an armed flag). The three
+dimension stores pick the flag up at construction, zero call-site
+changes. THE DOMAIN INVARIANT (the fat-jar smoke run's own find): the
+wrap/unwrap pair is defined over ZWD payloads whose magic guarantees
+the discrimination — a total involution over its domain. SEATS:
+RegionCompressionParityTest 6 NEW — the default law (byte-identity
+with the pure serializer + the case-insensitive read + the loud
+unknown), the envelope round-trip every algorithm, the reader's
+dispatch law (cross-configuration loads both directions + the explicit
+NONE envelope), the corruption law (unknown type byte quarantines —
+the envelope never weakens it), the pipeline equivalence over the
+envelope (the async save's LZ4 file byte-identical to the synchronous
+save's), the wrap/unwrap byte-level round-trip — 3 RED on the no-op'd
+write side, 6 GREEN. LANES: the whole world package green (284 — 278
++ the 6 seats), PersistenceAcceptance + NetherDimension +
+PlayerSaveSplit green, the fat jar verified carrying both codecs'
+classes + natives with a live wrap/round-trip smoke from the merged
+jar (torch-1.8.8-164).
+
+WAVE TR — THE PER-ENTITY TRACKING RANGES (the reference's own
+EntityMap/TrackedEntity law the engine never carried, with Paper
+0216's per-entity override riding on top): THE GAP — the engine's
+wire fanned every mob event to EVERY same-dimension observer with no
+range consult at all (a mob 10,000 blocks away spawned on every
+client in the dimension; nothing ever destroyed a still-living body
+for a moving-away observer; 0216's override had no consult to ride).
+THE LAW 1:1: the per-type table (EntityMap.onEntityAdded lines
+60-120 — the squid's own 64, the wither's and the bat's 80, the ender
+dragon's 160, every other living mob 80), the registration clamp
+(startTracking lines 128-130 — the range never exceeds the view
+distance in BLOCKS, ChunkMap.getViewDistance line 262: chunkView*
+16-16, view 4 answers 48), the box law (TrackedEntity.broadcastTo
+lines 379-387 — the ±range box on the horizontal plane alone,
+INCLUSIVE at the boundary, y never consulted, a square never a
+circle). THE ENGINE MAPPING at three gates: the spawn gate
+(sendMobSpawn consults the box after the chunk gate — a body beyond
+its box never spawns, at its own spawn or at any observer's join
+snapshot), the move-time arm (sendMobMoved re-evaluates the box on
+every move send — crossed-out destroyed, crossed-in re-spawned
+through the full chain; the >4-block cadence is the reference's
+batching, never its observable), the player-side walk
+(reevaluateMobVisibility from the C2S movement handler — EntityMap
+tick's second loop: a player moving more than 4 blocks re-consults
+every tracked body's box). PAPER 0216'S OVERRIDE: MobEntity.
+customTrackingRange (0 = unset) + setCustomTrackingRange, consulted
+FIRST at every gate, riding the view clamp whole (the engine's
+stateless consult is always an initial tracking — the patch's
+un-clamped live-update arm has no counterpart, the named deviation
+note in TrackingRanges.effectiveRange). SEATS: TrackingRangesTest 5
+NEW (the table, the conversion, the clamp, the override
+consult-first, the box) + TrackingRangeWireParityTest 4 NEW over the
+real adapter (the far body never spawns until it crosses in — RED on
+the pre-fix engine; the walked-away body destroyed but alive
+server-side; the back-in-box re-spawn, the SAME id both sides; the
+live override shrinking the box — custom 16 destroys a 30-block body
+the table's 48 held, clearing it re-spawns) — all 4 wire seats RED on
+the no-op'd gates, 9 GREEN. The seat rig's own find pinned: the
+16-char username law (readString's limit at the login gate). LANES:
+the whole core entity package green (838 — the one red the documented
+panic-seat load flake, green isolated x12), the mob-wire neighbors
+whole (20: VehicleNegativeCoordinateRide, HurtDeathSound,
+MultiplayerSleep, JoinFlow, CreativeMenuWire — the WR closure
+re-verified green over the touched movement path — Metadata). THE
+FOLLOW-UP ROW the landing names: the OTHER wire families (items,
+projectiles, TNT, falling blocks, XP orbs, armor stands, ender
+crystals, minecarts/boats) still fan range-free — the same three-gate
+shape over their own spawn sites is the roll-out.
 
 WAVES EK-2 + CR — THE PLAYER-SIDE MAGIC WALK + THE CI RED WINDOW CLOSED
 (2026-11-10, commits d295c291 + e2648b7f):
@@ -10221,11 +10328,16 @@ from):
   block-only — the entity-box consult the patch skipped never runs),
   0035/0051/0039/0052 the fluid family (the engine's FL4 fluid lanes
   carry their own scheduling).
-- THE REMAINING HEAVY ROWS (the next batches' picks, in value order):
-  0214/0215 the region-compression pair (libdeflate/zstd — a storage-
-  format decision, §31's own lane), 0022/0065 the tile-tick-interval
-  pair (the config row), 0087 part 2 (the node-evaluator micro-opts —
-  engine-specific, low value), 0216 the per-entity tracking ranges, the
+- THE REMAINING HEAVY ROWS (the next batches' picks, in value order —
+  0214/0215 LANDED as WAVE RC over the WorldDelta store's own
+  serialization, 0216 LANDED as WAVE TR over the mob family's wire with
+  the reference's own tracking-range law as its foundation, 0059/0065
+  LANDED as WAVE KO-E): 0022 the tile-entity ticking optimization, 0087
+  part 2 (the node-evaluator micro-opts — engine-specific, low value),
+  the tracking-range family's roll-out over the OTHER wire families
+  (items 64, projectiles 64, TNT 160, falling blocks 160, XP orbs 160,
+  armor stands 160, ender crystals 256, minecarts/boats 80 — the
+  reference's own table rows, the TR wave's follow-up row), the
   sink-player family 0182/0244-0250 (an API surface the engine does
   not carry), the Bukkit-API rows (the §27.9 adapter's own lanes, not
   the engine's).
