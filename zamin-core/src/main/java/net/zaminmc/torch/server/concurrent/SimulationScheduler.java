@@ -51,6 +51,9 @@ public final class SimulationScheduler {
         final ConcurrentSkipListMap<Long, DomainTask> delayed = new ConcurrentSkipListMap<>();
         final AtomicLong lastDurationNanos = new AtomicLong();
         final AtomicLong executedCount = new AtomicLong();
+        /** The cumulative executed-duration telemetry (§11's per-domain
+         *  tick-execution metric, the load sampler's window source). */
+        final AtomicLong busyNanos = new AtomicLong();
 
         DomainQueue(OwnershipDomain domain) {
             this.domain = domain;
@@ -320,8 +323,10 @@ public final class SimulationScheduler {
                             "Simulation task failed in domain '" + queue.domain.name()
                                     + "'; skipping it", t);
                 } finally {
-                    queue.lastDurationNanos.set(System.nanoTime() - start);
+                    long duration = System.nanoTime() - start;
+                    queue.lastDurationNanos.set(duration);
                     queue.executedCount.incrementAndGet();
+                    queue.busyNanos.addAndGet(duration);
                     executed++;
                 }
             }
@@ -370,6 +375,30 @@ public final class SimulationScheduler {
     public long executedCount(OwnershipDomain domain) {
         DomainQueue queue = queues.get(domain.name());
         return queue == null ? 0 : queue.executedCount.get();
+    }
+
+    /**
+     * @return the domain's cumulative executed-duration in nanos (the
+     * design §11 per-domain tick-execution metric — the load sampler's
+     * window source: two snapshots difference the window's busy time).
+     * Telemetry only; never an input to a correctness decision.
+     */
+    public long busyNanos(OwnershipDomain domain) {
+        DomainQueue queue = queues.get(domain.name());
+        return queue == null ? 0 : queue.busyNanos.get();
+    }
+
+    /**
+     * A consistent point-in-time copy of every registered domain's
+     * cumulative busy-nanos counters (the load sampler's capture source).
+     * Telemetry only; the caller treats the copy as immutable.
+     */
+    public Map<String, Long> busyNanosSnapshot() {
+        Map<String, Long> snapshot = new java.util.LinkedHashMap<>();
+        for (DomainQueue queue : queues.values()) {
+            snapshot.put(queue.domain.name(), queue.busyNanos.get());
+        }
+        return snapshot;
     }
 
     /** @return the refused-submission count (the backpressure telemetry). */
