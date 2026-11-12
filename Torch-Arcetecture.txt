@@ -10197,6 +10197,11 @@ reference's own seeded outputs (the cross-engine shape comparison
 when the verifier's census provides the reference outputs); the
 vanilla-grade census's next family pick; the verifier's PRs when
 they open; the flake-family watch (the panic seat — re-confirmed
+2026-11-12 AGAIN under the MIG-1/MIG-2 tree: the entity package's
+840-test whole run red exactly ONE seat — the enderman-hunt family's
+own theEndermanHuntsTheEndermite, green isolated immediately after,
+zero overlap with the wave surfaces (the concurrency lane), the
+census's retry-allowlisted family; the original 2026-11-11 record:
 2026-11-11 the documented load flake, a DIFFERENT seat red per run
 under the TET/TR-2 tree too, zero overlap with the wave surfaces,
 the census's retry-allowlisted family; the CI watch itself: #726's
