@@ -2,6 +2,7 @@ package net.zaminmc.torch.server.concurrent;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The ownership migration protocol (the permanent architecture's Phase 4 —
@@ -36,16 +37,69 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * the fail-safe rule that no half-migrated observer keeps authority. A
  * migration instance runs once: begin twice refuses, and after publish or
  * abort the protocol is closed.</p>
+ *
+ * <p><b>Telemetry</b> (the design §11 minimum metric "migration
+ * duration/failures", the Phase-8 precondition): every protocol run reports
+ * its wall-clock duration and its terminal outcome into the process-wide
+ * {@link Telemetry} counters, and the instance itself answers its own
+ * {@link #durationNanos()} — the balancer's telemetry feed and the acceptance
+ * harness read the same numbers. The counters are diagnostics only, never
+ * authority: no migration decision may read them for correctness.</p>
  */
 public final class OwnershipMigration {
 
     /** The protocol's phase machine: one path, one completion. */
     public enum Phase { NOT_STARTED, DRAINING, TRANSFERRING, PUBLISHED, ABORTED }
 
+    /**
+     * The process-wide migration telemetry (the design §11 minimum metric):
+     * begun/published/aborted counts, the last run's duration, and the total.
+     * Diagnostics only — never an input to a correctness decision.
+     */
+    public static final class Telemetry {
+        private static final AtomicLong BEGUN = new AtomicLong();
+        private static final AtomicLong PUBLISHED = new AtomicLong();
+        private static final AtomicLong ABORTED = new AtomicLong();
+        private static final AtomicLong LAST_DURATION_NANOS = new AtomicLong();
+        private static final AtomicLong TOTAL_DURATION_NANOS = new AtomicLong();
+
+        private Telemetry() {
+        }
+
+        /** @return how many protocol runs began. */
+        public static long begunCount() {
+            return BEGUN.get();
+        }
+
+        /** @return how many protocol runs published (the successful handoffs). */
+        public static long publishedCount() {
+            return PUBLISHED.get();
+        }
+
+        /** @return how many protocol runs aborted (the failure recoveries). */
+        public static long abortedCount() {
+            return ABORTED.get();
+        }
+
+        /** @return the last completed run's duration in nanos (0 before any). */
+        public static long lastDurationNanos() {
+            return LAST_DURATION_NANOS.get();
+        }
+
+        /** @return the sum of every completed run's duration in nanos. */
+        public static long totalDurationNanos() {
+            return TOTAL_DURATION_NANOS.get();
+        }
+    }
+
     private final OwnershipDomain domain;
     private final SimulationScheduler scheduler;
     private final AtomicBoolean begun = new AtomicBoolean(false);
     private volatile Phase phase = Phase.NOT_STARTED;
+    /** begin()'s timestamp — the duration clock's anchor (§11's metric). */
+    private volatile long begunAtNanos;
+    /** The terminal timestamp, set once at publish/abort. */
+    private volatile long endedAtNanos;
 
     public OwnershipMigration(OwnershipDomain domain, SimulationScheduler scheduler) {
         this.domain = Objects.requireNonNull(domain, "domain");
@@ -60,6 +114,20 @@ public final class OwnershipMigration {
     /** @return the protocol's current phase. */
     public Phase phase() {
         return phase;
+    }
+
+    /**
+     * This run's wall-clock duration (§11's metric): nanos from {@link #begin()}
+     * to the terminal phase (publish or abort). While the protocol runs the
+     * answer is the elapsed time so far; before begin it is 0.
+     */
+    public long durationNanos() {
+        long start = begunAtNanos;
+        if (start == 0L) {
+            return 0L;
+        }
+        long end = endedAtNanos;
+        return (end == 0L ? System.nanoTime() : end) - start;
     }
 
     /**
@@ -82,6 +150,8 @@ public final class OwnershipMigration {
                     + "a migration starts between tasks, never mid-task");
         }
         scheduler.holdAdmission(domain);
+        begunAtNanos = System.nanoTime();
+        Telemetry.BEGUN.incrementAndGet();
         phase = Phase.DRAINING;
     }
 
@@ -129,6 +199,7 @@ public final class OwnershipMigration {
         requirePhase(Phase.DRAINING, "publish");
         domain.transferOwnership();
         scheduler.releaseAdmission(domain);
+        close(Telemetry.PUBLISHED);
         phase = Phase.PUBLISHED;
     }
 
@@ -141,11 +212,33 @@ public final class OwnershipMigration {
         if (phase == Phase.PUBLISHED || phase == Phase.ABORTED) {
             return;
         }
+        boolean ran = phase != Phase.NOT_STARTED;
         scheduler.releaseAdmission(domain);
-        if (phase != Phase.NOT_STARTED) {
+        if (ran) {
             domain.transferOwnership();
         }
+        if (ran) {
+            close(Telemetry.ABORTED);
+        }
         phase = Phase.ABORTED;
+    }
+
+    /**
+     * Closes the duration clock and reports the terminal outcome into the
+     * §11 telemetry (exactly once — only the first terminal phase transition
+     * lands here; abort-after-publish is the idempotent no-op above).
+     */
+    private void close(AtomicLong outcomeCounter) {
+        if (endedAtNanos != 0L) {
+            return; // already closed by the other terminal arm
+        }
+        long now = System.nanoTime();
+        long start = begunAtNanos;
+        long duration = start == 0L ? 0L : now - start;
+        endedAtNanos = now;
+        Telemetry.LAST_DURATION_NANOS.set(duration);
+        Telemetry.TOTAL_DURATION_NANOS.addAndGet(duration);
+        outcomeCounter.incrementAndGet();
     }
 
     private void requirePhase(Phase expected, String operation) {
