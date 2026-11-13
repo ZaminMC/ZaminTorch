@@ -10307,6 +10307,23 @@ gather band's 6 — a 0.59 margin the drift crosses. The closer cell
 (4.03 of 6, the ~2-block margin) holds whatever the noise points at;
 6/6 green across seeds.
 
+THE THIRD ARBITER'S RESIDUE (run 43407772036 over SR-2: 3698 tests, 4
+red — the piston red FIXED below, the other three read and recorded
+as the flake-watch's new members): (1) THE PISTON SEAT'S STANDING
+WINDOW — SR-2's own consequence, FIXED: the stroll's route now
+begins at its claim, so the seat's live "never moved" pig WALKED
+inside its window (0.14 blocks — the pre-SR-2 standing window the
+seat had silently relied on); the seat's pigs now pinned (setNoAi,
+the mirror seat's own run-#679 convention — the push consult is
+physical, no AI gate). (2) THE PVP NAMED-SPAWN WALL-READ TIMEOUT (both
+the class's tests red at packet 12 under the run's load — the
+players joined, the 5s wall reads starved; green locally whole, the
+join exchange is event-loop-driven with no tick dependency found —
+the load shape needs the runner's own forensics next occurrence);
+(3) THE SPAWNER STAMP SEAT's 40-TICK WINDOW (green locally 4/4 — the
+delay-0 cycle is deterministic in isolation; the CI miss needs the
+next occurrence's dump). Both open rows joined the flake-watch.
+
 WAVE SLP — THE SLEEPING CLOCK WHOLE + THE INSTANT-DAWN IDENTITY CLAUSE
 RETIRED (2026-11-13, the twenty-first session's first lane — the CI
 arbiter's BedPair red read to its root): THE ROOT — the run's

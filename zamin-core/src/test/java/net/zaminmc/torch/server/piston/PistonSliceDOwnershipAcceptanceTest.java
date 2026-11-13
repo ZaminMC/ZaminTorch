@@ -111,6 +111,13 @@ class PistonSliceDOwnershipAcceptanceTest {
             netherPig.get().setDimension(-1); // the body lives in the nether
             overworldPig.set(server.mobs().spawnAt(MobType.PIG,
                     new Position(cx + 2.5, fy + 1, cz + 0.5)));
+            // SR-2's find (run 43407772036): the stroll's route now begins
+            // at its claim — a live pig walks inside the seat's window and
+            // the "never moved" discrimination reads the stroll, not the
+            // push. Both bodies pinned (the push consult is physical, no
+            // AI gate — the spawnStatic convention the flee seats carry).
+            netherPig.get().setNoAi(true);
+            overworldPig.get().setNoAi(true);
         });
         await(() -> netherPig.get() != null && overworldPig.get() != null,
                 "the two pigs spawned at the same coordinates");
