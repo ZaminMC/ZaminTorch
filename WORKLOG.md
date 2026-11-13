@@ -4526,3 +4526,44 @@ AT CLOSE: develop pushed clean as Abasing; the pin's open rows: the
 tiles lane (Phase 6's next family pick), the attribution re-rank over
 the relieved tree, the P6-IL operator evidence run, the CI arbiter
 over this push, the verifier's PRs, the flake-family watch.
+
+## SESSION 2026-11-13b (the operator evidence run: the P6-IL flag's acceptance numbers)
+
+Task ID: 2
+Agent: main (ZaminTorch session)
+Task: The P6-IL operator evidence run (the flag's own acceptance) + the
+attribution re-rank face over the KO-F/KO-G relieved tree.
+
+Work Log:
+- ParallelItemPhysicsEngagementTest NEW (the DenseOwner harness's own
+  discipline — real boot, the dense 1528-item shape, structural pins +
+  printed evidence): the sequential walk 5428.8us (3.55us/item, matching
+  the post-bucketing record over the KO-F tree); the DISCIPLINED pool
+  (the boot gate's own cores/2 sizing — ONE worker on this 2-core
+  sandbox) 6081.4us — 0.89x, the honest small-machine record (the
+  dispatch is pure overhead without parallel budget — the gate stays
+  DEFAULT OFF on exactly this evidence); the CORES-SIZED pool (2
+  workers — the parked tick lane hands the workers the whole machine)
+  4054.0us — 2.65us/item, a 1.34x relief at the 2-core floor (more
+  cores, more relief; the operator's real hardware the flag's
+  audience). The structural pins held: the dense cost lands in the
+  item section, the lane ENGAGED, the population HELD, both armed
+  windows inside the dispatch-overhead bound.
+- THE RE-RANK FACE (the same run): randomTicks 1682-3084us (down from
+  the attribution record's 3600-3900us — the KO-G cache's effect
+  visible), itemEntities the top section at the DENSE shape only, mobs
+  at the idle baseline — the next attribution pass re-ranks over these
+  numbers.
+- The architecture record brought current (the Wave P lane record's
+  operator-evidence tail, the session record's evidence tail, the NEXT
+  WORK re-pin over the recorded verdict).
+
+Stage Summary:
+- The P6-IL flag's acceptance evidence is RECORDED: default OFF stands
+  (the disciplined sizing on a small machine measures 0.89x); the
+  cores-sized shape measures 1.34x at the 2-core floor — the operator
+  with the dense-item load and the cores to spend carries the flag.
+
+AT CLOSE: develop pushed clean as Abasing; the pin's open rows: the
+tiles lane, the full attribution re-rank pass, the CI arbiter over
+this push, the verifier's PRs, the flake-family watch.

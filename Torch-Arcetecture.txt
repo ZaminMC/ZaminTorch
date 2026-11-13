@@ -2285,7 +2285,26 @@ described as parallel, and every lane stays behind its own arm gate
       floor gate (20 bodies never dispatch), and the per-tick replay
       law (60 seeds x 40 ticks: the pure solve replayed against the
       inline arm, the whole state compared after EVERY tick); the
-      entity/physics/item sweeps green post-change.
+      entity/physics/item sweeps green post-change. THE OPERATOR
+      EVIDENCE RUN (ParallelItemPhysicsEngagementTest — the flag's
+      own acceptance, the §22 evidence face over the real boot at the
+      dense 1528-item shape): the sequential walk 5428.8us (3.55us/
+      item, matching the post-bucketing record over the KO-F tree);
+      the DISCIPLINED pool (the boot gate's own cores/2 sizing — ONE
+      worker on the 2-core sandbox) 6081.4us — 0.89x, the honest
+      small-machine record (the dispatch is pure overhead without
+      parallel budget, and the gate stays DEFAULT OFF on exactly that
+      evidence); the CORES-SIZED pool (2 workers — the parked tick
+      lane hands the workers the whole machine) 4054.0us — 2.65us/
+      item, a 1.34x relief at the 2-core floor (more cores, more
+      relief; the operator's real hardware the flag's audience). The
+      structural pins held (the dense cost in the item section, the
+      lane ENGAGED, the population HELD, both armed windows inside
+      the dispatch-overhead bound). THE RE-RANK FACE (the same run,
+      the attribution pass's standing demand over the relieved tree):
+      randomTicks 1682-3084us (down from the attribution record's
+      3600-3900us — the KO-G cache's effect visible), itemEntities
+      the top section at the dense shape, mobs at the idle baseline.
 
 ## Wave S — the persistence-preparation adoptions (Phase 5's serialization workloads)
 
@@ -10290,31 +10309,33 @@ counter's patch-exact expression). LANES: the spawner package whole
 (33), the container families whole (furnace + chest + hopper + brewing
 + beacon).
 
-NEXT WORK (re-pinned after WAVES KO-F + KO-G + P6-IL, in order): the
-Phase-6 lane's next family pick (the tiles lane — the furnace family's
-pure state machine is the natural compute-then-apply split, though its
-measured cost sits far inside budget; the mob AI walk is the remaining
-heavy lane and needs its own boundary protocol design first); the
-heavy-owner lane's next demand-named pick (the KO-F/KO-G read faces
-retired the per-cell lookup costs — the next pass re-runs the
-DenseOwner harness and the attribution harness over the relieved tree
-to re-rank the sections before any further optimization); THE P6-IL
-LANE'S OPERATOR EVIDENCE RUN (the flag's own acceptance: a real boot
-under torch.parallel-item-physics at a dense-item load shape, the
-itemEntities section delta recorded — the gate retires on that
-evidence); the CI arbiter over this push (the standing watch); the
-verifier's PRs when they open (none open at this session's close);
-the vanilla-grade census's next family pick (the verifier's channel);
-the flake-family watch (the documented single-JVM load flakes — the
-Pvp wall-read, the spawner stamp window, the enderman-hunt seat, the
-wolf-collar seat, the RiderSpareFall seat). THE KIGPAPER CENSUS'S
-ENGINE-MAPPABLE ROWS ARE ALL LANDED OR RETIRED (0022 TET, the
-tracking-range family TR-2/TR-3, 0087 part 1 KO-D, 0087 part 2
-RETIRED-INHERENT, 0060 part 2 LANDED AS KO-F — the census row's own
-record below); no named engine-mappable row stands. THE MASTER
-LEDGER'S OWN ROWS ARE ALL RESOLVED (ML-001 through ML-025; the ML-100
-family tails stay owned by their landed families per the ledger's own
-rule).
+NEXT WORK (re-pinned after WAVES KO-F + KO-G + P6-IL + the operator
+evidence run, in order): the Phase-6 lane's next family pick (the
+tiles lane — the furnace family's pure state machine is the natural
+compute-then-apply split, though its measured cost sits far inside
+budget; the mob AI walk is the remaining heavy lane and needs its
+own boundary protocol design first); the heavy-owner lane's next
+demand-named pick (the re-rank face is recorded — itemEntities the
+top section at the DENSE shape only, randomTicks relieved to
+1682-3084us, mobs at the idle baseline; the next pass re-runs the
+full attribution harness over the relieved tree before any further
+optimization); THE P6-IL GATE'S OPERATOR VERDICT (the evidence is
+recorded: 0.89x at the disciplined 1-worker sizing on a small
+machine, 1.34x at the cores-sized 2-worker shape — the flag stays
+DEFAULT OFF, the operator with the dense-item load shape and the
+cores to spend carries the flag's burden); the CI arbiter over this
+push (the standing watch); the verifier's PRs when they open (none
+open at this session's close); the vanilla-grade census's next
+family pick (the verifier's channel); the flake-family watch (the
+documented single-JVM load flakes — the Pvp wall-read, the spawner
+stamp window, the enderman-hunt seat, the wolf-collar seat, the
+RiderSpareFall seat). THE KIGPAPER CENSUS'S ENGINE-MAPPABLE ROWS ARE
+ALL LANDED OR RETIRED (0022 TET, the tracking-range family TR-2/TR-3,
+0087 part 1 KO-D, 0087 part 2 RETIRED-INHERENT, 0060 part 2 LANDED
+AS KO-F — the census row's own record below); no named
+engine-mappable row stands. THE MASTER LEDGER'S OWN ROWS ARE ALL
+RESOLVED (ML-001 through ML-025; the ML-100 family tails stay owned
+by their landed families per the ledger's own rule).
 
 WAVE SR-2 + THE SECOND ARBITER'S TWO REDS ROOT-CAUSED (2026-11-13, the
 twenty-first session's third slice — the CI arbiter over the SLP+PST
@@ -10414,7 +10435,18 @@ LANES: the physics package whole, the entity/item/block/world/
 hopper/furnace/profiler/player sweeps green post-change (the
 DenseOwner harness's real boot included); the three waves' records
 stand in the Phase-6/Phase-7 sections and the census's exact-row
-list (0060 part 2 LANDED).
+list (0060 part 2 LANDED). THE OPERATOR EVIDENCE RUN (the flag's own
+acceptance — ParallelItemPhysicsEngagementTest over the real boot at
+the dense 1528-item shape): sequential 5428.8us (3.55us/item), the
+disciplined pool (ONE worker on the 2-core sandbox) 6081.4us — 0.89x
+(the dispatch pure overhead without parallel budget; the gate stays
+DEFAULT OFF on exactly this evidence), the cores-sized pool (2
+workers, the parked tick lane handing them the whole machine)
+4054.0us — 2.65us/item, a 1.34x relief at the 2-core floor (more
+cores, more relief). The re-rank face over the relieved tree:
+randomTicks 1682-3084us (down from the attribution record's
+3600-3900us — the KO-G cache visible), itemEntities the top section
+at the dense shape, mobs at the idle baseline.
 
 WAVE SLP — THE SLEEPING CLOCK WHOLE + THE INSTANT-DAWN IDENTITY CLAUSE
 RETIRED (2026-11-13, the twenty-first session's first lane — the CI
