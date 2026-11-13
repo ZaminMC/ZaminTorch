@@ -293,8 +293,24 @@ class PanicFleeParityDiscoveryTest {
                 new Position(CENTER_X + 0.5, 40.0, CENTER_Z + 0.5));
 
         melee(attacker, cow);
-        EngineAwaits.awaitCondition(server.world(),
-                () -> cow.mode() == MobEntity.Mode.PANIC, 100, "the panic claimed");
+        try {
+            EngineAwaits.awaitCondition(server.world(),
+                    () -> cow.mode() == MobEntity.Mode.PANIC, 100, "the panic claimed");
+        } catch (AssertionError missed) {
+            // The first-occurrence convention (the wounded-wolf seat's own
+            // shape): the engine COMPLETED its hundred ticks and the cow
+            // never claimed the panic — the dump names the live arm: the
+            // wound's truth, the mode, the walk multiplier the last goal
+            // tick wrote, the panic's own picked cell (a null says every
+            // moveTo yielded — the no-route arm), and the path heading.
+            throw new AssertionError(missed.getMessage()
+                    + " [state: health=" + cow.health()
+                    + " mode=" + cow.mode()
+                    + " walkMult=" + cow.goalWalkMultiplier()
+                    + " panicTarget=" + cow.panicTargetForTest()
+                    + " pathHeading=" + cow.goalHasPathHeading()
+                    + " attackerAt=" + attacker.position() + "]", missed);
+        }
         assertTrue(cow.goalHasPathHeading(),
                 "the panic walks a navigation path (never a random bearing)");
 

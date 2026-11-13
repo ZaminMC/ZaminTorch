@@ -1016,13 +1016,24 @@ public final class MobEntity implements LivingEntity {
     private final Random random;
     private final WorldQuery world;
 
-    private Position position;
+    // The cross-thread observable surfaces (the same law PlayerSession's
+    // own fields carry — "written by the simulation context only; volatile
+    // for cross-thread reads"): the acceptance family's EngineAwaits polls
+    // read these from the test threads, and a PLAIN field's read can be
+    // hoisted out of a polled loop by the JIT with no happens-before edge
+    // — the poll then never observes the tick lane's writes and the
+    // tick-honest deadline expires on a stale value (the CI storm's
+    // rotating-member root: the panic seat's mode=WANDER dump while the
+    // walk multiplier carried the panic's own 2.0). Volatile changes
+    // nothing for the single-writer lanes; it only makes the observation
+    // honest.
+    private volatile Position position;
     private double velocityX;
     private double velocityY;
     private double velocityZ;
     private float yaw;
     private float headYaw;
-    private float health;
+    private volatile float health;
     /** The absorption hearts (LivingEntity.absorption, line 126). */
     private float absorption;
     /** The breath store (Entity's syncedData 1 — 300 ticks of air). */
@@ -1066,7 +1077,7 @@ public final class MobEntity implements LivingEntity {
     private final net.zaminmc.torch.server.command.EngineCommandResults commandResults =
             new net.zaminmc.torch.server.command.EngineCommandResults();
 
-    private Mode mode = Mode.IDLE;
+    private volatile Mode mode = Mode.IDLE;
     private int modeTicks;
     // The path-follow state (the vanilla navigation port): the route lives
     // in the navigation (Path + the walking index), the feet walk the
@@ -1099,7 +1110,7 @@ public final class MobEntity implements LivingEntity {
      * it replaces never matched the reference's law).
      */
     private int ambientSoundDelay;
-    private boolean dead;
+    private volatile boolean dead;
     private int deathTicks;
     /** The killer's Looting level (the reference reads it at death from the killer entity). */
     private int lootingLevel;
@@ -3614,10 +3625,10 @@ public final class MobEntity implements LivingEntity {
     private static final int WOLF_FLAG_TAMED = 0x4;
     /** The wolf's own ticks-lived counter ({@code this.ticks} — the 2400-tick despawn gate). */
     private int wolfTicksExisted;
-    /** The wolf's state byte on the wire's index 16 (sitting | angry &lt;&lt; 1 | tamed &lt;&lt; 2). */
-    private int wolfFlags;
-    /** The collar color's dye metadata (the wire's index 20 — RED at spawn, the reference's own default). */
-    private byte wolfCollarColor = 1; // DyeColor.RED.getId() = 1
+    /** The wolf's state byte on the wire's index 16 (sitting | angry &lt;&lt; 1 | tamed &lt;&lt; 2) — volatile for the acceptance polls' cross-thread reads (the observable-surface law at the position block). */
+    private volatile int wolfFlags;
+    /** The collar color's dye metadata (the wire's index 20 — RED at spawn, the reference's own default) — volatile for the same cross-thread poll law. */
+    private volatile byte wolfCollarColor = 1; // DyeColor.RED.getId() = 1
     /** The begging head-tilt (the wire's index 19 — the bone-holding player's gaze). */
     private boolean wolfBegging;
     /**
