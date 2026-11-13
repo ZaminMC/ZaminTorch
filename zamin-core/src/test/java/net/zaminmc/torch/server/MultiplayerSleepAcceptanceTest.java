@@ -20,6 +20,8 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
 
+import net.zaminmc.torch.testing.EngineAwaits;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -27,14 +29,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Behavioral scenarios for the MULTIPLAYER sleep walk (ML-010 — the
- * reference's ServerWorld areAllPlayersAsleep semantics over the engine's
- * single-player contract): two players, one sleeping holds the night until
- * the other lies down; the morning walk then fires (the clock jump, the
- * weather clear, every sleeper woken with the leave-bed fan); the
- * leave-bed entity action restores a sleeper without touching the clock;
- * and the monster-proximity refusal (trySleep's NOT_SAFE box — x/z ±8,
- * y ±5) gates the entry. The single-player contract itself stays pinned by
- * SleepAcceptanceTest, unmodified.
+ * reference's ServerWorld canSkipNight semantics, the hundred-tick lie
+ * and all): two players, one sleeping holds the night until the other
+ * lies down AND every body has lain the reference's own hundred ticks
+ * (isSleepingLongEnough, PlayerEntity line 1236 — the instant-jump
+ * identity clause retired with the sleeping clock); the morning walk
+ * then fires (the clock jump, the weather clear, every sleeper woken
+ * with the leave-bed fan); the leave-bed entity action restores a
+ * sleeper without touching the clock; and the monster-proximity refusal
+ * (trySleep's NOT_SAFE box — x/z ±8, y ±5) gates the entry.
  */
 class MultiplayerSleepAcceptanceTest {
 
@@ -193,29 +196,110 @@ class MultiplayerSleepAcceptanceTest {
         // HEAD cell, BedBlock.use's foot redirect), the night holds.
         clickBed(alpha, 2, 0);
         await(alpha::sleeping, "Alpha enters the bed");
-        assertTrue(sleepPoses.contains("Alpha@2,5,1"),
-                "the sleep pose carries the bed head cell: " + sleepPoses);
+        // The pose fan rides the entry's own tick — the settled await (the
+        // immediate read can race the fan's add inside the entry tick).
+        await(() -> sleepPoses.contains("Alpha@2,5,1"),
+                "the sleep pose carries the bed head cell");
         long mark = server.world().totalTicks();
         await(() -> server.world().totalTicks() >= mark + 10,
                 "ten ticks pass with one sleeper");
         assertTrue(nightHolds(), "the night holds until every player sleeps");
 
-        // The second sleeper: the morning walk fires the very next tick —
-        // the sleeping flag's lifetime is that one tick (the walk wakes
-        // every sleeper), so the walk's own observables are the witness:
-        // the clock jumps to dawn, both bodies wake, the leave-bed fan
-        // rides both wakes, and the pose events recorded both entries.
+        // The second sleeper: every body must lie the reference's own
+        // hundred ticks (canSkipNight's isSleepingLongEnough gate) — the
+        // night holds through Beta's lie, then the morning walk fires and
+        // its own observables are the witness: the clock jumps to dawn,
+        // both bodies wake, the leave-bed fan rides both wakes, and the
+        // pose events recorded both entries. The sleeping flag's lifetime
+        // is the ~100-tick lie itself (the CI forensics' one-tick
+        // transient retired with the clock — a poll can no longer miss
+        // the whole window under load).
         clickBed(beta, 8, 0);
-        await(() -> server.world().timeOfDay() < MobManager.NIGHT_START,
-                "the morning walk fires once both sleep");
+        await(beta::sleeping, "Beta enters the bed");
+        await(() -> sleepPoses.contains("Beta@8,5,1"),
+                "Beta's pose carried their own head cell");
+        // THE GATE'S OWN BAND: at Beta's +40 ticks neither body has lain
+        // its hundred — the night holds.
+        long betaMark = server.world().totalTicks();
+        EngineAwaits.awaitCondition(server.world(),
+                () -> server.world().totalTicks() >= betaMark + 40,
+                80, "forty ticks of the shared lie pass");
+        assertTrue(nightHolds(), "the night holds until every body has lain its hundred");
+        EngineAwaits.awaitCondition(server.world(),
+                () -> server.world().timeOfDay() < MobManager.NIGHT_START,
+                140, "the morning walk fires once every body has lain long enough");
         assertFalse(alpha.sleeping(), "the walk woke Alpha");
         assertFalse(beta.sleeping(), "the walk woke Beta");
         assertTrue(wakes.contains("Alpha") && wakes.contains("Beta"),
                 "the leave-bed fan rode both wakes: " + wakes);
-        assertTrue(sleepPoses.contains("Beta@8,5,1"),
-                "Beta's pose carried their own head cell: " + sleepPoses);
         assertNotNull(alpha.bedSpawn(), "Alpha's bed spawn holds through the walk");
         assertNotNull(beta.bedSpawn(), "Beta's bed spawn holds through the walk");
+    }
+
+    @Test
+    void theHundredTickLieGatesTheDawnAndTheReEntryRearms() throws Exception {
+        PlayerSession alpha = join("LieCounter", new Position(0.5, 5, 0.5));
+        PlayerSession bystander = join("Watchman", new Position(6.5, 5, 0.5));
+        await(() -> alpha.state() == net.zaminmc.torch.entity.PlayerState.PLAYING
+                && bystander.state() == net.zaminmc.torch.entity.PlayerState.PLAYING,
+                "both players reach PLAYING");
+        seedBed(2, 0);
+
+        nightFalls();
+
+        // THE SLEEPING CLOCK'S OWN LAW (PlayerEntity.tick lines 213-231 —
+        // the bystander stands, so the dawn is doubly gated and this seat
+        // pins the CLOCK itself, the dawn gate's own fuel): the lie counts
+        // toward the 100 cap while the body lies, and the ninety-nine-edge
+        // is safe: the count is observed at a mid band far from the gate.
+        clickBed(alpha, 2, 0);
+        await(alpha::sleeping, "the sleeper enters the bed");
+        // The entry tick's own clock advance may have landed before this
+        // poll's read (the submit drains at the tick head, the clock walks
+        // in the same tick's player-body pass) — the fresh arm is the 0/1
+        // pair, never a previous lie's remainder.
+        assertTrue(alpha.sleepingTime() <= 1,
+                "trySleep's tail arms the clock from zero (line 1142): read "
+                        + alpha.sleepingTime());
+        EngineAwaits.awaitCondition(server.world(),
+                () -> alpha.sleepingTime() >= 40,
+                80, "the lie's first forty ticks pass");
+        assertTrue(alpha.sleeping(), "the body still lies at forty ticks");
+        assertTrue(nightHolds(), "the night holds through the lie's first band");
+        EngineAwaits.awaitCondition(server.world(),
+                () -> alpha.sleepingTime() >= 60,
+                80, "the lie passes its sixtieth tick");
+        assertTrue(nightHolds(), "the night holds through the lie's mid band");
+        assertTrue(!alpha.isSleepingLongEnough(),
+                "the mid-band lie is not long enough (the 100 gate)");
+
+        // THE LEAVE-BED RE-ARM: the body leaves mid-lie — the
+        // STOP_SLEEPING wake takes the clock to the capped wake form
+        // (wakeUp(false, true, true) sets the 100 whatever the lie
+        // reached, line 1188's else arm), the 110-walk drains it to
+        // zero, and a RE-ENTRY arms a fresh lie from zero — never the
+        // first one's remainder.
+        server.entityAction(alpha, 2);
+        await(() -> !alpha.sleeping(), "the sleeper leaves mid-lie");
+        // The wake form (line 1188's else arm): the capped 100, with the
+        // 110-walk's first advance possibly landed before this read (the
+        // same-tick phase pair — 100 or 101, never the reset form's 0).
+        assertTrue(alpha.sleepingTime() >= 100,
+                "the natural wake sets the capped clock (line 1188's else form): read "
+                        + alpha.sleepingTime());
+        EngineAwaits.awaitCondition(server.world(),
+                () -> alpha.sleepingTime() == 0,
+                80, "the 110-walk drains the wake window to zero");
+        clickBed(alpha, 2, 0);
+        await(alpha::sleeping, "the sleeper re-enters the bed");
+        assertTrue(alpha.sleepingTime() <= 1,
+                "the re-entry arms a fresh lie from zero (line 1142 again): read "
+                        + alpha.sleepingTime());
+        EngineAwaits.awaitCondition(server.world(),
+                () -> alpha.sleepingTime() >= 40,
+                80, "the second lie's first forty ticks pass");
+        assertTrue(nightHolds(),
+                "the night holds through the second lie — the re-arm is whole");
     }
 
     @Test

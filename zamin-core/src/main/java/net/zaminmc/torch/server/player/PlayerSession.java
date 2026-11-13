@@ -1822,30 +1822,81 @@ public final class PlayerSession implements net.zaminmc.torch.entity.Player {
         return sleeping;
     }
 
+    /**
+     * The sleeping clock (PlayerEntity line 101's {@code sleepingTime},
+     * the NBT {@code SleepTimer} row): 0 at the entry, advancing to the
+     * 100 cap while the body lies, and {@code isSleepingLongEnough}'s own
+     * gate (line 1236: {@code sleeping && sleepingTime >= 100} — the
+     * hundred-tick lie the reference demands before canSkipNight opens
+     * the dawn). Volatile for the acceptance polls' cross-thread honesty
+     * (the JMM wave's own law over the polled surfaces).
+     */
+    private volatile int sleepingTime;
+
+    /** @return the sleeping clock (0..100 lying, 101..109 the wake window). */
+    public int sleepingTime() {
+        return sleepingTime;
+    }
+
+    /**
+     * @return the reference's isSleepingLongEnough (line 1236): the body
+     * lies AND the clock has reached the hundred-tick cap — the gate
+     * ServerWorld.canSkipNight demands of every player before the dawn.
+     */
+    public boolean isSleepingLongEnough() {
+        return sleeping && sleepingTime >= 100;
+    }
+
     /** @return the bed head cell the body sleeps in (null when awake). */
     public BlockPosition sleepingPos() {
         return sleepingPos;
     }
 
     /**
-     * The bed entry (the reference's trySleep tail: sleeping = true,
-     * sleepingPos = pos, sleepingTime = 0 — the engine keeps no timer; the
-     * walk's identity clause answers the all-sleepers question the moment
-     * the last body lies down). Tick-thread context.
+     * The bed entry (the reference's trySleep tail, lines 1143-1145:
+     * {@code sleeping = true; sleepingTime = 0; sleepingPos = pos} — the
+     * clock re-arms from zero at every entry, so a re-entered body lies
+     * its own fresh hundred ticks). Tick-thread context.
      */
     public void enterBed(BlockPosition bedHead) {
         this.sleeping = true;
         this.sleepingPos = bedHead;
+        this.sleepingTime = 0;
     }
 
     /**
-     * The bed departure (the reference's wakeUp: sleeping = false — the
-     * sleepingPos drops with it, the spawn already set at the entry).
-     * Tick-thread context.
+     * The bed departure with the reference's wakeUp timer form (line
+     * 1188: {@code sleepingTime = resetSleepTimer ? 0 : 100}): the
+     * immediate troubles (the bed gone under the body, the death) reset
+     * the clock to zero, the natural wakes (the day arrived, the dawn
+     * jump's own fan) leave the capped 100 — the wake-animation window
+     * the 110-walk then drains. Tick-thread context.
      */
-    public void leaveBed() {
+    public void wakeFromBed(boolean resetSleepTimer) {
         this.sleeping = false;
         this.sleepingPos = null;
+        this.sleepingTime = resetSleepTimer ? 0 : 100;
+    }
+
+    /**
+     * The per-tick sleeping clock (PlayerEntity.tick lines 213-231, 1:1):
+     * a lying body counts up to the 100 cap; an AWAKE body still inside
+     * the wake window counts on to 110 then drops to zero — the sync
+     * clock the client's get-out-of-bed animation rides. No isAlive
+     * gate, exactly the reference's own shape. Tick-thread context.
+     */
+    public void tickSleepingClock() {
+        if (sleeping) {
+            sleepingTime++;
+            if (sleepingTime > 100) {
+                sleepingTime = 100;
+            }
+        } else if (sleepingTime > 0) {
+            sleepingTime++;
+            if (sleepingTime >= 110) {
+                sleepingTime = 0;
+            }
+        }
     }
 
     // --- movement guard accessors --------------------------------------------

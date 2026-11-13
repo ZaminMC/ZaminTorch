@@ -12320,6 +12320,17 @@ public final class MobEntity implements LivingEntity {
     private boolean escapeDangerPlayerAttacker;
     /** The picked TargetFinder cell (canStart's own store, lines 20-33). */
     private Position escapeDangerTarget;
+    /**
+     * The claim's fresh flag — start()'s own marker: the tick that just
+     * picked a fresh target owes the goal's own route WHOLE (the
+     * reference's start() line 42 runs moveTo unconditionally at the
+     * claim, REPLACING whatever route the last goal walked — never gated
+     * on the navigation's state). Without it a claim adopted over a live
+     * stroll route rides the STROLL's path at the panic's speed and the
+     * mode write never lands (the poisoned-ride shape the CI forensics
+     * caught: walkMult 2.0 with mode WANDER).
+     */
+    private boolean escapeDangerClaimFresh;
 
     /**
      * The wound's own stamp (LivingEntity.takeDamage lines 671-676 —
@@ -12384,24 +12395,28 @@ public final class MobEntity implements LivingEntity {
             return false; // canStart's null: no candidate this pass
         }
         escapeDangerTarget = pick;
+        escapeDangerClaimFresh = true; // start() owes the route THIS tick
         return true;
     }
 
     /**
-     * The PANIC goal's tick: start() runs the navigation's moveTo at the
-     * picked cell (the per-kind speed parameter over the walk base),
-     * then the feet follow the stored path — the walk's own heading,
-     * never a random bearing. The path's completion ends the claim
-     * (shouldContinue's !isDone); a live window re-arms the whole walk
-     * on the next pass, vanilla's own restart loop.
+     * The PANIC goal's tick: the claim's first tick runs start() —
+     * {@code navigation.moveTo(target, speed)} UNCONDITIONALLY (line 42,
+     * the goal's own route replacing whatever the last goal walked — the
+     * pre-fix engine gated it on isDone and a claim adopted over a live
+     * stroll route rode the STROLL's path at the panic's speed, the mode
+     * write never landing) — then the feet follow the stored path — the
+     * walk's own heading, never a random bearing. The path's completion
+     * ends the claim (shouldContinue's !isDone); a live window re-arms
+     * the whole walk on the next pass, vanilla's own restart loop.
      */
     void goalTickPanic() {
         if (escapeDangerTarget == null) {
             return; // the defensive clear (canUse always arms first)
         }
-        if (navigation.isDone()) {
-            // start(): moveTo(target, speed) — the route found once, the
-            // stored path walked to its end.
+        if (escapeDangerClaimFresh) {
+            // start(): the claim's own route, whatever the navigation held.
+            escapeDangerClaimFresh = false;
             navigation.moveTo(escapeDangerTarget.x(), escapeDangerTarget.y(),
                     escapeDangerTarget.z(), escapeDangerSpeed(type));
             if (navigation.isDone()) {

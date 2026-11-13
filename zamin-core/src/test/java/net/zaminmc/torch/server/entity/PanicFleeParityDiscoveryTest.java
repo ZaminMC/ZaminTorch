@@ -225,6 +225,63 @@ class PanicFleeParityDiscoveryTest {
     }
 
     // ------------------------------------------------------------------
+    // Seat 1b — THE CLAIM'S OWN START WALK (the poisoned-ride repair)
+    // ------------------------------------------------------------------
+
+    /**
+     * EscapeDangerGoal.start() line 42 (the 1:1 law the CI forensics
+     * surfaced): the claim's moveTo runs UNCONDITIONALLY — the goal's own
+     * route REPLACES whatever the last goal walked. The pre-fix engine
+     * gated the moveTo on the navigation's isDone, so a panic claim
+     * adopted over a LIVE stroll route rode the STROLL's path at the
+     * panic's 2.0 speed with the mode write never landing — the poisoned
+     * ride (walkMult 2.0 + mode WANDER, the wounded-cow seat's own
+     * first-occurrence dump). The seat wounds the cow MID-STROLL (a live
+     * route under the body) and pins the claim's own start: the mode
+     * flips with the claim's first tick, never the adopted stroll's.
+     */
+    @Test
+    void theClaimOverALiveStrollRouteRunsItsOwnStartWalk() throws Exception {
+        buildPlatform();
+        PlayerSession attacker = join("Hunter");
+        MobEntity cow = spawn(MobType.COW,
+                new Position(CENTER_X + 0.5, 40.0, CENTER_Z + 0.5));
+
+        // The player NEAR (the stroll's own gate: a body 100+ ticks
+        // without a player within 32 blocks never strolls — the despawn
+        // clock's own pre-despawn band).
+        server.teleportPlayer(attacker,
+                new Position(CENTER_X + 3.5, 40.0, CENTER_Z + 0.5));
+        EngineAwaits.awaitCondition(server.world(),
+                () -> attacker.position().x() == CENTER_X + 3.5, 100,
+                "the attacker stands near the cow");
+
+        // The stroll claim LIVE: a WANDER body walking a route — the
+        // navigation holds the STROLL's path when the wound lands (the
+        // stroll route's own life at the 1.0 band is hundreds of ticks —
+        // the wound lands deep inside it).
+        EngineAwaits.awaitCondition(server.world(),
+                () -> cow.mode() == MobEntity.Mode.WANDER
+                        && cow.goalHasPathHeading(),
+                600, "the cow claims a stroll with a live route");
+        melee(attacker, cow);
+
+        // THE CLAIM: whatever the navigation held, start() owes its OWN
+        // route — the mode write lands with the claim's first tick (the
+        // stroll's 1.0 never reads as the panic's 2.0, so the 2.0 write
+        // names the panic claim alone).
+        EngineAwaits.awaitCondition(server.world(),
+                () -> cow.goalWalkMultiplier() == 2.0, 100,
+                "the panic claims (the per-kind 2.0 speed writes)");
+        assertTrue(cow.mode() == MobEntity.Mode.PANIC,
+                "the claim writes the PANIC mode at its own start (start() "
+                        + "line 42 — the unconditional moveTo, never the "
+                        + "adopted stroll route; mode read " + cow.mode() + ")");
+        assertTrue(cow.panicTargetForTest() != null,
+                "the claim carries its own picked cell");
+    }
+
+    // ------------------------------------------------------------------
     // Seat 2 — THE GATE: the environmental hurt never panics
     // ------------------------------------------------------------------
 

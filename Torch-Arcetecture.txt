@@ -10247,31 +10247,133 @@ counter's patch-exact expression). LANES: the spawner package whole
 (33), the container families whole (furnace + chest + hopper + brewing
 + beacon).
 
-NEXT WORK (re-pinned after WAVES MIG-3 + JMM, in order): the Phase-8
+NEXT WORK (re-pinned after WAVES SLP + PST, in order): the Phase-8
 lane is CLOSED whole (the protocol proven MIG-1, the bridge MIG-2,
 the split/merge executors + the armed loop MIG-3 — the balancer rides
 only behind torch.adaptive-balancing, DEFAULT OFF per the §22
 discipline; a future row may widen the executors' drain to the
 compute/I-O lanes when a region-bound workload ever adopts them, and
 the armed loop's first OPERATOR evidence run is the flag's own
-acceptance); THE CI STORM'S JMM ROOT CLOSED (Wave JMM below — the six
-observable surfaces volatile, the rotating members' class removed;
-the CI run over the MIG-3+JMM push is the arbiter, and the panic
-seat's residual intermittent miss carries the new first-occurrence
-dump — its next occurrence names the live arm); the terrain-shape
-acceptance seats over the reference's own seeded outputs (the
-cross-engine shape comparison when the verifier's census provides the
-reference outputs); the vanilla-grade census's next family pick (the
-verifier's channel); the verifier's PRs when they open; the
-flake-family watch (the panic seat's residual arm — the JMM class
-closed, the no-route odds recorded, the dump armed; the enderman-hunt
-seat — the census's retry-allowlisted family). THE KIGPAPER CENSUS'S
-ENGINE-MAPPABLE ROWS ARE ALL LANDED OR RETIRED (0022 TET, the
-tracking-range family TR-2/TR-3, 0087 part 1 KO-D, 0087 part 2
-RETIRED-INHERENT — the census row's own record below); no named
-engine-mappable row stands. THE MASTER LEDGER'S OWN ROWS ARE ALL
-RESOLVED (ML-001 through ML-025; the ML-100 family tails stay owned
+acceptance); THE CI ARBITER OVER THE MIG-3+JMM PUSH ANSWERED (run
+43386851403: 3418 tests, 2 failed — the rotating members STOPPED WHOLE
+(the JMM class closed, exactly as the wave predicted), the two reds
+BOTH root-caused and fixed by WAVES SLP + PST below: the panic seat's
+residual arm was the poisoned-ride root (the panic claim adopting a
+live stroll route without start()'s own moveTo), the BedPair seat was
+the one-tick sleep transient (the instant-dawn identity clause's own
+arithmetic); the CI run over the SLP+PST push is the next arbiter);
+the terrain-shape acceptance seats over the reference's own seeded
+outputs (the cross-engine shape comparison when the verifier's census
+provides the reference outputs); the vanilla-grade census's next
+family pick (the verifier's channel); the verifier's PRs when they
+open; the flake-family watch (the enderman-hunt seat — the census's
+retry-allowlisted family; the wire lane's cross-lane ordering row
+below). THE KIGPAPER CENSUS'S ENGINE-MAPPABLE ROWS ARE ALL LANDED OR
+RETIRED (0022 TET, the tracking-range family TR-2/TR-3, 0087 part 1
+KO-D, 0087 part 2 RETIRED-INHERENT — the census row's own record
+below); no named engine-mappable row stands. THE MASTER LEDGER'S OWN
+ROWS ARE ALL RESOLVED (ML-001 through ML-025; the ML-100 family tails
+stay owned
 by their landed families per the ledger's own rule).
+
+WAVE SLP — THE SLEEPING CLOCK WHOLE + THE INSTANT-DAWN IDENTITY CLAUSE
+RETIRED (2026-11-13, the twenty-first session's first lane — the CI
+arbiter's BedPair red read to its root): THE ROOT — the run's
+forensics (the test XML's own system-err) showed the sleep walk RAN
+("NapSeeker is now resting") and the very next tick jumped the world
+to dawn ("1 player slept through the night") — the sleeping flag's
+lifetime was ONE TICK, and the seat's 25ms poll missed the whole
+window under the 2-core load (the same transient BedWrongWorldBlast's
+run-589 comment had already papered over by observing the durable
+bedSpawn). THE LAW (the reference, read whole this session):
+PlayerEntity line 101's {@code sleepingTime} clock — armed from zero
+at every entry (trySleep line 1142), advancing to the 100 cap while
+the body lies (tick lines 216-218), the awake body's wake window
+counting on to 110 then resetting (lines 228-231 — the client's
+get-out-of-bed animation sync clock, NO isAlive gate), wakeUp's own
+timer form (line 1188: {@code resetSleepTimer ? 0 : 100} — the
+immediate troubles reset, the natural wakes keep the capped band),
+isSleepingLongEnough (line 1236: {@code sleeping && sleepingTime >=
+100}), and ServerWorld.canSkipNight's gate (lines 259-269: EVERY
+non-spectator player must be long-enough — the hundred-tick lie
+before the dawn). THE ENGINE'S DIVERGENCE was deliberate and
+documented (ML-010's 2026-10-23 resolution: "the all-sleepers walk
+over the single-player contract (one player = the same instant
+morning)" — the §17 vanilla-parity discipline retires it now): a
+single click jumped the world whole. THE FIX LANDED 1:1:
+PlayerSession's {@code sleepingTime} (volatile — the JMM wave's own
+law over the polled surfaces) + {@code isSleepingLongEnough} + the
+per-tick clock walk ({@code tickSleepingClock}, riding
+tickPlayerBodies BEFORE the dead-skip — the reference's ungated arm)
++ enterBed's zero arm + wakeFromBed(resetSleepTimer) replacing the
+form-less leaveBed; EngineServer's tickSleep carries canSkipNight's
+long-enough gate (the night holds until every body has lain its
+hundred) and the three wake forms (die's reset, the bed-gone reset,
+the day-arrived keep + the dawn fan's keep); the STOP_SLEEPING
+entity action carries wakeUp(false, true, true)'s keep form (the
+reference's own handler line 686). SEATS: MultiplayerSleepAcceptance
++1 NEW (theHundredTickLieGatesTheDawnAndTheReEntryRearms — the clock
+armed from zero, the mid-band lie not long enough, the leave's
+100-set wake form, the 110-walk's drain, the re-entry's fresh zero,
+the second lie's own night-hold) + seat 1 re-pinned (Beta's +40
+night-holds, the dawn within 140 — the gate's own band, the
+one-tick-transient comment retired) + SleepAcceptanceTest's dawn
+await converted to the tick-honest 140 budget (the wall form cannot
+carry a 100-tick lie: it IS five seconds at the nominal cadence);
+the MultiplayerSleepWire rig hardened (acknowledgeAnchor now awaits
+the window's closure — the cross-lane ordering row below).
+RED-verified on the no-op patch (the long-enough gate disabled):
+SleepAcceptanceTest red at the entry await itself (the poll missing
+the restored one-tick transient — the flake's own arithmetic
+demonstrated) and the multiplayer gate seat red at the pose race.
+
+WAVE PST — THE PANIC CLAIM'S OWN START WALK (2026-11-13, the
+twenty-first session's second lane — the CI arbiter's PanicFlee red
+read to its root): THE ROOT — the seat's first-occurrence dump read
+walkMult=2.0 with mode=WANDER: goalWalkSpeed is cleared to NaN at
+every tickMind head, so the 2.0 was written THIS TICK by goalTickPanic
+— a LIVE panic claim — while the mode never flipped. The only
+path that writes the speed without the mode is the entry-branch
+skip: goalTickPanic gated its moveTo on navigation.isDone(), so a
+panic claim adopted over a LIVE stroll route (the wounded body was
+strolling when the wound landed — the stroll's route lives hundreds
+of ticks at the 1.0 band) rode the STROLL's path at the panic's 2.0
+speed with the mode write never landing — THE POISONED RIDE, and
+its loop (the claim ends when the stroll route drains, the stroll's
+own tickPathFollowing re-paths the same target, the next panic
+claim adopts the fresh route again) held the mode out of PANIC for
+the whole 100-tick window — the dump's exact arithmetic. THE LAW
+(EscapeDangerGoal, read whole): start() line 42 runs
+{@code navigation.moveTo(target, speed)} UNCONDITIONALLY at the
+claim — the goal's own route REPLACES whatever the last goal walked;
+shouldContinue alone ("!isDone") carries the claim. THE FIX: the
+claim's fresh flag (goalPanicCanUse arms it when the pick lands;
+goalTickPanic's first claim tick runs start()'s moveTo whatever the
+navigation held — the failed route yields the claim whole, the
+successful one writes the mode). SEAT: PanicFleeParityDiscoveryTest
++1 NEW (theClaimOverALiveStrollRouteRunsItsOwnStartWalk — the cow
+wounded MID-STROLL with a live route under the body: the claim's 2.0
+write must carry mode=PANIC and its own picked cell; the pre-fix
+poisoned ride answered 2.0/WANDER — the stroll route's own life at
+the 1.0 band makes the wound land deep inside it, the false-green
+odds 0.8^route-life, effectively zero). RED-verified on the no-op
+patch (the moveTo re-gated on isDone): the seat failed both its
+runs. THE FAMILY NOTE: the flee-entity goal (FleeEntityGoal — the
+ocelot/cat family) already writes its mode every tick and never
+carried the shape.
+
+THE WIRE LANE'S CROSS-LANE ORDERING ROW (ledgered 2026-11-13, the
+SLP wave's own find): the movement handler runs on the channel's
+event loop (the latency law) while the use walks run on the tick
+lane — a scheduling inversion can deliver a later click's use walk
+BEFORE an earlier movement echo's window-close lands (the leave-bed
+anchor's echo racing the monster-refusal click in the sleep wire
+rig, ~1-in-5 locally). The reference answers with ONE thread — the
+total order the protocol assumes. The rig's acknowledgeAnchor now
+awaits the closure (the honest client-emulation form); the deeper
+row — the engine's own total-order guarantee for same-channel
+packets across the two lanes — stands open for its own slice (the
+movement lane's latency law is the constraint to preserve).
 
 WAVE JMM — THE CI STORM'S OBSERVABILITY ROOT CLOSED (2026-11-13, the
 twentieth session's second lane — the release pipeline red four runs

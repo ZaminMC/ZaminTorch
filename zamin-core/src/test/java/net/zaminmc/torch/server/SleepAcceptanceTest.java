@@ -16,14 +16,16 @@ import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import net.zaminmc.torch.testing.EngineAwaits;
 
 /**
  * Behavioral scenarios for the sleep loop: beds place as foot/head pairs,
- * the night right-click sets the body's spawn and jumps the world to
- * morning, the day right-click refuses with the vanilla line, and the
+ * the night right-click sets the body's spawn and the body lies the
+ * reference's own hundred ticks (isSleepingLongEnough) before the morning
+ * jump, the day right-click refuses with the vanilla line, and the
  * respawn honors the bed spawn over the world spawn.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -116,16 +118,23 @@ class SleepAcceptanceTest {
                 "the head half lands along the look (south)");
         assertEquals(0, sleeper.inventory().held().count(), "the bed item is spent");
 
-        // Night: the right-click sleeps through — the clock jumps to morning
-        // and the bed spawn is set.
+        // Night: the right-click enters the bed — the body lies the
+        // reference's own hundred ticks (isSleepingLongEnough, PlayerEntity
+        // line 1236) before canSkipNight opens the morning jump.
         server.ticker().submit(() -> world.setTimeOfDay(net.zaminmc.torch.server.entity.MobManager.NIGHT_START + 100));
         await(() -> world.timeOfDay() >= net.zaminmc.torch.server.entity.MobManager.NIGHT_START,
                 "night falls");
         useOn(sleeper, footCell, 1);
-        // The world tick advances past the exact dawn tick between polls,
-        // so assert the daytime band rather than the instant of 0.
-        await(() -> world.timeOfDay() < net.zaminmc.torch.server.entity.MobManager.NIGHT_START,
-                "the world wakes at dawn");
+        await(sleeper::sleeping, "the body enters the bed");
+        // The dawn lands at the hundred-tick lie's own end — the tick-honest
+        // budget (the wall forms cannot carry it: 100 ticks IS five seconds
+        // at the nominal cadence, and a loaded runner stretches past any
+        // wall guess).
+        EngineAwaits.awaitCondition(server.world(),
+                () -> world.timeOfDay()
+                        < net.zaminmc.torch.server.entity.MobManager.NIGHT_START,
+                140, "the world wakes at dawn (the hundred-tick lie)");
+        assertFalse(sleeper.sleeping(), "the morning walk woke the sleeper");
         assertNotNull(sleeper.bedSpawn(), "the bed spawn is set");
 
         // The day right-click refuses (the vanilla line, no state change):

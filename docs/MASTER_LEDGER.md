@@ -131,7 +131,16 @@ I=infra/CI/release, S=security/boundary.
 - Acceptance: engine tests: two players, one sleeps → no morning until both
   sleep; pose packet observed by the other player; the morning walk fires.
 - Resolution (2026-10-23, the coordinator-reviewed wave-3 merge): the 0x0A broadcast, the all-sleepers walk over the single-player contract (one player = the same instant morning), the monster box (x/z +-8, y +-5), the wake fans, the foot->head redirect; the Entity Action ordinals corrected to the reference enum (2 STOP_SLEEPING / 3 START_SPRINTING / 4 STOP_SPRINTING — a real cross-cutting wire fix the lane surfaced). MultiplayerSleepAcceptanceTest + MultiplayerSleepWireTest green; SleepAcceptanceTest unmodified and green.
-- Status: RESOLVED (landed, PR #41).
+- Status: RESOLVED (landed, PR #41). **AMENDED 2026-11-13 (Wave SLP — the §17
+  vanilla-parity discipline): the "single-player contract (one player =
+  the same instant morning)" clause RETIRED — the reference's own law
+  landed whole: the sleepingTime clock (PlayerEntity line 101, armed
+  from zero at every entry, the 100 cap, the 110-wake-window drain) +
+  isSleepingLongEnough (line 1236) + canSkipNight's gate (ServerWorld
+  lines 259-269: every non-spectator body must lie its hundred ticks
+  before the dawn). The instant jump was itself a CI-flake root (the
+  sleeping flag's one-tick lifetime vs the acceptance polls' 25ms
+  cadence under load — the BedPair seat's run-43386851403 red).**
   single-player contract — a Partial, not a false claim). Confidence: high.
 
 ## Medium — protocol / operations

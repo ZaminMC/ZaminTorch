@@ -81,6 +81,12 @@ class MultiplayerSleepWireTest extends ProtocolTestBase {
         var session = server.playerRegistry().byName(name).orElseThrow();
         var at = session.position();
         client.sendPosition(at.x(), at.y(), at.z(), true);
+        // The echo lands on the event loop while the use walks run on the
+        // tick lane — a cross-lane scheduling inversion can deliver a LATER
+        // click's use walk before the echo's window-close lands (the leave's
+        // anchor armed the window on the wake). The settled await makes the
+        // rig's order total, exactly the real client's in-order channel.
+        awaitCondition(() -> !session.teleportPending(), "the anchor acknowledged");
     }
 
     /** Decodes a Use Bed (0x0A) body: {entityId, x, y, z}. */
