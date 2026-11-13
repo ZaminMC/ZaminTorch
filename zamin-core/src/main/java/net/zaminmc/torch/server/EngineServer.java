@@ -259,6 +259,16 @@ public final class EngineServer implements Server, EngineBridge {
     private volatile net.zaminmc.torch.server.concurrent.RegionPartition worldRegionPartition;
     /** The nether's spatial ownership partition (the same granularity). */
     private volatile net.zaminmc.torch.server.concurrent.RegionPartition netherRegionPartition;
+    /** The End's spatial ownership partition (the same granularity). */
+    private volatile net.zaminmc.torch.server.concurrent.RegionPartition endRegionPartition;
+    /**
+     * The Phase-8 adaptive balancing loop (Wave MIG-3): armed only behind
+     * {@code torch.adaptive-balancing} (default OFF — the §22 discipline:
+     * no measured load shape demands automatic balancing, the attribution
+     * pass's verdict stands). Null when disarmed — the engine's behavior
+     * byte-identical to the pre-MIG-3 tree.
+     */
+    private volatile net.zaminmc.torch.server.concurrent.MigrationBalancer migrationBalancer;
     /** The in-flight detached chunk generations (dedupe; the never-overwrite guard). */
     private final java.util.Set<Long> pendingChunkGenerations =
             java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -991,6 +1001,7 @@ public final class EngineServer implements Server, EngineBridge {
                 net.zaminmc.torch.server.concurrent.RegionPartition endRegionPartition =
                         new net.zaminmc.torch.server.concurrent.RegionPartition(
                                 config.worldName() + "_end", config.regionSizeChunks());
+                this.endRegionPartition = endRegionPartition;
                 endWorld.attachRegionPartition(endRegionPartition);
                 endStorage = new DeltaWorldStorage(
                         config.worldDataDir().resolve("DIM1/zamin-delta.bin"),
@@ -5077,6 +5088,26 @@ public final class EngineServer implements Server, EngineBridge {
                 // engine's own stop order.
                 crossOwnerView = new net.zaminmc.torch.server.concurrent.CrossOwnerView(
                         crossOwnerRouter);
+                // WAVE MIG-3 — THE PHASE-8 ARMING POINT (the split/merge
+                // executors over the migration protocol + this decision
+                // loop; the pipeline MIG-1 proved and MIG-2 bridged, armed):
+                // torch.adaptive-balancing arms the adaptive loop — every
+                // boundary move a full OwnershipMigration protocol run,
+                // every decision the anti-oscillation policy's own law.
+                // DEFAULT OFF (the §22 discipline: no measured load shape
+                // demands it — the attribution pass's verdict stands; the
+                // operator who disagrees carries the flag's burden).
+                if (Boolean.getBoolean("torch.adaptive-balancing")) {
+                    migrationBalancer = new net.zaminmc.torch.server.concurrent.MigrationBalancer(
+                            java.util.List.of(worldRegionPartition, netherRegionPartition,
+                                    endRegionPartition),
+                            simulationScheduler, crossOwnerRouter,
+                            net.zaminmc.torch.server.concurrent.MigrationPolicy.reference(),
+                            net.zaminmc.torch.server.concurrent.MigrationBalancer
+                                    .DEFAULT_WINDOW_TICKS);
+                    ticker.attachMigrationBalancer(migrationBalancer);
+                    LOGGER.info(() -> "Adaptive balancing armed: " + migrationBalancer);
+                }
                 // The discovery wave (Slice 79 — §28.5's DISCOVERED → LOADED
                 // stages): every jar in the data dir's plugins/ registers
                 // through the host over the live lanes. Per-jar isolated —

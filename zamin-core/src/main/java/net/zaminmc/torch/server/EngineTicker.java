@@ -85,6 +85,15 @@ public final class EngineTicker {
     private volatile net.zaminmc.torch.server.concurrent.DomainWorkerPool domainPool;
     private volatile net.zaminmc.torch.server.concurrent.CrossOwnerRouter crossOwnerRouter;
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain routerDomain;
+    /**
+     * The Phase-8 adaptive balancing loop (Wave MIG-3): the decision
+     * window that samples the scheduler's §11 counters, feeds the
+     * anti-oscillation policy, and applies the answered splits/merges
+     * through the migration protocol. Optional; null (the default — the
+     * engine arms it only behind {@code torch.adaptive-balancing}) keeps
+     * the pre-MIG-3 behavior byte-identical.
+     */
+    private volatile net.zaminmc.torch.server.concurrent.MigrationBalancer migrationBalancer;
     private volatile net.zaminmc.torch.server.concurrent.BlockingIoLane ioLane;
     private volatile net.zaminmc.torch.server.concurrent.OwnershipDomain ioLaneDomain;
     private long logicalTick;
@@ -236,6 +245,17 @@ public final class EngineTicker {
                                        net.zaminmc.torch.server.concurrent.OwnershipDomain domain) {
         this.crossOwnerRouter = java.util.Objects.requireNonNull(router, "router");
         this.routerDomain = java.util.Objects.requireNonNull(domain, "domain");
+    }
+
+    /**
+     * Attaches the Phase-8 adaptive balancing loop (Wave MIG-3): each tick
+     * feeds the balancer's decision window at the scheduler walk's
+     * completion — the safe point (every domain gate free) the migration
+     * protocol's begin() demands. Optional; null keeps the loop disarmed.
+     */
+    public void attachMigrationBalancer(
+            net.zaminmc.torch.server.concurrent.MigrationBalancer balancer) {
+        this.migrationBalancer = java.util.Objects.requireNonNull(balancer, "balancer");
     }
 
     /** Starts ticking; the current thread becomes the world's owner. */
@@ -453,6 +473,23 @@ public final class EngineTicker {
                     attached.runDueParallel(logicalTick, pool);
                 } else {
                     attached.runDue(logicalTick);
+                }
+            }
+            // The Phase-8 adaptive balancing window (Wave MIG-3): runs at
+            // the scheduler walk's completion — the protocol's own safe
+            // point, every domain gate free — and only when the engine
+            // armed the loop behind torch.adaptive-balancing (default
+            // OFF; null keeps the pre-MIG-3 behavior byte-identical).
+            net.zaminmc.torch.server.concurrent.MigrationBalancer balancer = migrationBalancer;
+            if (balancer != null) {
+                try {
+                    balancer.tick(logicalTick);
+                } catch (Throwable t) {
+                    // A refused migration is the executor's own loud shape;
+                    // a failure here never kills the tick (the historical
+                    // policy) — the window re-opens next boundary.
+                    LOGGER.log(java.util.logging.Level.SEVERE,
+                            "Adaptive balancing window failed; the tick continues", t);
                 }
             }
             // The cross-owner drain rides the same owner boundary (the §7
