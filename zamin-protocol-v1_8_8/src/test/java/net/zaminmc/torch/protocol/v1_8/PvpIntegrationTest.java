@@ -138,6 +138,15 @@ class PvpIntegrationTest extends ProtocolTestBase {
             awaitCondition(() -> bobSession.health() == PlayerSession.MAX_HEALTH,
                     "the respawned body is back at full health");
         }
+        // The ordered class's own convention (run 43403832168's find): the
+        // try-with-resources closes the SOCKETS, but the engine's removal is
+        // the channel-inactive event's own async walk — the next test's
+        // same-name login can race it and meet joinRequest's "You are
+        // already connected" refusal (the Login Disconnect packet 0 the
+        // rig read as "Expected login success, got 0"). The settled await
+        // makes the class's tests total, exactly the multi-test convention
+        // ChatAndMultiplayer and TrackingRangePlayerWireParity carry.
+        awaitEmptyServer();
     }
 
     @Test

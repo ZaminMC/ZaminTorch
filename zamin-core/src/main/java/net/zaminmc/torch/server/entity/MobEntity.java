@@ -12450,6 +12450,16 @@ public final class MobEntity implements LivingEntity {
     }
 
     /**
+     * @return whether the navigation holds a LIVE route (the seats' read —
+     * the stroll-claim law's own observable: start()'s moveTo at the claim
+     * versus the pre-fix claim standing the repathCooldown's leftover
+     * window before its route began).
+     */
+    boolean navigationRouteLive() {
+        return !navigation.isDone();
+    }
+
+    /**
      * The breed drive's steering (the vanilla goal tick): the eyes on the
      * mate, the feet on the path to it — the same chase pairing, without
      * the attack arm.
@@ -16249,8 +16259,13 @@ public final class MobEntity implements LivingEntity {
                     // shared repath budget would stand the whole leftover
                     // window (the reference's goal owns its route from
                     // its own start).
-                    // BISECT-OFF navigation.moveTo(strollTarget.x(), strollTarget.y(),
-                    // BISECT-OFF strollTarget.z(), strollSpeedMultiplier());
+                    // BISECT-OFF retired 2026-11-13 (Wave SR-2): the
+                    // reference's start() runs its own moveTo at the
+                    // claim — the bisect marker was never lifted and the
+                    // claimed stroll stood up to a repathCooldown's
+                    // leftover window before its route began.
+                    navigation.moveTo(strollTarget.x(), strollTarget.y(),
+                            strollTarget.z(), strollSpeedMultiplier());
                 }
             }
             case WANDER -> {

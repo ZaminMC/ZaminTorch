@@ -195,14 +195,17 @@ class ExplosionEntityGatherParityTest {
                         ProjectileEntity.Kind.SMALL_FIREBALL,
                         new Position(38.5, 8.0, 10.5), 0.0, 0.0, 0.3));
                 // The ghast's shot hovers (a zero direction — the launch's
-                // gaussian noise alone rides the acceleration): the fixed
-                // (3, 4) offset from the creeper already spends 5 of the
-                // gather band's 6 blocks, and a flying shot's noise-scaled
-                // drift can carry it OUT of the band over the 5-tick fuse
-                // (the one-off batch failure). The re-aim law needs the
-                // body IN the band, not in flight.
+                // gaussian noise alone rides the acceleration): the launch's
+                // per-axis ±0.4-sigma noise normalizes into the flat 0.1
+                // acceleration, so the shot drifts up to ~1 block over the
+                // 5-tick fuse — the seat's own one-off batch failure was the
+                // drift crossing the gather band's edge (run 43403832168's
+                // red re-read the margin: the OLD (15.5, 9.5) seat stood
+                // 5.41 of the band's 6 — a 0.59 margin the drift crosses).
+                // The closer (14.5, 8.5) cell spends 4.03 — the ~2-block
+                // margin holds whatever the noise points at.
                 ghastShot.set(server.projectiles().launchGhastFireball(1602,
-                        new Position(15.5, 9.5, 10.5), 0.0, 0.0, 0.0, 0));
+                        new Position(14.5, 8.5, 10.5), 0.0, 0.0, 0.0, 0));
             });
             await(server, () -> near.get() != null && control.get() != null
                     && ghastShot.get() != null, "the fireball trio launched");

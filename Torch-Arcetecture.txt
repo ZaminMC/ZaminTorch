@@ -10254,14 +10254,13 @@ only behind torch.adaptive-balancing, DEFAULT OFF per the §22
 discipline; a future row may widen the executors' drain to the
 compute/I-O lanes when a region-bound workload ever adopts them, and
 the armed loop's first OPERATOR evidence run is the flag's own
-acceptance); THE CI ARBITER OVER THE MIG-3+JMM PUSH ANSWERED (run
-43386851403: 3418 tests, 2 failed — the rotating members STOPPED WHOLE
-(the JMM class closed, exactly as the wave predicted), the two reds
-BOTH root-caused and fixed by WAVES SLP + PST below: the panic seat's
-residual arm was the poisoned-ride root (the panic claim adopting a
-live stroll route without start()'s own moveTo), the BedPair seat was
-the one-tick sleep transient (the instant-dawn identity clause's own
-arithmetic); the CI run over the SLP+PST push is the next arbiter);
+acceptance); THE CI ARBITERS ANSWERED (run 43386851403 over MIG-3+JMM:
+3418 tests, 2 failed — the rotating members STOPPED WHOLE, the two
+reds fixed by WAVES SLP + PST; run 43403832168 over SLP+PST: 3697
+tests, 2 failed — THE TWO FIXED REDS GREEN (the waves held), the two
+NEW reds fixed by the SR-2 slice below — the Pvp wire rig's same-name
+login race and the explosion gather seat's own drift margin; the CI
+run over the SR-2 push is the next arbiter);
 the terrain-shape acceptance seats over the reference's own seeded
 outputs (the cross-engine shape comparison when the verifier's census
 provides the reference outputs); the vanilla-grade census's next
@@ -10275,6 +10274,38 @@ below); no named engine-mappable row stands. THE MASTER LEDGER'S OWN
 ROWS ARE ALL RESOLVED (ML-001 through ML-025; the ML-100 family tails
 stay owned
 by their landed families per the ledger's own rule).
+
+WAVE SR-2 + THE SECOND ARBITER'S TWO REDS ROOT-CAUSED (2026-11-13, the
+twenty-first session's third slice — the CI arbiter over the SLP+PST
+push answered: 3419 core + 278 protocol tests, THE TWO FIXED REDS
+GREEN (BedPair and PanicFlee both passed — the waves held), two NEW
+reds read to their roots): (1) THE STROLL'S BISECT-OFF start()
+RETIRED (Wave SR-2): commit 017d87b0's message claimed "THE STROLL'S
+start() MOVETO lands at the claim" but the code carried the bisect
+marker — the claimed stroll stood a repathCooldown's leftover window
+(up to ~30 ticks) before its route began. Re-enabled 1:1
+(WanderAroundGoal.start() lines 43-45: the route begins at the
+claim); SEAT: StrollClaimRouteParityTest NEW (the per-tick observer
+samples at the tick head via the public scheduler — the first WANDER
+sample reads the claim tick's own residue: the navigation must be
+live there; the pre-fix claim wrote the mode alone). RED-verified on
+the no-op patch; the entity package whole 842/842. (2) THE PVP
+WIRE RIG'S SAME-NAME LOGIN RACE (run 43403832168's protocol red —
+"Expected login success, got 0"): the ordered class's first test
+closes its clients (the sockets) but the engine's removal is the
+channel-inactive event's own async walk — the second test's same-name
+login raced it and met joinRequest's "You are already connected"
+refusal (the Login Disconnect the rig read). FIXED with the class's
+own convention: awaitEmptyServer() at the first test's close (the
+multi-test convention ChatAndMultiplayer and TrackingRangePlayer-
+WireParity already carry). (3) THE EXPLOSION GATHER SEAT'S OWN MARGIN
+(the core red — the seat's own documented "one-off batch failure"
+re-read): the ghast shot's launch noise (per-axis ±0.4-sigma,
+normalized into the flat 0.1 acceleration) drifts the hovering shot
+~1 block over the 5-tick fuse; the OLD seat placed it 5.41 of the
+gather band's 6 — a 0.59 margin the drift crosses. The closer cell
+(4.03 of 6, the ~2-block margin) holds whatever the noise points at;
+6/6 green across seeds.
 
 WAVE SLP — THE SLEEPING CLOCK WHOLE + THE INSTANT-DAWN IDENTITY CLAUSE
 RETIRED (2026-11-13, the twenty-first session's first lane — the CI
