@@ -704,6 +704,41 @@ public final class EngineWorld implements World,
     }
 
     /**
+     * WAVE KO-F — the per-chunk read face (Paper 0060 part 2's engine
+     * mapping): the loaded chunk's own cell reader for the collision
+     * gather's chunk-banded walk, or null when the chunk is not loaded
+     * (the reader's presence IS the gather's loaded gate).
+     *
+     * <p>PROVABLY EXACT: the reader reads the very {@link EngineChunk}
+     * the per-cell {@code getBlock} lookup would find (the same map,
+     * fetched once), through the same
+     * {@link EngineChunk#getBlock(int, int, int)} cell read — the
+     * answers are identical by construction (the y-bounds arm answers
+     * the air convention the per-cell surfaces carry). The equivalence
+     * seat pins the identity over randomized scenes against a verbatim
+     * copy of the pre-KO-F flat gather.</p>
+     *
+     * @param chunkX the chunk's X coordinate (block x >> 4)
+     * @param chunkZ the chunk's Z coordinate (block z >> 4)
+     * @return the chunk's read face, or null when the chunk is unloaded
+     */
+    public net.zaminmc.torch.server.physics.EntityCollisionWorld.ChunkReader collisionReader(
+            int chunkX, int chunkZ) {
+        EngineChunk chunk = chunks.get(new ChunkPosition(chunkX, chunkZ).packed());
+        if (chunk == null) {
+            return null;
+        }
+        BlockType airType = air;
+        return (x, y, z) -> {
+            if (y < net.zaminmc.torch.block.BlockPosition.MIN_Y
+                    || y > net.zaminmc.torch.block.BlockPosition.MAX_Y) {
+                return airType;
+            }
+            return chunk.getBlock(x & 0xF, y, z & 0xF);
+        };
+    }
+
+    /**
      * Snapshot view of all currently loaded chunks. Tick-thread context only
      * (the simulation's random-tick and update systems iterate it); the
      * concurrent map makes an uncoordinated read safe, the iteration order is

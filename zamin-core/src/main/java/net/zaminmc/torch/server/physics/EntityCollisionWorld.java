@@ -41,4 +41,52 @@ public interface EntityCollisionWorld {
     default boolean borderContains(int x, int z) {
         return true;
     }
+
+    /**
+     * WAVE KO-F — the per-chunk read face (Paper 0060 part 2's engine
+     * mapping, the exact-algorithmic class): one chunk fetch serving
+     * every cell of a 16x16 chunk column, replacing the per-cell world
+     * lookup ({@code new BlockPosition} + {@code chunkPosition()} + the
+     * concurrent-map {@code get} — three allocations and a hashed walk
+     * per cell the chunk-banded gather pays ONCE per chunk instead).
+     *
+     * <p>PROVABLY EXACT (the KO-A shape's own proof obligation): the
+     * reader must answer IDENTICALLY to {@link #blockAt(int, int, int)}
+     * for every cell of the chunk it was fetched for, and its presence
+     * must equal {@link #chunkLoaded(int, int)} for that chunk's columns
+     * — a present reader IS a loaded chunk, a null reader an unloaded
+     * one (or a world without the face, where the gather falls back to
+     * the per-cell reads unchanged). The reference walk's own shape
+     * (Paper 0060's {@code getChunkIfLoaded} fetched once per chunk
+     * before the cell loops, replacing {@code isChunkLoaded} +
+     * {@code getChunkAt} per chunk).</p>
+     *
+     * <p>The default answers null — every existing surface (the test
+     * stubs, the movement guard's worlds) keeps the per-cell path
+     * byte-identical until it opts in.</p>
+     *
+     * @param chunkX the chunk's X coordinate (block x >> 4)
+     * @param chunkZ the chunk's Z coordinate (block z >> 4)
+     * @return the chunk's read face, or null when the chunk is not
+     *         loaded or the surface carries no fast face
+     */
+    default ChunkReader chunkReader(int chunkX, int chunkZ) {
+        return null;
+    }
+
+    /**
+     * One loaded chunk's own cell-read face (WAVE KO-F): the cells of
+     * the chunk the reader was fetched for, in WORLD coordinates — the
+     * same answers {@code blockAt} would give, read straight off the
+     * chunk the per-cell world lookup would find.
+     */
+    interface ChunkReader {
+
+        /**
+         * The block at the cell, world coordinates (the chunk's own
+         * cells): identical to {@link EntityCollisionWorld#blockAt(
+         * int, int, int)} for every cell inside the reader's chunk.
+         */
+        BlockType blockAt(int x, int y, int z);
+    }
 }

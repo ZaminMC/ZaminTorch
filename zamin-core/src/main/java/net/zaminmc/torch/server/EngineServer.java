@@ -5079,6 +5079,18 @@ public final class EngineServer implements Server, EngineBridge {
                         && randomTicks != null) {
                     randomTicks.setLanePool(domainWorkerPool);
                 }
+                // WAVE P6-IL — the item-bodies' physics compute lane (the
+                // Phase-6 entities-family lane): torch.parallel-item-physics
+                // arms the movement-solve dispatch (the solves on the
+                // worker pool over the world frozen at the join barrier,
+                // every other arm — the fizz's shared random, the drag,
+                // the census, the pickup — on the tick lane in body
+                // order). Default OFF until the lane's own evidence
+                // retires the gate; the lockstep seat is the proof.
+                if (Boolean.getBoolean("torch.parallel-item-physics")
+                        && itemEntities != null) {
+                    itemEntities.setLanePool(domainWorkerPool);
+                }
                 ticker.attachDomainPool(domainWorkerPool);
                 crossOwnerRouter = new net.zaminmc.torch.server.concurrent.CrossOwnerRouter();
                 ticker.attachCrossOwnerRouter(crossOwnerRouter, simulationDomain);
@@ -22143,6 +22155,15 @@ public final class EngineServer implements Server, EngineBridge {
                                 new net.zaminmc.torch.block.BlockPosition(x, 64, z));
                     }
 
+                    // WAVE KO-F — the per-chunk read face (Paper 0060
+                    // part 2): one chunk fetch per chunk column, the
+                    // reader's presence the loaded gate itself.
+                    @Override
+                    public net.zaminmc.torch.server.physics.EntityCollisionWorld.ChunkReader chunkReader(
+                            int chunkX, int chunkZ) {
+                        return activeVehicleWorld().collisionReader(chunkX, chunkZ);
+                    }
+
                     // The ACTING dimension's border (the reference's
                     // per-world consult — the nether's view reports the
                     // center at /8, NetherDimension's own law).
@@ -27124,6 +27145,15 @@ public final class EngineServer implements Server, EngineBridge {
                     public boolean chunkLoaded(int x, int z) {
                         return activeWorld().isChunkLoadedAt(
                                 new net.zaminmc.torch.block.BlockPosition(x, 64, z));
+                    }
+
+                    // WAVE KO-F — the per-chunk read face (Paper 0060
+                    // part 2): one chunk fetch per chunk column, the
+                    // reader's presence the loaded gate itself.
+                    @Override
+                    public net.zaminmc.torch.server.physics.EntityCollisionWorld.ChunkReader chunkReader(
+                            int chunkX, int chunkZ) {
+                        return activeWorld().collisionReader(chunkX, chunkZ);
                     }
 
                     // The ACTING dimension's border (the reference's
@@ -36807,6 +36837,15 @@ public final class EngineServer implements Server, EngineBridge {
                 return world != null && world.isChunkLoadedAt(new BlockPosition(x, 64, z));
             }
 
+            // WAVE KO-F — the per-chunk read face (Paper 0060 part 2):
+            // one chunk fetch per chunk column of the movement check's
+            // own gather, the reader's presence the loaded gate itself.
+            @Override
+            public net.zaminmc.torch.server.physics.EntityCollisionWorld.ChunkReader chunkReader(
+                    int chunkX, int chunkZ) {
+                return world != null ? world.collisionReader(chunkX, chunkZ) : null;
+            }
+
             @Override
             public boolean borderContains(int x, int z) {
                 return borderFor(session.dimension()).contains(x, z);
@@ -37403,6 +37442,15 @@ public final class EngineServer implements Server, EngineBridge {
                     public boolean chunkLoaded(int x, int z) {
                         return activeGroundWorld().isChunkLoadedAt(
                                 new net.zaminmc.torch.block.BlockPosition(x, 64, z));
+                    }
+
+                    // WAVE KO-F — the per-chunk read face (Paper 0060
+                    // part 2): one chunk fetch per chunk column, the
+                    // reader's presence the loaded gate itself.
+                    @Override
+                    public net.zaminmc.torch.server.physics.EntityCollisionWorld.ChunkReader chunkReader(
+                            int chunkX, int chunkZ) {
+                        return activeGroundWorld().collisionReader(chunkX, chunkZ);
                     }
 
                     // The ACTING dimension's border (the reference's

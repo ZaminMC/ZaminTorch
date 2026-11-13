@@ -4434,3 +4434,95 @@ part 2 (the census's remaining engine-mappable row), the terrain-shape
 acceptance seats (awaiting the verifier's reference outputs), the
 vanilla-grade census's next family pick, the verifier's PRs, the
 flake-family watch (the panic seat).
+
+## SESSION 2026-11-13 (the acceleration session: WAVES KO-F + KO-G + P6-IL — the per-chunk read faces + the item-physics parallel lane)
+
+Task ID: 1
+Agent: main (ZaminTorch session)
+Task: The owner's acceleration directive — start the heavy optimization
+lanes from the proven PaperMC/Bukkit lineup (the supplied KigPaper
+1.8.8) and fire the remaining Phase-6 parallel lanes, every lane
+faithful 1:1 (the exact rows change no output; the gated lanes prove
+their equivalence before they can be called parallel).
+
+Work Log:
+- Synced develop (90bdcd5c, clean); re-read Torch-Arcetecture.txt
+  fresh: the KigPaper census's engine-mappable rows were all landed or
+  retired EXCEPT one half-row — Paper 0060 part 2 (the per-chunk fetch
+  arm; part 1, the items-skip-entity-boxes arm, was retired inherent
+  long ago). The Phase-6 section named the remaining lanes (entities,
+  tiles). The attribution record names randomTicks the top subsystem
+  (3.6-3.9ms/tick, load-independent) and the collision gather the
+  per-cell read cost every moving body pays.
+- WAVE KO-F — THE COLLISION GATHER'S PER-CHUNK FETCH (Paper 0060 part
+  2, the exact-algorithmic class — a pure win, no gate): the new
+  `EntityCollisionWorld.chunkReader(chunkX, chunkZ)` face (a present
+  reader IS the loaded gate; null an unloaded chunk or a readerless
+  surface), `EngineWorld.collisionReader` over `peek` (the very chunk
+  the per-cell lookup would find, fetched once per chunk column —
+  retiring the per-cell `new BlockPosition` + `chunkPosition()` +
+  concurrent-map `get` triple), and `EntityCollisions
+  .appendBlockBoxes` restructured to the CHUNK-BANDED WALK (the cell
+  order IDENTICAL to the flat walk by construction; the readerless
+  fallback byte-identical for every stub world). Wired at all four
+  live surfaces (ShapeGround, the vehicle ground, the mob query, the
+  movement guard's per-session world).
+- WAVE KO-G — THE RANDOM-TICK APPLY'S ONE-SLOT CHUNK CACHE
+  (engine-native, the attribution pass's top subsystem): the picks
+  arrive chunk-grouped by construction, so the apply's universal
+  per-pick `getBlock` is served by a one-slot chunk cache; A MISS IS
+  NEVER CACHED (the mid-walk generation law: a rule's cross-border
+  `setBlock` generating the chunk mid-walk is seen by the very next
+  pick). `randomTick(BlockPosition, BlockType)` package-private
+  overload (the head read hoisted).
+- WAVE P6-IL — THE ITEM-BODIES' PHYSICS COMPUTE LANE (Phase 6's
+  entities-family first lane, gated `torch.parallel-item-physics`
+  DEFAULT OFF + a 128-body dispatch floor): `ItemEntity.solveMovement`
+  (the PURE movement solve — the swept-box clip, no RNG/sound/listener/
+  world-write) + the `SolveIntent`/`SolveResult` records + the
+  `tick(ground, random, sounds, precomputed)` replay arm;
+  `ItemEntityManager.dispatchPhysicsLane` (dimension-grouped — the
+  ground's active-dimension flip single-threaded between joins;
+  contiguous index-block shards — the bodies independent in the
+  solve); the boot wiring behind the property gate.
+- SEATS: CollisionGatherChunkFetchEquivalenceTest 7 NEW (the
+  three-walk law over 400 randomized seeds against a VERBATIM copy of
+  the pre-KO-F flat gather — the legacy law, the fallback arm, the
+  reader arm; the unloaded gate; the border wall both ways; the k-1
+  band; the reader contract; the non-trivial guard; THE MEASURED
+  RELIEF: 15368.9 -> 6228.3 ns/walk over the dense scene, a 2.47x
+  relief on the gather) + RandomTickChunkCacheEquivalenceTest 2 NEW
+  (the lockstep over 400 seeded tick bands against a verbatim copy of
+  the per-pick walk; THE MID-WALK GENERATION SEAT — the seed-searched
+  ready-sapling growth generating the far chunk BETWEEN two picks of
+  the same chunk, the RNG-stream divergence the guaranteed witness) +
+  ItemPhysicsLaneTest 3 NEW (the LOCKSTEP: two identically-built
+  managers, 200 bodies over the ice/lava/slime scene, 300 ticks — the
+  full per-body state, the wire-visible listener sequence, AND THE
+  FIZZ SOUND SEQUENCE — the shared stream's own order, the strongest
+  divergence witness — all EXACT; the floor gate; the per-tick replay
+  law over 60 seeds x 40 ticks).
+- LANES: the physics package whole; the entity/item/block/world/
+  hopper/furnace/profiler/player sweeps green post-change (the
+  DenseOwner harness's real boot included — the live KO-F surfaces
+  exercised end to end through a real EngineServer).
+- The architecture record brought current: the Phase-6 header (two
+  lanes), the Phase-7 KO-F/KO-G wave record, the census's exact-row
+  list (0060 part 2 LANDED), the Wave P lane record (P6-IL), the
+  session's chronological record, and the NEXT WORK re-pin (the tiles
+  lane the next family pick; the attribution re-rank over the relieved
+  tree; the P6-IL operator evidence run the flag's own acceptance).
+
+Stage Summary:
+- THREE waves this session: KO-F (the per-chunk collision fetch, exact,
+  2.47x measured on the gather) + KO-G (the random-tick apply's
+  one-slot chunk cache, exact, with the mid-walk generation law) +
+  P6-IL (the item-physics compute lane, gated default OFF, lockstep
+  proven with the fizz-stream witness).
+- The KigPaper census now stands ALL LANDED OR RETIRED including
+  0060's both halves.
+
+AT CLOSE: develop pushed clean as Abasing; the pin's open rows: the
+tiles lane (Phase 6's next family pick), the attribution re-rank over
+the relieved tree, the P6-IL operator evidence run, the CI arbiter
+over this push, the verifier's PRs, the flake-family watch.

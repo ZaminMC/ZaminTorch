@@ -264,10 +264,48 @@ public final class RandomTickSystem {
      * on the worker pool — the streams make them identical) applied
      * IN ORDER on the tick lane. Public: the lane's equivalence test
      * drives the same picks through both paths.
+     *
+     * <p>WAVE KO-G — THE ONE-SLOT CHUNK CACHE: the picks arrive
+     * CHUNK-GROUPED by construction ({@link RandomTickPicks
+     * #picksForRegion} draws every pick of one chunk before the next),
+     * so the walk's universal first read — the per-pick {@code
+     * world.getBlock} with its {@code new BlockPosition} + {@code
+     * chunkPosition()} + concurrent-map {@code get} — is served by a
+     * ONE-SLOT cache: the chunk fetched once, every following pick of
+     * the same chunk reading straight off it. PROVABLY EXACT: the
+     * cached {@link EngineChunk} is the very chunk the per-cell lookup
+     * would find (the same map, fetched at the pick's own turn), and a
+     * MISS IS NEVER CACHED — a pick whose chunk is unloaded re-fetches
+     * every time, so a mid-walk generation (a rule's {@code setBlock}
+     * running {@code getOrGenerate}) is seen by the very next pick
+     * exactly as the per-cell walk would see it. The cache holds only
+     * PRESENT chunks, and an add never invalidates a present chunk —
+     * the walk's own mutation model (rules only ever ADD chunks, never
+     * remove them mid-apply; the tick lane owns the walk).</p>
      */
     public void applyPicks(java.util.List<long[]> picks) {
+        EngineChunk cachedChunk = null;
+        int cachedChunkX = 0;
+        int cachedChunkZ = 0;
         for (long[] cell : picks) {
-            randomTick(new BlockPosition((int) cell[0], (int) cell[1], (int) cell[2]));
+            int x = (int) cell[0];
+            int y = (int) cell[1];
+            int z = (int) cell[2];
+            int chunkX = x >> 4;
+            int chunkZ = z >> 4;
+            if (cachedChunk == null || chunkX != cachedChunkX || chunkZ != cachedChunkZ) {
+                // The miss is never cached (an unloaded chunk re-fetches
+                // every pick — a mid-walk generation is seen whole).
+                cachedChunk = world.peek(new ChunkPosition(chunkX, chunkZ));
+                cachedChunkX = chunkX;
+                cachedChunkZ = chunkZ;
+            }
+            BlockPosition position = new BlockPosition(x, y, z);
+            if (cachedChunk != null) {
+                randomTick(position, cachedChunk.getBlock(x & 0xF, y, z & 0xF));
+            } else {
+                randomTick(position, world.getBlock(position));
+            }
         }
     }
 
@@ -277,7 +315,16 @@ public final class RandomTickSystem {
      * 3-of-4096 odds make seeded end-to-end assertions flaky).
      */
     public void randomTick(BlockPosition position) {
-        BlockType type = world.getBlock(position);
+        randomTick(position, world.getBlock(position));
+    }
+
+    /**
+     * The per-cell rule with the head read supplied (WAVE KO-G — the
+     * apply walk's one-slot chunk cache answers it): the body reads the
+     * passed type and never re-reads the pick cell — the caller's read
+     * and the walk's own read answer identically by construction.
+     */
+    void randomTick(BlockPosition position, BlockType type) {
         // The liquid family's random ticks (LiquidBlock's own constructor
         // band — setTicksRandomly(true) for every liquid, the source
         // block's false-then-lava-true override; the reference's

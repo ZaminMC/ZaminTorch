@@ -460,13 +460,144 @@ public final class ItemEntityManager {
         return entities.size();
     }
 
+    // ------------------------------------------------------------------
+    // WAVE P6-IL — the item-bodies' physics compute lane (the Phase-6
+    // entities-family lane, §22's deliberate gating)
+    // ------------------------------------------------------------------
+
+    /**
+     * The lane's dispatch floor: below this body count the dispatch
+     * overhead outweighs the solve (the measured per-body solve is
+     * sub-microsecond post-KO-F; a batch join costs tens of
+     * microseconds). The floor keeps small worlds sequential — the
+     * lane exists for the dense-owner shapes (the Phase-7 harness's
+     * ~1500-item scenes).
+     */
+    static final int LANE_DISPATCH_FLOOR = 128;
+
+    /** The lane's worker pool (null keeps every walk sequential). */
+    private volatile net.zaminmc.torch.server.concurrent.DomainWorkerPool lanePool;
+
+    /** The lane's engagement evidence: how many tick walks rode the dispatch. */
+    private volatile long parallelDispatchTicks;
+
+    /** Wires the lane's worker pool (the boot wiring — the §22 gate arms it). */
+    public void setLanePool(net.zaminmc.torch.server.concurrent.DomainWorkerPool pool) {
+        this.lanePool = pool;
+    }
+
+    /** @return how many tick walks rode the pool dispatch (0 = every walk sequential). */
+    public long parallelDispatchTicks() {
+        return parallelDispatchTicks;
+    }
+
+    /**
+     * WAVE P6-IL — THE LANE'S COMPUTE HALF: the movement solves for the
+     * whole walk, computed on the worker pool while the tick lane parks
+     * at the dispatch-and-join barrier (the world frozen — every writer
+     * parked; the reads ride the queue's own happens-before edges).
+     *
+     * <p>THE SHARD SHAPE: the bodies are INDEPENDENT in the solve (no
+     * cross-body reads — the merge walk is separate and stays
+     * sequential; each body's solve reads only the frozen world and its
+     * own intent), so the scheduling is free; the contiguous index
+     * blocks over the stable snapshot keep every worker's load even (a
+     * region-first grouping would skew under the dense single-region
+     * scene the lane exists for). THE DIMENSION GROUPS: the shared
+     * ground's active-dimension flip is a tick-lane field — the lane
+     * groups the bodies by dimension (first-appearance order, the body
+     * order preserved inside each group), flips once per group, and
+     * dispatches the group's jobs (the join between groups keeps the
+     * flip single-threaded, exactly the per-body flip's own law).</p>
+     *
+     * <p>PROVABLY EQUIVALENT: every body's solve is the same pure
+     * function over the same inputs whether it runs inline (the walk's
+     * own arm) or on a worker — the lockstep seat pins the identity over
+     * hundreds of ticks including the lava fizz band (the shared random
+     * stream's own order — the fizz stays on the tick lane in body
+     * order, so the streams cannot diverge).</p>
+     *
+     * @return the per-index solve results (aligned with the snapshot
+     *         the walk iterates), or null when the lane does not engage
+     *         (unarmed, under the floor, or shut down) — the walk then
+     *         runs the inline arm exactly as it always did
+     */
+    private ItemEntity.SolveResult[] dispatchPhysicsLane(List<ItemEntity> bodies) {
+        net.zaminmc.torch.server.concurrent.DomainWorkerPool pool = lanePool;
+        if (pool == null || pool.isShutdown() || bodies.size() < LANE_DISPATCH_FLOOR) {
+            return null;
+        }
+        ItemEntity.SolveResult[] solved = new ItemEntity.SolveResult[bodies.size()];
+        // The dimension groups (first-appearance order, body order inside).
+        java.util.LinkedHashMap<Integer, java.util.List<Integer>> groups =
+                new java.util.LinkedHashMap<>();
+        for (int index = 0; index < bodies.size(); index++) {
+            groups.computeIfAbsent(bodies.get(index).dimension(),
+                    key -> new ArrayList<>()).add(index);
+        }
+        for (java.util.Map.Entry<Integer, java.util.List<Integer>> group
+                : groups.entrySet()) {
+            // The ground's flip for this group's dimension — the same flip
+            // the walk's per-body arm performs, once for the whole group
+            // (the join below holds the tick lane until every job of the
+            // group has read through it).
+            ground.setActiveDimension(group.getKey());
+            net.zaminmc.torch.server.physics.EntityCollisionWorld surface =
+                    ground.collisionWorld();
+            if (surface == null) {
+                continue; // the readerless ground: those bodies solve inline
+            }
+            java.util.List<Integer> indices = group.getValue();
+            int workers = Math.max(1, pool.workerCount());
+            int blockSize = Math.max(1, (indices.size() + workers - 1) / workers);
+            java.util.List<Runnable> jobs = new ArrayList<>();
+            for (int start = 0; start < indices.size(); start += blockSize) {
+                final int from = start;
+                final int to = Math.min(start + blockSize, indices.size());
+                jobs.add(() -> {
+                    for (int slot = from; slot < to; slot++) {
+                        int index = indices.get(slot);
+                        solved[index] = ItemEntity.solveMovement(
+                                surface, bodies.get(index).solveIntent());
+                    }
+                });
+            }
+            pool.dispatchAndJoin(jobs);
+            parallelDispatchTicks++;
+        }
+        return solved;
+    }
+
     /** Advances all item entities one tick: merging, physics, pickup checks, despawn. */
     public void tick(Iterable<PlayerSession> players) {
         mergeNearbyItems();
 
-        Iterator<ItemEntity> iterator = entities.iterator();
+        // WAVE P6-IL — the physics compute lane: when armed and over the
+        // floor, the walk's snapshot is captured once and every body's
+        // movement solve rides the worker pool (the tick lane parked at
+        // the join); the apply walk below replays the results in the
+        // SAME body order, every other arm unchanged. Unarmed (the
+        // default), the walk iterates the live list exactly as it always
+        // did — byte-identical behavior.
+        ItemEntity.SolveResult[] precomputed = null;
+        List<ItemEntity> walkBodies = null;
+        net.zaminmc.torch.server.concurrent.DomainWorkerPool pool = lanePool;
+        if (pool != null && !pool.isShutdown()
+                && entities.size() >= LANE_DISPATCH_FLOOR) {
+            walkBodies = List.copyOf(entities); // the stable snapshot (COW)
+            precomputed = dispatchPhysicsLane(walkBodies);
+            if (precomputed == null) {
+                walkBodies = null; // the floor or surface refused: the live walk
+            }
+        }
+        int walkIndex = 0;
+        Iterator<ItemEntity> iterator = walkBodies != null
+                ? walkBodies.iterator() : entities.iterator();
         while (iterator.hasNext()) {
             ItemEntity entity = iterator.next();
+            final ItemEntity.SolveResult entitySolve = precomputed != null
+                    ? precomputed[walkIndex] : null;
+            walkIndex++; // the snapshot's own index (removed bodies included)
 
             if (entity.expired()) {
                 remove(entity, "despawned"); // mid-walk removal is copy-on-write safe
@@ -490,7 +621,7 @@ public final class ItemEntityManager {
             // that crosses a chunk border re-keys below; the compare is
             // two record reads against the walk's own block consults).
             ChunkKey keyBefore = chunkKeyOf(entity);
-            if (entity.tick(ground, random, sounds)) {
+            if (entity.tick(ground, random, sounds, entitySolve)) {
                 for (Listener listener : listeners) {
                     listener.onItemMoved(entity);
                 }

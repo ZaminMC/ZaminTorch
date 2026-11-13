@@ -69,6 +69,28 @@ public final class EntityCollisions {
     /**
      * The appending form (the reference's own list-passing shape): the
      * solver reuses one list across its step retries.
+     *
+     * <p>WAVE KO-F — THE CHUNK-BANDED WALK (Paper 0060 part 2's engine
+     * mapping): the cell band is walked CHUNK BY CHUNK (the chunkX band
+     * outer, the chunkZ band inner, each chunk's own x/z sub-band
+     * inside), the chunk's {@link EntityCollisionWorld#chunkReader(
+     * int, int) reader} fetched ONCE per chunk — the per-cell world
+     * lookup ({@code new BlockPosition} + {@code chunkPosition()} + the
+     * concurrent-map {@code get}) retired for every reader-carrying
+     * surface. THE CELL ORDER IS IDENTICAL to the flat walk by
+     * construction (the chunk bands are monotonic in x and z, the
+     * sub-bands clamped to the region's own bounds), so the box list —
+     * and every clip the solver runs over it — answers EXACTLY as
+     * before (the equivalence seat pins this over randomized scenes
+     * against a verbatim copy of the pre-KO-F flat walk).</p>
+     *
+     * <p>The fallback arm: a null reader means the chunk is not loaded
+     * OR the surface carries no fast face — the per-column
+     * {@link EntityCollisionWorld#chunkLoaded(int, int)} gate consults
+     * once per chunk (all sixteen of its columns share the one chunk),
+     * and a loaded-but-readerless chunk reads its cells through the
+     * per-cell {@code blockAt} path unchanged (the stub worlds' own
+     * shape, byte-identical to the pre-KO-F walk).</p>
      */
     public static void appendBlockBoxes(EntityCollisionWorld world, Aabb region,
             boolean moverInsideBorder, List<Aabb> out) {
@@ -78,29 +100,57 @@ public final class EntityCollisions {
         int maxY = (int) Math.floor(region.maxY + 1.0);
         int minZ = (int) Math.floor(region.minZ);
         int maxZ = (int) Math.floor(region.maxZ + 1.0);
-        for (int x = minX; x < maxX; x++) {
-            for (int z = minZ; z < maxZ; z++) {
-                if (!world.chunkLoaded(x, z)) {
-                    continue;
+        // WAVE KO-F: the chunk bands of the region's own cell band
+        // (maxX/maxZ are exclusive bounds — an empty band skips whole).
+        if (minX >= maxX || minZ >= maxZ) {
+            return;
+        }
+        int minChunkX = minX >> 4;
+        int maxChunkX = (maxX - 1) >> 4;
+        int minChunkZ = minZ >> 4;
+        int maxChunkZ = (maxZ - 1) >> 4;
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            // The chunk's own x sub-band, clamped to the region's band.
+            int xStart = Math.max(minX, chunkX << 4);
+            int xEnd = Math.min(maxX, (chunkX << 4) + 16);
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                int zStart = Math.max(minZ, chunkZ << 4);
+                int zEnd = Math.min(maxZ, (chunkZ << 4) + 16);
+                // WAVE KO-F: ONE fetch per chunk — the reader IS the
+                // loaded gate (a present reader is a loaded chunk; null
+                // is an unloaded chunk or a readerless surface, the
+                // fallback arm below).
+                EntityCollisionWorld.ChunkReader reader =
+                        world.chunkReader(chunkX, chunkZ);
+                boolean loadedFallback = reader == null
+                        && world.chunkLoaded(xStart, zStart);
+                if (reader == null && !loadedFallback) {
+                    continue; // the unloaded chunk contributes nothing
                 }
-                // The reference's own k - 1 start: the tall families
-                // reach through their cell's ceiling, so the cell below
-                // the region still contributes.
-                for (int y = minY - 1; y < maxY; y++) {
-                    if (y < BlockPosition.MIN_Y || y > BlockPosition.MAX_Y) {
-                        continue;
+                for (int x = xStart; x < xEnd; x++) {
+                    for (int z = zStart; z < zEnd; z++) {
+                        // The reference's own k - 1 start: the tall families
+                        // reach through their cell's ceiling, so the cell below
+                        // the region still contributes.
+                        for (int y = minY - 1; y < maxY; y++) {
+                            if (y < BlockPosition.MIN_Y || y > BlockPosition.MAX_Y) {
+                                continue;
+                            }
+                            // The border law: the real block when the cell lies
+                            // inside the border OR the body itself is outside;
+                            // STONE (the wall — the reference's own STONE
+                            // default state stand-in) otherwise.
+                            BlockType type;
+                            if (world.borderContains(x, z) || !moverInsideBorder) {
+                                type = reader != null
+                                        ? reader.blockAt(x, y, z)
+                                        : world.blockAt(x, y, z);
+                            } else {
+                                type = net.zaminmc.torch.server.block.BuiltinBlocks.STONE;
+                            }
+                            appendCellBoxes(world, type, x, y, z, region, out);
+                        }
                     }
-                    // The border law: the real block when the cell lies
-                    // inside the border OR the body itself is outside;
-                    // STONE (the wall — the reference's own STONE
-                    // default state stand-in) otherwise.
-                    BlockType type;
-                    if (world.borderContains(x, z) || !moverInsideBorder) {
-                        type = world.blockAt(x, y, z);
-                    } else {
-                        type = net.zaminmc.torch.server.block.BuiltinBlocks.STONE;
-                    }
-                    appendCellBoxes(world, type, x, y, z, region, out);
                 }
             }
         }

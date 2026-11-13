@@ -385,6 +385,67 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
     private static final double GROUND_EPSILON = 1.0E-7;
 
     /**
+     * WAVE P6-IL — the lane's solve intent: the body's own pre-tick
+     * state the pure movement solve reads (the position centre, the
+     * RAW velocities — {@link #solveIntent()} carries the post-gravity
+     * vertical as the solver receives it, computed WITHOUT the body
+     * write the tick lane's head arm owns — and the ground flag).
+     * Immutable by construction: the worker's job reads it once.
+     */
+    public record SolveIntent(double x, double y, double z,
+            double velocityX, double velocityY, double velocityZ, boolean onGround) {
+    }
+
+    /**
+     * WAVE P6-IL — the lane's solve result: the moved body's own
+     * position (feet-centre x/z, the BOTTOM y — the solver's own
+     * convention), its ground flag, and the solver's whole result
+     * record (the clip flags and the velocity-zeroing signals the
+     * tick-lane apply replays).
+     */
+    public record SolveResult(double x, double y, double z, boolean onGround,
+            net.zaminmc.torch.server.physics.EntityMoveSolver.Result result) {
+    }
+
+    /**
+     * WAVE P6-IL — the body's own solve intent, read wherever the lane
+     * captures it (the tick lane at dispatch, or the worker at solve
+     * time — the body is owned by exactly one job and the tick lane is
+     * parked at the join, so the reads observe the stable pre-tick
+     * state either way). The vertical carries the POST-GRAVITY value
+     * (the head arm's own arithmetic, never its write).
+     */
+    public SolveIntent solveIntent() {
+        return new SolveIntent(position.x(), position.y(), position.z(),
+                velocityX, velocityY - GRAVITY_PER_TICK, velocityZ, onGround);
+    }
+
+    /**
+     * WAVE P6-IL — the PURE movement solve (the lane's compute half):
+     * the swept-box clip over the collision world, no RNG, no sound, no
+     * listener, no world write — the same function the inline arm of
+     * {@link #tick(Ground, Random, Sounds, SolveResult)} runs, split
+     * out so a worker pool can run it while the tick lane parks at the
+     * dispatch-and-join barrier (the world frozen — every writer
+     * parked; the reads ride the queue's own happens-before).
+     */
+    public static SolveResult solveMovement(
+            net.zaminmc.torch.server.physics.EntityCollisionWorld collisionWorld,
+            SolveIntent intent) {
+        net.zaminmc.torch.server.physics.EntityMoveSolver.Body body =
+                new net.zaminmc.torch.server.physics.EntityMoveSolver.Body(
+                        intent.x(), intent.y() - HALF_HEIGHT, intent.z(),
+                        HALF_WIDTH * 2.0, HALF_HEIGHT * 2.0);
+        body.onGround = intent.onGround();
+        net.zaminmc.torch.server.physics.EntityMoveSolver.Result result =
+                net.zaminmc.torch.server.physics.EntityMoveSolver.move(
+                        collisionWorld, body, intent.velocityX(), intent.velocityY(),
+                        intent.velocityZ(),
+                        net.zaminmc.torch.server.physics.EntityMoveSolver.MoveLaw.plain());
+        return new SolveResult(body.x, body.y, body.z, body.onGround, result);
+    }
+
+    /**
      * Advances one tick of the item's physics — the reference's own
      * ItemEntity.tick model (Wave IO-F): the pre-move gravity, the swept
      * move with its vertical-clip consult, the post-move drag with the
@@ -404,6 +465,25 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
      * seats drive).
      */
     public boolean tick(Ground ground, Random random, Sounds sounds) {
+        return tick(ground, random, sounds, null);
+    }
+
+    /**
+     * WAVE P6-IL — THE PHYSICS COMPUTE LANE'S SPLIT (the Phase-6
+     * entities-family lane): the movement SOLVE — the one gather-heavy,
+     * pure arm of the walk (the swept-box clip over the collision
+     * world, no RNG, no sound, no listener, no world write) — can be
+     * computed OFF the tick lane (a worker-pool job reading the world
+     * frozen at the dispatch-and-join barrier) and replayed here; every
+     * other arm — the head writes (the clocks, the gravity), the
+     * vertical-clip consult, the lava fizz (its SHARED random draws and
+     * its sound, in the walk's own body order), the drag — stays on the
+     * tick lane exactly as it sat. The precomputed result and the
+     * inline solve answer IDENTICALLY by construction (the same pure
+     * function over the same inputs, the lockstep seat's proof
+     * obligation).
+     */
+    public boolean tick(Ground ground, Random random, Sounds sounds, SolveResult precomputed) {
         long before = fixedPoint(position);
         // World.updateEntity's own increment (World.java line 1355) — the
         // lifetime counter the % 25 poll rides, BEFORE the tick body exactly
@@ -441,17 +521,27 @@ public final class ItemEntity implements net.zaminmc.torch.entity.DroppedItem {
         net.zaminmc.torch.server.physics.EntityCollisionWorld collisionWorld =
                 ground.collisionWorld();
         if (collisionWorld != null) {
-            net.zaminmc.torch.server.physics.EntityMoveSolver.Body body =
-                    new net.zaminmc.torch.server.physics.EntityMoveSolver.Body(
-                            position.x(), position.y() - HALF_HEIGHT, position.z(),
-                            HALF_WIDTH * 2.0, HALF_HEIGHT * 2.0);
-            body.onGround = onGround;
-            net.zaminmc.torch.server.physics.EntityMoveSolver.Result result =
-                    net.zaminmc.torch.server.physics.EntityMoveSolver.move(
-                            collisionWorld, body, velocityX, velocityY, velocityZ,
-                            net.zaminmc.torch.server.physics.EntityMoveSolver.MoveLaw.plain());
-            position = new Position(body.x, body.y + HALF_HEIGHT, body.z);
-            onGround = result.onGround();
+            // WAVE P6-IL: the lane's precomputed solve replays here (the
+            // worker's answer over the same frozen world); the inline arm
+            // constructs the same solve the worker would have run.
+            net.zaminmc.torch.server.physics.EntityMoveSolver.Result result;
+            if (precomputed != null) {
+                result = precomputed.result();
+                position = new Position(precomputed.x(),
+                        precomputed.y() + HALF_HEIGHT, precomputed.z());
+                onGround = precomputed.onGround();
+            } else {
+                net.zaminmc.torch.server.physics.EntityMoveSolver.Body body =
+                        new net.zaminmc.torch.server.physics.EntityMoveSolver.Body(
+                                position.x(), position.y() - HALF_HEIGHT, position.z(),
+                                HALF_WIDTH * 2.0, HALF_HEIGHT * 2.0);
+                body.onGround = onGround;
+                result = net.zaminmc.torch.server.physics.EntityMoveSolver.move(
+                        collisionWorld, body, velocityX, velocityY, velocityZ,
+                        net.zaminmc.torch.server.physics.EntityMoveSolver.MoveLaw.plain());
+                position = new Position(body.x, body.y + HALF_HEIGHT, body.z);
+                onGround = result.onGround();
+            }
             if (result.zeroVelocityX()) {
                 velocityX = 0.0;
             }
